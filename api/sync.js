@@ -22,7 +22,12 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const authHeader = req.headers.authorization || '';
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: authHeader ? { Authorization: authHeader } : {}
+    }
+  });
 
   try {
     if (req.method === 'GET') {

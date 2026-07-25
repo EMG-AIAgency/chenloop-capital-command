@@ -1,4 +1,15 @@
-// CHENLOOP - Core Financial Engine (v4.0 Analytics & Simulation Engine)
+// CHENLOOP - Core Financial Engine (v4.0 Auth & Multi-Tenant SaaS Engine)
+
+const SUPABASE_URL = "https://sfikeqgzmyhellqxsqbu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_fQ4DJf5q8IssJOKuBKrWOA_K1qMwgkY";
+
+let supabaseClient = null;
+let currentSession = null;
+let currentProfile = null;
+
+if (window.supabase) {
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
 const initialState = {
   organization: {
@@ -26,9 +37,17 @@ const initialState = {
 let state = initialState;
 
 async function loadState() {
-  // Sincronización en tiempo real desde Supabase Cloud para todas las tablas
+  if (!currentSession) {
+    const authWall = document.getElementById('auth-wall');
+    if (authWall) authWall.classList.remove('hidden');
+    return;
+  }
+
   try {
-    const res = await fetch('/api/sync');
+    const headers = {
+      'Authorization': `Bearer ${currentSession.access_token}`
+    };
+    const res = await fetch('/api/sync', { headers });
     if (res.ok) {
       const cloudData = await res.json();
       
@@ -897,6 +916,168 @@ document.getElementById('form-add-borrower')?.addEventListener('submit', async f
   window.toggleBorrowerForm();
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderAll();
+// ----------------------------------------------------
+// SUPABASE AUTHENTICATION & SESSION MANAGEMENT (FASE 2)
+// ----------------------------------------------------
+window.switchAuthTab = function(tab) {
+  const loginForm = document.getElementById('form-login');
+  const regForm = document.getElementById('form-register');
+  const btnLogin = document.getElementById('tab-btn-login');
+  const btnReg = document.getElementById('tab-btn-register');
+  const errBox = document.getElementById('auth-error-msg');
+  const succBox = document.getElementById('auth-success-msg');
+  
+  if (errBox) errBox.classList.add('hidden');
+  if (succBox) succBox.classList.add('hidden');
+
+  if (tab === 'login') {
+    loginForm?.classList.remove('hidden');
+    regForm?.classList.add('hidden');
+    btnLogin?.classList.add('font-bold', 'text-[#4edea3]', 'border-[#4edea3]');
+    btnLogin?.classList.remove('font-medium', 'text-[#bbcabf]', 'border-transparent');
+    btnReg?.classList.remove('font-bold', 'text-[#4edea3]', 'border-[#4edea3]');
+    btnReg?.classList.add('font-medium', 'text-[#bbcabf]', 'border-transparent');
+  } else {
+    loginForm?.classList.add('hidden');
+    regForm?.classList.remove('hidden');
+    btnReg?.classList.add('font-bold', 'text-[#4edea3]', 'border-[#4edea3]');
+    btnReg?.classList.remove('font-medium', 'text-[#bbcabf]', 'border-transparent');
+    btnLogin?.classList.remove('font-bold', 'text-[#4edea3]', 'border-[#4edea3]');
+    btnLogin?.classList.add('font-medium', 'text-[#bbcabf]', 'border-transparent');
+  }
+};
+
+function showAuthError(msg) {
+  const errBox = document.getElementById('auth-error-msg');
+  if (errBox) {
+    errBox.innerText = msg;
+    errBox.classList.remove('hidden');
+  }
+}
+
+function showAuthSuccess(msg) {
+  const succBox = document.getElementById('auth-success-msg');
+  if (succBox) {
+    succBox.innerText = msg;
+    succBox.classList.remove('hidden');
+  }
+}
+
+window.logoutUser = async function() {
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+  currentSession = null;
+  currentProfile = null;
+  state = JSON.parse(JSON.stringify(initialState));
+  
+  const authWall = document.getElementById('auth-wall');
+  if (authWall) authWall.classList.remove('hidden');
+};
+
+document.getElementById('form-login')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('btn-submit-login');
+  
+  if (btn) btn.innerText = "Verificando credenciales...";
+  
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    
+    currentSession = data.session;
+    document.getElementById('auth-wall')?.classList.add('hidden');
+    await loadProfileAndInit();
+  } catch (err) {
+    showAuthError("Error de Inicio de Sesión: " + (err.message || "Credenciales inválidas"));
+  } finally {
+    if (btn) btn.innerText = "Ingresar al Command Center";
+  }
+});
+
+document.getElementById('form-register')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fullName = document.getElementById('reg-fullname').value;
+  const orgName = document.getElementById('reg-orgname').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  const btn = document.getElementById('btn-submit-register');
+  
+  if (btn) btn.innerText = "Creando Organización & Usuario...";
+  
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          org_name: orgName
+        }
+      }
+    });
+    
+    if (error) throw error;
+    
+    showAuthSuccess("✓ Cuenta creada exitosamente. Iniciando sesión...");
+    
+    if (data.session) {
+      currentSession = data.session;
+      document.getElementById('auth-wall')?.classList.add('hidden');
+      await loadProfileAndInit();
+    } else {
+      showAuthSuccess("✓ Cuenta registrada. Por favor revisa tu correo o inicia sesión.");
+      window.switchAuthTab('login');
+    }
+  } catch (err) {
+    showAuthError("Error al registrar: " + (err.message || "No se pudo crear la cuenta"));
+  } finally {
+    if (btn) btn.innerText = "Crear Cuenta & Cartera Aislada";
+  }
+});
+
+async function loadProfileAndInit() {
+  if (!currentSession) return;
+  
+  const user = currentSession.user;
+  const userDispEl = document.getElementById('user-display-name');
+  const avatarEl = document.getElementById('user-avatar-initials');
+  const orgBadgeEl = document.getElementById('current-org-badge');
+  
+  const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
+  const orgName = user.user_metadata?.org_name || "Mi Cartera Personal";
+  
+  if (userDispEl) userDispEl.innerText = fullName;
+  if (avatarEl) avatarEl.innerText = fullName.substring(0, 2).toUpperCase();
+  if (orgBadgeEl) orgBadgeEl.innerText = orgName;
+  
+  await loadState();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (supabaseClient) {
+    const { data } = await supabaseClient.auth.getSession();
+    if (data && data.session) {
+      currentSession = data.session;
+      document.getElementById('auth-wall')?.classList.add('hidden');
+      await loadProfileAndInit();
+    } else {
+      document.getElementById('auth-wall')?.classList.remove('hidden');
+    }
+    
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        currentSession = session;
+        document.getElementById('auth-wall')?.classList.add('hidden');
+        await loadProfileAndInit();
+      } else {
+        currentSession = null;
+        document.getElementById('auth-wall')?.classList.remove('hidden');
+      }
+    });
+  } else {
+    renderAll();
+  }
 });

@@ -41,6 +41,7 @@
     .badge-red { background: rgba(244, 63, 94, 0.12); color: #F43F5E; }
     .badge-amber { background: rgba(245, 158, 11, 0.12); color: #F59E0B; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       darkMode: "class",
@@ -63,6 +64,65 @@
   </script>
 </head>
 <body class="bg-[#080C14] text-[#dfe2ee]">
+
+  <!-- LOGIN & REGISTER AUTH WALL (STITCH GLASSMORPHISM STYLE) -->
+  <div id="auth-wall" class="fixed inset-0 bg-[#080C14] z-[1000] flex items-center justify-center p-4 hero-gradient">
+    <div class="glass-card w-full max-w-[460px] p-8 space-y-6 border border-white/10 shadow-2xl">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#10b981] to-[#047857] flex items-center justify-center font-bold text-white shadow-xl shadow-[#10b981]/30 font-display mx-auto text-xl">CL</div>
+        <h1 class="font-display text-2xl font-bold text-[#4edea3] tracking-tight">CHENLOOP</h1>
+        <p class="text-xs text-[#bbcabf] uppercase tracking-widest font-semibold">Executive Capital Command Center</p>
+      </div>
+
+      <!-- Auth Selector Tabs -->
+      <div class="flex border-b border-white/10 text-sm">
+        <button id="tab-btn-login" onclick="window.switchAuthTab('login')" class="flex-1 py-2.5 font-bold text-[#4edea3] border-b-2 border-[#4edea3] transition-all">Iniciar Sesión</button>
+        <button id="tab-btn-register" onclick="window.switchAuthTab('register')" class="flex-1 py-2.5 font-medium text-[#bbcabf] border-b-2 border-transparent transition-all">Crear Cuenta SaaS</button>
+      </div>
+
+      <!-- Error / Success Alert -->
+      <div id="auth-error-msg" class="hidden p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs"></div>
+      <div id="auth-success-msg" class="hidden p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[#4edea3] text-xs"></div>
+
+      <!-- LOGIN FORM -->
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Correo Electrónico</label>
+          <input type="email" id="login-email" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="admin@tu-cartera.com" required/>
+        </div>
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Contraseña</label>
+          <input type="password" id="login-password" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="••••••••" required/>
+        </div>
+        <button type="submit" id="btn-submit-login" class="w-full bg-[#10b981] hover:bg-[#047857] text-white py-3 rounded-lg font-bold text-sm transition-all shadow-lg shadow-[#10b981]/20">
+          Ingresar al Command Center
+        </button>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="form-register" class="hidden space-y-4">
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Nombre Completo</label>
+          <input type="text" id="reg-fullname" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Ej. Carlos Mendoza" required/>
+        </div>
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Nombre de la Organización / Cartera</label>
+          <input type="text" id="reg-orgname" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Ej. Inversiones Capital Plus" required/>
+        </div>
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Correo Electrónico</label>
+          <input type="email" id="reg-email" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="carlos@capitalplus.com" required/>
+        </div>
+        <div>
+          <label class="block text-xs uppercase text-[#bbcabf] mb-1 font-semibold">Contraseña</label>
+          <input type="password" id="reg-password" class="w-full bg-[#162032] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="••••••••" minlength="6" required/>
+        </div>
+        <button type="submit" id="btn-submit-register" class="w-full bg-[#10b981] hover:bg-[#047857] text-white py-3 rounded-lg font-bold text-sm transition-all shadow-lg shadow-[#10b981]/20">
+          Crear Cuenta & Cartera Aislada
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Stitch Left Sidebar Navigation -->
   <aside class="fixed left-0 top-0 h-full w-[260px] bg-[#0f131c] border-r border-white/5 flex flex-col py-6 px-4 z-50">
@@ -120,12 +180,17 @@
     </nav>
 
     <div class="mt-auto pt-6 border-t border-white/5 px-4">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-full bg-[#1c2028] border border-white/10 flex items-center justify-center font-bold text-xs">AD</div>
-        <div>
-          <p class="text-xs font-bold text-white">Chen Executive</p>
-          <p class="text-[10px] text-[#bbcabf]">Tier 1 Admin</p>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-[#1c2028] border border-white/10 flex items-center justify-center font-bold text-xs" id="user-avatar-initials">AD</div>
+          <div>
+            <p class="text-xs font-bold text-white truncate max-w-[110px]" id="user-display-name">Chen Executive</p>
+            <p class="text-[10px] text-[#bbcabf]" id="user-role-badge">Tier 1 Admin</p>
+          </div>
         </div>
+        <button onclick="window.logoutUser()" class="text-[#bbcabf] hover:text-[#F43F5E] transition-all p-1" title="Cerrar Sesión">
+          <span class="material-symbols-outlined text-[20px]">logout</span>
+        </button>
       </div>
     </div>
   </aside>
@@ -134,7 +199,7 @@
   <header class="fixed top-0 left-[260px] right-0 h-16 bg-[#0f131c]/80 backdrop-blur-xl border-b border-white/5 flex justify-between items-center px-8 z-40">
     <h2 class="font-display text-xl font-bold text-white" id="page-title-text">Command Center</h2>
     <div class="flex items-center gap-4">
-      <span class="text-xs text-[#bbcabf] bg-[#1c2028] px-3 py-1.5 rounded-full border border-white/5">Mi Cartera Personal</span>
+      <span class="text-xs text-[#4edea3] bg-[#10b981]/10 border border-[#10b981]/20 px-3 py-1.5 rounded-full font-bold" id="current-org-badge">Mi Cartera Personal</span>
     </div>
   </header>
 

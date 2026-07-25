@@ -13,124 +13,14 @@ const initialState = {
     riskReserve: 1500.0,
     accumulatedProfits: 1850.0
   },
-  borrowers: [
-    {
-      id: "bw-1",
-      name: "Juan Pérez",
-      idNumber: "001-050490-0001B",
-      phone: "+505 8899-1122",
-      income: 500,
-      employment: "Empleado",
-      verified: true,
-      status: "Buen historial",
-      loansCompleted: 3,
-      maxExposure: 300.0
-    },
-    {
-      id: "bw-2",
-      name: "María Rodríguez",
-      idNumber: "001-121088-0004K",
-      phone: "+505 8765-4321",
-      income: 380,
-      employment: "Negocio",
-      verified: true,
-      status: "Activo",
-      loansCompleted: 1,
-      maxExposure: 150.0
-    }
-  ],
-  applications: [
-    {
-      id: "APP-2001",
-      borrowerId: "bw-1",
-      borrowerName: "Juan Pérez",
-      amount: 100.0,
-      reason: "Capital de Trabajo",
-      count: 7,
-      status: "En Revisión",
-      createdAt: "2026-07-23",
-      approvedBy: null
-    }
-  ],
-  loans: [
-    {
-      id: "LN-1001",
-      borrowerId: "bw-1",
-      borrowerName: "Juan Pérez",
-      principal: 100.0,
-      installmentAmount: 25.0,
-      installmentCount: 7,
-      totalScheduled: 175.0,
-      scheduledProfit: 75.0,
-      status: "Activo",
-      disbursementDate: "2026-06-01",
-      paidAmount: 100.0,
-      remainingAmount: 75.0
-    }
-  ],
-  installments: [
-    {
-      id: "inst-1",
-      loanId: "LN-1001",
-      number: 1,
-      dueDate: "2026-06-15",
-      amount: 25.0,
-      status: "Pagada",
-      daysOverdue: 0
-    },
-    {
-      id: "inst-2",
-      loanId: "LN-1001",
-      number: 2,
-      dueDate: "2026-07-01",
-      amount: 25.0,
-      status: "Pagada",
-      daysOverdue: 0
-    },
-    {
-      id: "inst-3",
-      loanId: "LN-1001",
-      number: 3,
-      dueDate: "2026-07-15",
-      amount: 25.0,
-      status: "Vencida",
-      daysOverdue: 8
-    }
-  ],
-  collections: [
-    {
-      id: "COL-3001",
-      loanId: "LN-1001",
-      borrowerName: "Juan Pérez",
-      daysOverdue: 8,
-      delinquencyTier: "Mora Temprana (8-15d)",
-      channel: "Llamada",
-      promiseDate: "2026-07-28",
-      promiseAmount: 25.0,
-      promiseStatus: "Pendiente",
-      notes: "Cliente confirmó pago de cuota al cobrar su salario."
-    }
-  ],
-  payments: [
-    {
-      id: "PAY-1",
-      date: "2026-06-15 10:30",
-      loanId: "LN-1001",
-      borrowerName: "Juan Pérez",
-      amountPaid: 25.0,
-      principalPaid: 14.28,
-      profitPaid: 10.72
-    }
-  ],
-  auditLogs: [
-    {
-      timestamp: "2026-06-01 09:00",
-      user: "Administrador",
-      action: "SISTEMA_INICIALIZADO",
-      module: "Core",
-      details: "Sistema CHENLOOP iniciado con Capital de $10,000"
-    }
-  ]
+  borrowers: [],
+  applications: [],
+  loans: [],
+  installments: [],
+  collections: [],
+  payments: [],
+  notifications: [],
+  auditLogs: []
 };
 
 let state = initialState;

@@ -134,16 +134,63 @@ const initialState = {
 };
 
 let state = initialState;
-localStorage.setItem('chenloop_state_v4.0', JSON.stringify(state));
 
-function saveState() {
+async function loadState() {
+  const saved = localStorage.getItem('chenloop_state_v4.0');
+  if (saved) {
+    try {
+      state = JSON.parse(saved);
+    } catch (e) {
+      console.warn("Estado corrupto en localStorage, usando inicial...");
+    }
+  }
+
+  // Sincronización en tiempo real desde Supabase Cloud
+  try {
+    const res = await fetch('/api/sync');
+    if (res.ok) {
+      const cloudData = await res.json();
+      if (cloudData.borrowers && cloudData.borrowers.length > 0) {
+        state.borrowers = cloudData.borrowers.map(b => ({
+          id: b.id,
+          name: b.name,
+          idNumber: b.identification,
+          phone: b.phone,
+          income: b.monthly_income,
+          employment: b.employment_type,
+          verified: b.is_verified,
+          score: b.score,
+          riskLevel: b.risk_level,
+          exposureLimit: b.exposure_limit,
+          status: b.status
+        }));
+        renderAll();
+      }
+    }
+  } catch (err) {
+    console.warn("Modo offline / Supabase Cloud no disponible:", err);
+  }
+}
+
+async function saveState() {
   localStorage.setItem('chenloop_state_v4.0', JSON.stringify(state));
-  if (supabaseClient) {
-    supabaseClient.from('sync_logs').insert({
-      organization_id: CURRENT_ORG_ID,
-      event: 'STATE_SAVED',
-      payload: state
-    }).then(() => console.log("Sync cloud success"));
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity: 'audit_logs',
+        record: {
+          organization_id: '00000000-0000-0000-0000-000000000001',
+          user_name: 'Usuario App',
+          action: 'SINCRONIZACION_CLOUD',
+          module: 'Core',
+          details: 'Cambio de estado guardado en Supabase Cloud'
+        }
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando guardado a Supabase Cloud:", err);
   }
 }
 
@@ -830,7 +877,7 @@ document.getElementById('form-create-application')?.addEventListener('submit', f
   renderAll();
 });
 
-document.getElementById('form-add-borrower')?.addEventListener('submit', function(e) {
+document.getElementById('form-add-borrower')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   const name = document.getElementById('bw-name').value;
   const idNumber = document.getElementById('bw-id').value;
@@ -839,6 +886,8 @@ document.getElementById('form-add-borrower')?.addEventListener('submit', functio
   const employment = document.getElementById('bw-employment').value;
   const verified = document.getElementById('bw-verified').value === 'true';
   
+  const scoreData = calculateExplicableScore({ income, employment, verified, loansCompleted: 0 });
+
   const newBw = {
     id: `bw-${Date.now()}`,
     name,
@@ -847,12 +896,41 @@ document.getElementById('form-add-borrower')?.addEventListener('submit', functio
     income,
     employment,
     verified,
-    status: 'Buen historial',
-    loansCompleted: 0,
-    maxExposure: 150.0
+    score: scoreData.totalScore,
+    riskLevel: scoreData.riskLevel,
+    exposureLimit: 150.0,
+    status: 'Activo'
   };
   
   state.borrowers.push(newBw);
+
+  // Guardar en Supabase Cloud
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity: 'borrowers',
+        record: {
+          organization_id: '00000000-0000-0000-0000-000000000001',
+          name,
+          identification: idNumber,
+          phone,
+          monthly_income: income,
+          employment_type: employment,
+          is_verified: verified,
+          score: scoreData.totalScore,
+          risk_level: scoreData.riskLevel,
+          exposure_limit: 150.0,
+          status: 'Activo'
+        }
+      })
+    });
+    console.log("✓ Prestatario guardado en Supabase Cloud");
+  } catch (err) {
+    console.warn("No se pudo enviar a Supabase Cloud:", err);
+  }
+
   saveState();
   renderAll();
   window.toggleBorrowerForm();

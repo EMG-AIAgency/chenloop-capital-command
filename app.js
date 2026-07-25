@@ -26,15 +26,6 @@ const initialState = {
 let state = initialState;
 
 async function loadState() {
-  const saved = localStorage.getItem('chenloop_state_v4.0');
-  if (saved) {
-    try {
-      state = JSON.parse(saved);
-    } catch (e) {
-      console.warn("Estado corrupto en localStorage, usando inicial...");
-    }
-  }
-
   // Sincronización en tiempo real desde Supabase Cloud para todas las tablas
   try {
     const res = await fetch('/api/sync');

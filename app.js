@@ -145,11 +145,12 @@ async function loadState() {
     }
   }
 
-  // Sincronización en tiempo real desde Supabase Cloud
+  // Sincronización en tiempo real desde Supabase Cloud para todas las tablas
   try {
     const res = await fetch('/api/sync');
     if (res.ok) {
       const cloudData = await res.json();
+      
       if (cloudData.borrowers && cloudData.borrowers.length > 0) {
         state.borrowers = cloudData.borrowers.map(b => ({
           id: b.id,
@@ -164,8 +165,87 @@ async function loadState() {
           exposureLimit: b.exposure_limit,
           status: b.status
         }));
-        renderAll();
       }
+
+      if (cloudData.applications && cloudData.applications.length > 0) {
+        state.applications = cloudData.applications.map(a => ({
+          id: a.id,
+          borrowerId: a.borrower_id,
+          borrowerName: a.borrower_name || "Prestatario",
+          amount: parseFloat(a.amount),
+          reason: a.reason,
+          count: a.installment_count || 7,
+          status: a.status,
+          createdAt: a.created_at
+        }));
+      }
+
+      if (cloudData.loans && cloudData.loans.length > 0) {
+        state.loans = cloudData.loans.map(l => ({
+          id: l.id,
+          borrowerId: l.borrower_id,
+          borrowerName: l.borrower_name || "Prestatario",
+          principal: parseFloat(l.principal),
+          installmentAmount: parseFloat(l.installment_amount),
+          installmentCount: l.installment_count,
+          totalScheduled: parseFloat(l.total_scheduled),
+          scheduledProfit: parseFloat(l.scheduled_profit),
+          status: l.status,
+          disbursementDate: l.disbursement_date,
+          paidAmount: parseFloat(l.paid_amount || 0),
+          remainingAmount: parseFloat(l.remaining_amount || l.total_scheduled)
+        }));
+      }
+
+      if (cloudData.collections && cloudData.collections.length > 0) {
+        state.collections = cloudData.collections.map(c => ({
+          id: c.id,
+          loanId: c.loan_id,
+          borrowerName: c.borrower_name,
+          daysOverdue: c.days_overdue,
+          delinquencyTier: c.delinquency_tier,
+          channel: c.channel,
+          promiseDate: c.promise_date,
+          promiseAmount: parseFloat(c.promise_amount),
+          promiseStatus: c.promise_status,
+          notes: c.notes
+        }));
+      }
+
+      if (cloudData.payments && cloudData.payments.length > 0) {
+        state.payments = cloudData.payments.map(p => ({
+          id: p.id,
+          date: p.date,
+          loanId: p.loan_id,
+          borrowerName: p.borrower_name,
+          amountPaid: parseFloat(p.amount_paid),
+          principalPaid: parseFloat(p.principal_paid),
+          profitPaid: parseFloat(p.profit_paid)
+        }));
+      }
+
+      if (cloudData.notifications && cloudData.notifications.length > 0) {
+        state.notifications = cloudData.notifications.map(n => ({
+          timestamp: n.timestamp,
+          borrowerName: n.borrower_name,
+          channel: n.channel,
+          event: n.event,
+          message: n.message,
+          status: n.status
+        }));
+      }
+
+      if (cloudData.auditLogs && cloudData.auditLogs.length > 0) {
+        state.auditLogs = cloudData.auditLogs.map(l => ({
+          timestamp: l.timestamp,
+          user: l.user_name || l.user,
+          action: l.action,
+          module: l.module,
+          details: l.details
+        }));
+      }
+
+      renderAll();
     }
   } catch (err) {
     console.warn("Modo offline / Supabase Cloud no disponible:", err);

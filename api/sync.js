@@ -27,14 +27,20 @@ module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const { data: borrowers } = await supabase.from('borrowers').select('*');
-      const { data: loans } = await supabase.from('loans').select('*');
       const { data: applications } = await supabase.from('applications').select('*');
+      const { data: loans } = await supabase.from('loans').select('*');
+      const { data: collections } = await supabase.from('collections').select('*');
+      const { data: payments } = await supabase.from('payments').select('*');
+      const { data: notifications } = await supabase.from('notifications').select('*');
       const { data: auditLogs } = await supabase.from('audit_logs').select('*');
 
       return res.status(200).json({
         borrowers: borrowers || [],
-        loans: loans || [],
         applications: applications || [],
+        loans: loans || [],
+        collections: collections || [],
+        payments: payments || [],
+        notifications: notifications || [],
         auditLogs: auditLogs || []
       });
     }

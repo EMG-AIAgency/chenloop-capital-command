@@ -38,6 +38,11 @@ module.exports = async (req, res) => {
       const { data: payments } = await supabase.from('payments').select('*');
       const { data: notifications } = await supabase.from('notifications').select('*');
       const { data: auditLogs } = await supabase.from('audit_logs').select('*');
+      const { data: financialAccounts } = await supabase.from('financial_accounts').select('*');
+      const { data: operationalExpenses } = await supabase.from('operational_expenses').select('*');
+      const { data: quincenalCloses } = await supabase.from('quincenal_closes').select('*');
+      const { data: ownerDebts } = await supabase.from('owner_debts').select('*');
+      const { data: financialMovements } = await supabase.from('financial_movements').select('*');
 
       return res.status(200).json({
         borrowers: borrowers || [],
@@ -46,7 +51,12 @@ module.exports = async (req, res) => {
         collections: collections || [],
         payments: payments || [],
         notifications: notifications || [],
-        auditLogs: auditLogs || []
+        auditLogs: auditLogs || [],
+        financialAccounts: financialAccounts || [],
+        operationalExpenses: operationalExpenses || [],
+        quincenalCloses: quincenalCloses || [],
+        ownerDebts: ownerDebts || [],
+        financialMovements: financialMovements || []
       });
     }
 

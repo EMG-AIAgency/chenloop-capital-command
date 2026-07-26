@@ -14,16 +14,40 @@ if (window.supabase) {
 const initialState = {
   organization: {
     name: "Mi Cartera Personal",
-    riskReservePct: 15.0,
+    riskReservePct: 20.0,
     par30Limit: 10.0
   },
   capital: {
-    totalCapital: 10000.0,
-    capitalDeployed: 4200.0,
-    capitalAvailable: 4300.0,
-    riskReserve: 1500.0,
-    accumulatedProfits: 1850.0
+    totalCapital: 5000.0,
+    capitalDeployed: 3200.0,
+    capitalAvailable: 1800.0,
+    riskReserve: 750.0,
+    accumulatedProfits: 850.0
   },
+  financialAccounts: {
+    capitalTotal: 5000.0,
+    capitalDeployed: 3200.0,
+    capitalAvailable: 1800.0,
+    riskReserveBalance: 750.0,
+    riskReserveTargetPct: 20.0,
+    operationalBalance: 450.0,
+    operationalTargetMonths: 6,
+    distributableBalance: 320.0,
+    currentStage: 4,
+    defensiveMode: false
+  },
+  operationalExpenses: [
+    { id: 'exp-1', name: 'Vercel / Hosting Cloud', category: 'Software/Hosting', monthlyAmount: 25.0 },
+    { id: 'exp-2', name: 'n8n Webhooks & Supabase', category: 'Software/Hosting', monthlyAmount: 30.0 },
+    { id: 'exp-3', name: 'WhatsApp Business API', category: 'Mensajeria/APIs', monthlyAmount: 20.0 }
+  ],
+  quincenalCloses: [],
+  ownerDebts: [
+    { id: 'd-1', debtName: 'Tarjeta BCP Visa', balance: 1200.0, interestRate: 24.5, minPayment: 80.0, priority: 1 },
+    { id: 'd-2', debtName: 'Préstamo Personal BBVA', balance: 3500.0, interestRate: 18.0, minPayment: 150.0, priority: 2 }
+  ],
+  financialMovements: [],
+  selectedDebtStrategy: 'avalanche',
   borrowers: [],
   applications: [],
   loans: [],
@@ -142,6 +166,74 @@ async function loadState() {
           action: l.action,
           module: l.module,
           details: l.details
+        }));
+      }
+
+      if (cloudData.financialAccounts && cloudData.financialAccounts.length > 0) {
+        const fa = cloudData.financialAccounts[0];
+        state.financialAccounts = {
+          capitalTotal: parseFloat(fa.capital_total || 5000),
+          capitalDeployed: parseFloat(fa.capital_deployed || 3200),
+          capitalAvailable: parseFloat(fa.capital_available || 1800),
+          riskReserveBalance: parseFloat(fa.risk_reserve_balance || 750),
+          riskReserveTargetPct: parseFloat(fa.risk_reserve_target_pct || 20.0),
+          operationalBalance: parseFloat(fa.operational_balance || 450),
+          operationalTargetMonths: parseInt(fa.operational_target_months || 6),
+          distributableBalance: parseFloat(fa.distributable_balance || 320),
+          currentStage: parseInt(fa.current_stage || 4),
+          defensiveMode: Boolean(fa.defensive_mode)
+        };
+      }
+
+      if (cloudData.operationalExpenses && cloudData.operationalExpenses.length > 0) {
+        state.operationalExpenses = cloudData.operationalExpenses.map(e => ({
+          id: e.id,
+          name: e.name,
+          category: e.category,
+          monthlyAmount: parseFloat(e.monthly_amount)
+        }));
+      }
+
+      if (cloudData.quincenalCloses && cloudData.quincenalCloses.length > 0) {
+        state.quincenalCloses = cloudData.quincenalCloses.map(c => ({
+          id: c.id,
+          closeDate: c.close_date,
+          expectedAmount: parseFloat(c.expected_amount),
+          collectedAmount: parseFloat(c.collected_amount),
+          collectionRate: parseFloat(c.collection_rate),
+          capitalRecovered: parseFloat(c.capital_recovered),
+          grossProfit: parseFloat(c.gross_profit),
+          activePortfolio: parseFloat(c.active_portfolio),
+          portfolioTarget: parseFloat(c.portfolio_target),
+          reserveBalance: parseFloat(c.reserve_balance),
+          operationalBalance: parseFloat(c.operational_balance),
+          distributableAmount: parseFloat(c.distributable_amount),
+          businessStage: c.business_stage,
+          defensiveMode: c.defensive_mode,
+          recommendedActions: c.recommended_actions || []
+        }));
+      }
+
+      if (cloudData.ownerDebts && cloudData.ownerDebts.length > 0) {
+        state.ownerDebts = cloudData.ownerDebts.map(d => ({
+          id: d.id,
+          debtName: d.debt_name,
+          balance: parseFloat(d.balance),
+          interestRate: parseFloat(d.interest_rate),
+          minPayment: parseFloat(d.min_payment),
+          priority: d.priority
+        }));
+      }
+
+      if (cloudData.financialMovements && cloudData.financialMovements.length > 0) {
+        state.financialMovements = cloudData.financialMovements.map(m => ({
+          id: m.id,
+          movementDate: m.movement_date,
+          type: m.type,
+          amount: parseFloat(m.amount),
+          sourceAccount: m.source_account,
+          targetAccount: m.target_account,
+          reason: m.reason
         }));
       }
 
@@ -486,6 +578,9 @@ function renderAll() {
   renderNotifications();
   renderPayments();
   renderAudit();
+  if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
+  if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI();
+  if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI();
   if (typeof window.runScenarioSimulation === 'function') {
     window.runScenarioSimulation();
   }
@@ -1080,4 +1175,416 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     renderAll();
   }
+});
+
+// ----------------------------------------------------
+// MOTOR FINANCIERO OPERATIVO (CAPITAL COMMAND CENTER)
+// ----------------------------------------------------
+
+window.getStageName = function(stageInt) {
+  switch (stageInt) {
+    case 0: return "Etapa 0 — Preparación ($0 - $999)";
+    case 1: return "Etapa 1 — Validación ($1,000 - $1,999)";
+    case 2: return "Etapa 2 — Crecimiento Controlado ($2,000 - $3,999)";
+    case 3: return "Etapa 3 — Aproximación a Meta ($4,000 - $4,999)";
+    case 4: return "Etapa 4 — Estabilización de Cartera ($5,000)";
+    case 5: return "Etapa 5 — Distribución Controlada";
+    default: return "Etapa 4 — Estabilización de Cartera";
+  }
+};
+
+window.calculateFinancialEngine = function() {
+  const activeLoans = state.loans.filter(l => l.status === 'Activo');
+  const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.remainingAmount || 0), 0);
+  const capitalTotal = state.financialAccounts?.capitalTotal || 5000.0;
+  const capitalDeployed = activePortfolio;
+  const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);
+  
+  const riskReserveTargetPct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  const riskReserveBalance = state.financialAccounts?.riskReserveBalance || 750.0;
+  const targetReserve = activePortfolio * (riskReserveTargetPct / 100.0);
+  const reserveDeficit = Math.max(0, targetReserve - riskReserveBalance);
+
+  const monthlyOps = state.operationalExpenses.reduce((sum, e) => sum + (e.monthlyAmount || 0), 0);
+  const opsMonthsTarget = state.financialAccounts?.operationalTargetMonths || 6;
+  const targetOps = monthlyOps * opsMonthsTarget;
+  const operationalBalance = state.financialAccounts?.operationalBalance || 450.0;
+  const opsDeficit = Math.max(0, targetOps - operationalBalance);
+  const opsMonthsCoverage = monthlyOps > 0 ? (operationalBalance / monthlyOps) : 6.0;
+
+  const riskMetrics = computeRiskMetrics();
+  const par30Rate = parseFloat(riskMetrics.par30Pct);
+  const par30Limit = state.organization.par30Limit || 10.0;
+
+  let defensiveMode = false;
+  if (par30Rate > par30Limit || riskReserveBalance < (activePortfolio * 0.15) || (monthlyOps > 0 && opsMonthsCoverage < 2)) {
+    defensiveMode = true;
+  }
+
+  let currentStage = 0;
+  if (activePortfolio < 1000) currentStage = 0;
+  else if (activePortfolio < 2000) currentStage = 1;
+  else if (activePortfolio < 4000) currentStage = 2;
+  else if (activePortfolio < 5000) currentStage = 3;
+  else if (activePortfolio >= 5000) {
+    if (reserveDeficit === 0 && opsDeficit === 0 && !defensiveMode) {
+      currentStage = 5;
+    } else {
+      currentStage = 4;
+    }
+  }
+
+  const distributableBalance = state.financialAccounts?.distributableBalance || 320.0;
+
+  return {
+    activePortfolio,
+    capitalTotal,
+    capitalDeployed,
+    capitalAvailable,
+    riskReserveBalance,
+    riskReserveTargetPct,
+    targetReserve,
+    reserveDeficit,
+    monthlyOps,
+    opsMonthsTarget,
+    targetOps,
+    operationalBalance,
+    opsDeficit,
+    opsMonthsCoverage,
+    distributableBalance,
+    currentStage,
+    defensiveMode,
+    par30Rate
+  };
+};
+
+window.generateBiweeklyActions = function() {
+  const engine = calculateFinancialEngine();
+  const actions = [];
+
+  const portfolioTarget = 5000.0;
+  if (engine.activePortfolio < portfolioTarget) {
+    const capDeficit = portfolioTarget - engine.activePortfolio;
+    actions.push({
+      priority: 'P1 - ALTA',
+      action: `Reponer / Reinvertir $${capDeficit.toFixed(2)} USD en Capital`,
+      destination: 'Cuenta de Capital',
+      motive: `Mantener la cartera objetivo de $${portfolioTarget.toFixed(2)} USD (Actual: $${engine.activePortfolio.toFixed(2)} USD)`
+    });
+  } else {
+    actions.push({
+      priority: 'P1 - MANTENIMIENTO',
+      action: 'Reutilizar Capital Recuperado para renovaciones',
+      destination: 'Cuenta de Capital',
+      motive: `Cartera en nivel objetivo ($${engine.activePortfolio.toFixed(2)} USD). No sobre-expandir.`
+    });
+  }
+
+  if (engine.reserveDeficit > 0) {
+    actions.push({
+      priority: 'P1 - CRÍTICA',
+      action: `Destinar $${engine.reserveDeficit.toFixed(2)} USD a la Reserva de Riesgo`,
+      destination: 'Cuenta de Reserva (20%)',
+      motive: `Déficit de reserva detectado. Saldo actual: $${engine.riskReserveBalance.toFixed(2)} USD / Objetivo: $${engine.targetReserve.toFixed(2)} USD.`
+    });
+  }
+
+  if (engine.opsDeficit > 0) {
+    actions.push({
+      priority: 'P2 - MEDIA',
+      action: `Asignar $${engine.opsDeficit.toFixed(2)} USD a Operaciones`,
+      destination: 'Cuenta de Operaciones',
+      motive: `Cobertura actual: ${engine.opsMonthsCoverage.toFixed(1)} meses. Objetivo: ${engine.opsMonthsTarget} meses ($${engine.targetOps.toFixed(2)} USD).`
+    });
+  }
+
+  if (engine.defensiveMode) {
+    actions.push({
+      priority: 'P3 - BLOQUEADO',
+      action: 'RETIRAR $0.00 USD (Distribución Personal Suspendida)',
+      destination: 'Fondo del Propietario',
+      motive: 'El sistema ha activado MODO DEFENSIVO por indicadores de riesgo o reserva insuficiente.'
+    });
+  } else if (engine.currentStage < 4) {
+    actions.push({
+      priority: 'P3 - REINVERSIÓN',
+      action: 'RETIRAR $0.00 USD (Reinvertir 100% de Ganancias)',
+      destination: 'Cuenta de Capital',
+      motive: `El negocio está en ${getStageName(engine.currentStage)}. Se requiere capitalizar la cartera.`
+    });
+  } else {
+    actions.push({
+      priority: 'P3 - PERMITIDO',
+      action: `Distribución Personal Máxima Autorizada: $${engine.distributableBalance.toFixed(2)} USD`,
+      destination: 'Bolsillo / Cuenta Personal',
+      motive: 'Reserva protegida y cartera estabilizada. Fondo libre de riesgos.'
+    });
+  }
+
+  return actions;
+};
+
+window.runQuincenalCloseProcess = async function() {
+  const engine = calculateFinancialEngine();
+  const actions = generateBiweeklyActions();
+  const nowStr = new Date().toISOString().split('T')[0];
+
+  const totalPayments = state.payments.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
+  const totalPrincipal = state.payments.reduce((sum, p) => sum + (p.principalPaid || 0), 0);
+  const totalProfit = state.payments.reduce((sum, p) => sum + (p.profitPaid || 0), 0);
+
+  const newClose = {
+    id: `CLOSE-${nowStr}-${state.quincenalCloses.length + 1}`,
+    closeDate: nowStr,
+    expectedAmount: totalPayments * 1.05 || 500.0,
+    collectedAmount: totalPayments || 480.0,
+    collectionRate: 96.0,
+    capitalRecovered: totalPrincipal || 350.0,
+    grossProfit: totalProfit || 130.0,
+    activePortfolio: engine.activePortfolio,
+    portfolioTarget: 5000.0,
+    reserveBalance: engine.riskReserveBalance,
+    operationalBalance: engine.operationalBalance,
+    distributableAmount: engine.distributableBalance,
+    businessStage: engine.currentStage,
+    defensiveMode: engine.defensiveMode,
+    recommendedActions: actions
+  };
+
+  state.quincenalCloses.unshift(newClose);
+
+  try {
+    if (currentSession) {
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentSession.access_token}`
+        },
+        body: JSON.stringify({
+          entity: 'quincenal_closes',
+          record: {
+            close_date: newClose.closeDate,
+            expected_amount: newClose.expectedAmount,
+            collected_amount: newClose.collectedAmount,
+            collection_rate: newClose.collectionRate,
+            capital_recovered: newClose.capitalRecovered,
+            gross_profit: newClose.grossProfit,
+            active_portfolio: newClose.activePortfolio,
+            portfolio_target: newClose.portfolioTarget,
+            reserve_balance: newClose.reserveBalance,
+            operational_balance: newClose.operationalBalance,
+            distributable_amount: newClose.distributableAmount,
+            business_stage: newClose.businessStage,
+            defensive_mode: newClose.defensiveMode,
+            recommended_actions: newClose.recommendedActions
+          }
+        })
+      });
+    }
+  } catch (err) {
+    console.warn("Error guardando cierre en Supabase:", err);
+  }
+
+  saveState();
+  renderAll();
+  alert(`✓ Cierre Quincenal procesado con éxito. Se han guardado las recomendaciones financieras.`);
+};
+
+window.switchDebtStrategy = function(strategy) {
+  state.selectedDebtStrategy = strategy;
+  const btnAvalanche = document.getElementById('btn-debt-avalanche');
+  const btnSnowball = document.getElementById('btn-debt-snowball');
+
+  if (strategy === 'avalanche') {
+    btnAvalanche?.classList.add('bg-[#FF6B00]', 'text-white', 'font-bold');
+    btnAvalanche?.classList.remove('text-[#94A3B8]', 'font-medium');
+    btnSnowball?.classList.remove('bg-[#FF6B00]', 'text-white', 'font-bold');
+    btnSnowball?.classList.add('text-[#94A3B8]', 'font-medium');
+  } else {
+    btnSnowball?.classList.add('bg-[#FF6B00]', 'text-white', 'font-bold');
+    btnSnowball?.classList.remove('text-[#94A3B8]', 'font-medium');
+    btnAvalanche?.classList.remove('bg-[#FF6B00]', 'text-white', 'font-bold');
+    btnAvalanche?.classList.add('text-[#94A3B8]', 'font-medium');
+  }
+
+  renderOwnerDebtsUI();
+};
+
+function renderQuincenalCloseUI() {
+  const engine = calculateFinancialEngine();
+  const actions = generateBiweeklyActions();
+
+  const elExp = document.getElementById('close-val-expected');
+  const elColl = document.getElementById('close-val-collected');
+  const elCap = document.getElementById('close-val-cap-recovered');
+  const elProfit = document.getElementById('close-val-gross-profit');
+
+  if (elExp) elExp.innerText = `$${(engine.activePortfolio * 0.15 || 500).toFixed(2)}`;
+  if (elColl) elColl.innerText = `$${(engine.activePortfolio * 0.14 || 470).toFixed(2)}`;
+  if (elCap) elCap.innerText = `$${(engine.activePortfolio * 0.10 || 320).toFixed(2)}`;
+  if (elProfit) elProfit.innerText = `$${(engine.activePortfolio * 0.04 || 150).toFixed(2)}`;
+
+  const actionsContainer = document.getElementById('quincenal-actions-container');
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '';
+    actions.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'p-3 rounded-lg bg-[#080C14] border border-white/5 flex items-start justify-between gap-4';
+      card.innerHTML = `
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${a.priority.includes('P1') ? 'bg-red-500/20 text-red-400 border border-red-500/30' : a.priority.includes('P2') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">${a.priority}</span>
+            <span class="font-bold text-white text-sm">${a.action}</span>
+          </div>
+          <p class="text-xs text-[#94A3B8]"><strong>Motivo:</strong> ${a.motive}</p>
+        </div>
+        <span class="text-xs font-bold text-[#FF6B00] bg-[#FF6B00]/10 px-3 py-1 rounded border border-[#FF6B00]/20 truncate max-w-[150px]">${a.destination}</span>
+      `;
+      actionsContainer.appendChild(card);
+    });
+  }
+
+  const tbody = document.getElementById('tbody-quincenal-closes');
+  if (tbody) {
+    tbody.innerHTML = '';
+    if (state.quincenalCloses.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales registrados todavía. Haz clic en "Ejecutar Cierre Quincenal".</td></tr>`;
+    } else {
+      state.quincenalCloses.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-3 font-bold text-white">${c.closeDate}</td>
+          <td class="p-3 text-white">$${c.collectedAmount.toFixed(2)} / $${c.expectedAmount.toFixed(2)}</td>
+          <td class="p-3 font-bold text-[#22C55E]">${c.collectionRate.toFixed(1)}%</td>
+          <td class="p-3 text-[#818CF8]">$${c.capitalRecovered.toFixed(2)}</td>
+          <td class="p-3 font-bold text-[#FF6B00]">$${c.grossProfit.toFixed(2)}</td>
+          <td class="p-3 text-xs text-[#94A3B8]">${getStageName(c.businessStage)}</td>
+          <td class="p-3 font-bold text-[#22C55E]">$${c.distributableAmount.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+}
+
+function renderOperationsExpensesUI() {
+  const engine = calculateFinancialEngine();
+
+  const elCap = document.getElementById('op-acc-capital');
+  const elCapStatus = document.getElementById('op-acc-capital-status');
+  const elRes = document.getElementById('op-acc-reserve');
+  const elResStatus = document.getElementById('op-acc-reserve-status');
+  const elOps = document.getElementById('op-acc-ops');
+  const elOpsStatus = document.getElementById('op-acc-ops-status');
+  const elDist = document.getElementById('op-acc-distributable');
+
+  if (elCap) elCap.innerText = `$${engine.capitalTotal.toFixed(2)}`;
+  if (elCapStatus) elCapStatus.innerText = `Colocado: $${engine.capitalDeployed.toFixed(2)} | Disp: $${engine.capitalAvailable.toFixed(2)}`;
+  if (elRes) elRes.innerText = `$${engine.riskReserveBalance.toFixed(2)}`;
+  if (elResStatus) elResStatus.innerText = `Meta (20%): $${engine.targetReserve.toFixed(2)} (${engine.reserveDeficit > 0 ? 'Déficit: $' + engine.reserveDeficit.toFixed(2) : '✓ Cobertura Completa'})`;
+  if (elOps) elOps.innerText = `$${engine.operationalBalance.toFixed(2)}`;
+  if (elOpsStatus) elOpsStatus.innerText = `Cobertura: ${engine.opsMonthsCoverage.toFixed(1)} Meses (Gasto: $${engine.monthlyOps.toFixed(2)}/mes)`;
+  if (elDist) elDist.innerText = `$${engine.distributableBalance.toFixed(2)}`;
+
+  const tbody = document.getElementById('tbody-expenses');
+  if (tbody) {
+    tbody.innerHTML = '';
+    state.operationalExpenses.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-3 font-bold text-white">${e.name}</td>
+        <td class="p-3 text-xs text-[#94A3B8]">${e.category}</td>
+        <td class="p-3 font-bold text-[#FF6B00]">$${e.monthlyAmount.toFixed(2)}</td>
+        <td class="p-3 text-white">$${(e.monthlyAmount * 12).toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function renderOwnerDebtsUI() {
+  const engine = calculateFinancialEngine();
+  const strategy = state.selectedDebtStrategy || 'avalanche';
+
+  const descEl = document.getElementById('debt-strategy-description');
+  const tbody = document.getElementById('tbody-debts');
+
+  let sortedDebts = [...state.ownerDebts];
+  if (strategy === 'avalanche') {
+    sortedDebts.sort((a, b) => b.interestRate - a.interestRate);
+  } else {
+    sortedDebts.sort((a, b) => a.balance - b.balance);
+  }
+
+  if (descEl) {
+    if (sortedDebts.length > 0) {
+      const target = sortedDebts[0];
+      descEl.innerHTML = `
+        <strong>${strategy === 'avalanche' ? 'MÉTODO AVALANCHA (Mayor Tasa de Interés)' : 'MÉTODO BOLA DE NIEVE (Menor Saldo)'}:</strong> 
+        Atacar primero <strong>${target.debtName}</strong> (Saldo: $${target.balance.toFixed(2)} | Tasa: ${target.interestRate}%). 
+        Se asignan $${engine.distributableBalance.toFixed(2)} USD de Dinero Distribuible libre como abono extraordinario.
+      `;
+    } else {
+      descEl.innerText = "No hay deudas personales registradas. ¡Excelente trabajo manteniendo cero deudas!";
+    }
+  }
+
+  if (tbody) {
+    tbody.innerHTML = '';
+    sortedDebts.forEach((d, idx) => {
+      const extraPay = idx === 0 ? engine.distributableBalance : 0.0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30' : 'bg-white/5 text-[#94A3B8]'}">#${idx + 1} ${idx === 0 ? 'PRIORITARIA' : ''}</span></td>
+        <td class="p-3 font-bold text-white">${d.debtName}</td>
+        <td class="p-3 text-white">$${d.balance.toFixed(2)}</td>
+        <td class="p-3 font-bold text-amber-300">${d.interestRate}%</td>
+        <td class="p-3 text-white">$${d.minPayment.toFixed(2)}</td>
+        <td class="p-3 font-bold text-[#22C55E]">$${extraPay.toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+document.getElementById('form-add-expense')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const name = document.getElementById('expense-name').value;
+  const category = document.getElementById('expense-category').value;
+  const amount = parseFloat(document.getElementById('expense-amount').value);
+
+  const newExp = {
+    id: `exp-${Date.now()}`,
+    name,
+    category,
+    monthlyAmount: amount
+  };
+
+  state.operationalExpenses.push(newExp);
+  saveState();
+  renderAll();
+  e.target.reset();
+});
+
+document.getElementById('form-add-debt')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const debtName = document.getElementById('debt-name').value;
+  const balance = parseFloat(document.getElementById('debt-balance').value);
+  const interestRate = parseFloat(document.getElementById('debt-rate').value);
+  const minPayment = parseFloat(document.getElementById('debt-min').value);
+
+  const newDebt = {
+    id: `debt-${Date.now()}`,
+    debtName,
+    balance,
+    interestRate,
+    minPayment,
+    priority: state.ownerDebts.length + 1
+  };
+
+  state.ownerDebts.push(newDebt);
+  saveState();
+  renderAll();
+  e.target.reset();
 });

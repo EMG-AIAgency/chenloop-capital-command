@@ -311,14 +311,14 @@ window.switchTab = function(tabName) {
   
   // Highlight active sidebar button
   document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.remove('active', 'border-r-2', 'border-[#4edea3]', 'bg-[#4edea3]/5', 'text-[#4edea3]', 'font-bold');
-    btn.classList.add('text-[#bbcabf]', 'font-medium');
+    btn.classList.remove('active', 'border-r-2', 'border-[#FF6B00]', 'bg-[#FF6B00]/10', 'text-[#FF6B00]', 'font-bold');
+    btn.classList.add('text-[#94A3B8]', 'font-medium');
   });
   
   const activeBtn = document.querySelector(`.nav-btn[onclick*="${tabName}"]`);
   if (activeBtn) {
-    activeBtn.classList.remove('text-[#bbcabf]', 'font-medium');
-    activeBtn.classList.add('active', 'border-r-2', 'border-[#4edea3]', 'bg-[#4edea3]/5', 'text-[#4edea3]', 'font-bold');
+    activeBtn.classList.remove('text-[#94A3B8]', 'font-medium');
+    activeBtn.classList.add('active', 'border-r-2', 'border-[#FF6B00]', 'bg-[#FF6B00]/10', 'text-[#FF6B00]', 'font-bold');
   }
   
   const titles = {

@@ -76,7 +76,7 @@
 
       <!-- Auth Selector Tabs -->
       <div class="flex border-b border-white/10 text-sm">
-        <button id="tab-btn-login" onclick="window.switchAuthTab('login')" class="flex-1 py-2.5 font-bold text-[#FF6B00] border-b-2 border-[#FF6B00] transition-all">Iniciar SesiÃ³n</button>
+        <button id="tab-btn-login" onclick="window.switchAuthTab('login')" class="flex-1 py-2.5 font-bold text-[#FF6B00] border-b-2 border-[#FF6B00] transition-all">Iniciar Sesión</button>
         <button id="tab-btn-register" onclick="window.switchAuthTab('register')" class="flex-1 py-2.5 font-medium text-[#94A3B8] border-b-2 border-transparent transition-all">Crear Cuenta SaaS</button>
       </div>
 
@@ -87,12 +87,12 @@
       <!-- LOGIN FORM -->
       <form id="form-login" class="space-y-4">
         <div>
-          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Correo ElectrÃ³nico</label>
+          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Correo Electrónico</label>
           <input type="email" id="login-email" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="admin@tu-cartera.com" required/>
         </div>
         <div>
-          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">ContraseÃ±a</label>
-          <input type="password" id="login-password" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required/>
+          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Contraseña</label>
+          <input type="password" id="login-password" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="••••••••" required/>
         </div>
         <button type="submit" id="btn-submit-login" class="w-full bg-gradient-to-r from-[#FF6B00] to-[#FF8800] hover:from-[#FF5500] hover:to-[#FF7700] text-white py-3 rounded-lg font-bold text-sm transition-all shadow-lg shadow-[#FF6B00]/25">
           Ingresar al Command Center
@@ -106,16 +106,16 @@
           <input type="text" id="reg-fullname" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="Ej. Carlos Mendoza" required/>
         </div>
         <div>
-          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Nombre de la OrganizaciÃ³n / Cartera</label>
+          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Nombre de la Organización / Cartera</label>
           <input type="text" id="reg-orgname" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="Ej. Inversiones Capital Plus" required/>
         </div>
         <div>
-          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Correo ElectrÃ³nico</label>
+          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Correo Electrónico</label>
           <input type="email" id="reg-email" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="carlos@capitalplus.com" required/>
         </div>
         <div>
-          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">ContraseÃ±a</label>
-          <input type="password" id="reg-password" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" minlength="6" required/>
+          <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Contraseña</label>
+          <input type="password" id="reg-password" class="w-full bg-[#16181D] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-[#FF6B00] outline-none" placeholder="••••••••" minlength="6" required/>
         </div>
         <button type="submit" id="btn-submit-register" class="w-full bg-gradient-to-r from-[#FF6B00] to-[#FF8800] hover:from-[#FF5500] hover:to-[#FF7700] text-white py-3 rounded-lg font-bold text-sm transition-all shadow-lg shadow-[#FF6B00]/25">
           Crear Cuenta & Cartera Aislada
@@ -148,13 +148,13 @@
       </button>
       <button onclick="window.switchTab('loans')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">credit_card</span>
-        <span class="text-sm">PrÃ©stamos Activos</span>
+        <span class="text-sm">Préstamos Activos</span>
       </button>
 
       <p class="text-[10px] uppercase font-bold text-[#8E929E] px-4 pt-4 pb-1 tracking-wider">OPERACIONES</p>
       <button onclick="window.switchTab('collections')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">call</span>
-        <span class="text-sm">GestiÃ³n de Cobranzas</span>
+        <span class="text-sm">Gestión de Cobranzas</span>
       </button>
       <button onclick="window.switchTab('notifications')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">notifications_active</span>
@@ -176,7 +176,7 @@
       </button>
       <button onclick="window.switchTab('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">settings</span>
-        <span class="text-sm">ConfiguraciÃ³n</span>
+        <span class="text-sm">Configuración</span>
       </button>
     </nav>
 
@@ -202,7 +202,7 @@
             <p class="text-[10px] text-[#94A3B8]" id="user-role-badge">Tier 1 Admin</p>
           </div>
         </div>
-        <button onclick="window.logoutUser()" class="text-[#94A3B8] hover:text-[#F43F5E] transition-all p-1" title="Cerrar SesiÃ³n">
+        <button onclick="window.logoutUser()" class="text-[#94A3B8] hover:text-[#F43F5E] transition-all p-1" title="Cerrar Sesión">
           <span class="material-symbols-outlined text-[20px]">logout</span>
         </button>
       </div>
@@ -223,7 +223,7 @@
     <!-- Alert Banner -->
     <div id="risk-alert-banner" class="hidden p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-center gap-3">
       <span class="material-symbols-outlined">warning</span>
-      <span><strong>POLÃTICA DE RIESGO ACTIVA:</strong> El crecimiento de la cartera se limita automÃ¡ticamente debido a reglas PAR30 o reserva.</span>
+      <span><strong>POLÃTICA DE RIESGO ACTIVA:</strong> El crecimiento de la cartera se limita automáticamente debido a reglas PAR30 o reserva.</span>
     </div>
 
     <!-- TAB: DASHBOARD COMMAND CENTER -->
@@ -231,7 +231,7 @@
       <div class="glass-card hero-gradient p-8 space-y-6">
         <div class="flex justify-between items-center">
           <span class="font-display text-sm tracking-wider uppercase text-[#bbcabf]">Patrimonio & Control de Capital</span>
-          <span class="badge-risk badge-green flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span> ProtecciÃ³n Activa</span>
+          <span class="badge-risk badge-green flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span> Protección Activa</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -256,7 +256,7 @@
         <!-- Stitch Capital Bar -->
         <div class="space-y-2 pt-2">
           <div class="flex justify-between text-xs text-[#bbcabf]">
-            <span>DistribuciÃ³n de Cartera</span>
+            <span>Distribución de Cartera</span>
             <span id="bar-percentage-text">Colocado: 42% | Disponible: 43% | Reserva: 15%</span>
           </div>
           <div class="h-3 bg-[#181c24] rounded-full overflow-hidden flex">
@@ -281,7 +281,7 @@
         <div class="glass-card p-5 space-y-2">
           <p class="text-xs uppercase text-[#bbcabf]">Ganancia Acumulada</p>
           <p class="font-display text-2xl font-bold text-[#4edea3]" id="val-accum-profits">$1,850.00</p>
-          <p class="text-[11px] text-[#bbcabf]">Separada de la devoluciÃ³n principal</p>
+          <p class="text-[11px] text-[#bbcabf]">Separada de la devolución principal</p>
         </div>
         <div class="glass-card p-5 space-y-2">
           <p class="text-xs uppercase text-[#bbcabf]">Reserva Requerida (15%)</p>
@@ -305,7 +305,7 @@
               <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
                 <tr>
                   <th class="p-3">Cliente / Entidad</th>
-                  <th class="p-3">LÃ­mite CrÃ©dito</th>
+                  <th class="p-3">LÃ­mite Crédito</th>
                   <th class="p-3">Colocado</th>
                   <th class="p-3">Estado Riesgo</th>
                   <th class="p-3">Ãšltima AuditorÃ­a</th>
@@ -315,7 +315,7 @@
                 <tr>
                   <td class="p-3 font-bold text-white flex items-center gap-2">
                     <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold">JP</span>
-                    Juan PÃ©rez
+                    Juan Pérez
                   </td>
                   <td class="p-3 text-white">$300.00</td>
                   <td class="p-3 font-bold text-[#818CF8]">$100.00</td>
@@ -361,7 +361,7 @@
                 <span class="material-symbols-outlined text-[16px]">warning</span>
                 <span>Credit Review Due - MarÃ­a R.</span>
               </div>
-              <p class="text-xs text-[#bbcabf]">Solicitud APP-2002 requiere revisiÃ³n manual de ingresos.</p>
+              <p class="text-xs text-[#bbcabf]">Solicitud APP-2002 requiere revisión manual de ingresos.</p>
               <span class="text-[10px] text-[#F59E0B] uppercase font-bold">ACTION REQUIRED</span>
             </div>
 
@@ -370,7 +370,7 @@
                 <span class="material-symbols-outlined text-[16px]">verified</span>
                 <span>Audit Completed</span>
               </div>
-              <p class="text-xs text-[#bbcabf]">VerificaciÃ³n de balance contable con 0 desviaciones.</p>
+              <p class="text-xs text-[#bbcabf]">Verificación de balance contable con 0 desviaciones.</p>
               <span class="text-[10px] text-[#818CF8] uppercase font-bold">VERIFIED LOG</span>
             </div>
           </div>
@@ -391,8 +391,8 @@
           <h4 class="font-bold text-sm text-white">Nuevo Perfil Directo</h4>
           <form id="form-add-borrower" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input type="text" id="bw-name" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Nombre Completo" required/>
-            <input type="text" id="bw-id" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="IdentificaciÃ³n (DNI/CED)" required/>
-            <input type="text" id="bw-phone" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="TelÃ©fono" required/>
+            <input type="text" id="bw-id" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Identificación (DNI/CED)" required/>
+            <input type="text" id="bw-phone" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Teléfono" required/>
             <input type="number" id="bw-income" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Ingreso Mensual ($)" required/>
             <select id="bw-employment" class="bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none">
               <option value="Empleado">Empleado Formal (+20 pts)</option>
@@ -414,11 +414,11 @@
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px] tracking-wider">
               <tr>
                 <th class="p-3">Prestatario</th>
-                <th class="p-3">IdentificaciÃ³n</th>
-                <th class="p-3">TelÃ©fono</th>
+                <th class="p-3">Identificación</th>
+                <th class="p-3">Teléfono</th>
                 <th class="p-3">Score Explicable</th>
                 <th class="p-3">Nivel Riesgo</th>
-                <th class="p-3">LÃ­mite ExposiciÃ³n</th>
+                <th class="p-3">LÃ­mite Exposición</th>
                 <th class="p-3">Estado</th>
               </tr>
             </thead>
@@ -431,7 +431,7 @@
     <!-- TAB: SOLICITUDES & RIESGO -->
     <section id="tab-applications" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">
-        <h3 class="font-display text-lg font-bold text-white">Nueva Solicitud de CrÃ©dito</h3>
+        <h3 class="font-display text-lg font-bold text-white">Nueva Solicitud de Crédito</h3>
         <form id="form-create-application" class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <select id="app-borrower-select" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" required></select>
           <input type="number" id="app-amount" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" value="100" required/>
@@ -442,7 +442,7 @@
           </div>
         </form>
 
-        <h3 class="font-display text-lg font-bold text-white pt-4">Solicitudes en RevisiÃ³n & EvaluaciÃ³n</h3>
+        <h3 class="font-display text-lg font-bold text-white pt-4">Solicitudes en Revisión & Evaluación</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
@@ -452,9 +452,9 @@
                 <th class="p-3">Monto</th>
                 <th class="p-3">Motivo</th>
                 <th class="p-3">Score</th>
-                <th class="p-3">RecomendaciÃ³n</th>
+                <th class="p-3">Recomendación</th>
                 <th class="p-3">Estado</th>
-                <th class="p-3">DecisiÃ³n</th>
+                <th class="p-3">Decisión</th>
               </tr>
             </thead>
             <tbody id="tbody-applications" class="divide-y divide-white/5"></tbody>
@@ -466,7 +466,7 @@
     <!-- TAB: PRÃ‰STAMOS ACTIVOS -->
     <section id="tab-loans" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">
-        <h3 class="font-display text-lg font-bold text-white">Cartera de PrÃ©stamos Activos & Vencimientos</h3>
+        <h3 class="font-display text-lg font-bold text-white">Cartera de Préstamos Activos & Vencimientos</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
@@ -490,29 +490,29 @@
     <!-- TAB: GESTIÃ“N DE COBRANZAS (Restaurado Formulario Interactivo) -->
     <section id="tab-collections" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
-        <h3 class="font-display text-lg font-bold text-white">Registrar GestiÃ³n de Contacto o Promesa de Pago</h3>
+        <h3 class="font-display text-lg font-bold text-white">Registrar Gestión de Contacto o Promesa de Pago</h3>
         <form id="form-add-collection" class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <select id="col-loan-select" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
           <select id="col-channel" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-            <option value="Llamada">Llamada TelefÃ³nica</option>
+            <option value="Llamada">Llamada Telefónica</option>
             <option value="WhatsApp">WhatsApp</option>
             <option value="Visita">Visita Presencial</option>
           </select>
           <input type="date" id="col-promise-date" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required/>
           <input type="number" id="col-promise-amount" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" required/>
-          <input type="text" id="col-notes" class="md:col-span-3 bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Notas de la gestiÃ³n" required/>
+          <input type="text" id="col-notes" class="md:col-span-3 bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Notas de la gestión" required/>
           <button type="submit" class="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold">Guardar Promesa</button>
         </form>
       </div>
 
       <div class="glass-card p-6 space-y-4">
-        <h3 class="font-display text-lg font-bold text-white">BitÃ¡cora de Cobranzas & Seguimiento</h3>
+        <h3 class="font-display text-lg font-bold text-white">Bitácora de Cobranzas & Seguimiento</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
                 <th class="p-3">ID</th>
-                <th class="p-3">PrÃ©stamo</th>
+                <th class="p-3">Préstamo</th>
                 <th class="p-3">Prestatario</th>
                 <th class="p-3">DÃ­as Mora</th>
                 <th class="p-3">Tramo Mora</th>
@@ -550,25 +550,25 @@
             <input type="number" id="sim-reserve-pct" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="15.0" step="1" oninput="window.runScenarioSimulation()"/>
           </div>
           <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">PolÃ­tica de ReinversiÃ³n</label>
+            <label class="text-xs text-[#bbcabf] block mb-1">PolÃ­tica de Reinversión</label>
             <select id="sim-policy" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" onchange="window.runScenarioSimulation()">
-              <option value="agresiva">ReinversiÃ³n Agresiva (70% a prÃ©stamos / 30% reserva)</option>
-              <option value="balanceada">ReinversiÃ³n Balanceada (50% a prÃ©stamos / 50% reserva)</option>
-              <option value="conservadora">ConservaciÃ³n de Capital (30% a prÃ©stamos / 70% reserva)</option>
+              <option value="agresiva">Reinversión Agresiva (70% a préstamos / 30% reserva)</option>
+              <option value="balanceada">Reinversión Balanceada (50% a préstamos / 50% reserva)</option>
+              <option value="conservadora">Conservación de Capital (30% a préstamos / 70% reserva)</option>
             </select>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Reserva Requerida SimulaciÃ³n</p>
+            <p class="text-xs text-[#bbcabf]">Reserva Requerida Simulación</p>
             <p class="font-display text-xl font-bold text-[#FBBF24]" id="sim-res-needed">$1,500.00</p>
             <p class="text-[11px] text-[#bbcabf]" id="sim-res-pct-text">Tasa de reserva: 15%</p>
           </div>
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">ReinversiÃ³n en Nuevos PrÃ©stamos</p>
+            <p class="text-xs text-[#bbcabf]">Reinversión en Nuevos Préstamos</p>
             <p class="font-display text-xl font-bold text-[#4edea3]" id="sim-reinvest-amount">$7,000.00</p>
-            <p class="text-[11px] text-[#4edea3]" id="sim-reinvest-pct-text">70% de flujo a prÃ©stamos</p>
+            <p class="text-[11px] text-[#4edea3]" id="sim-reinvest-pct-text">70% de flujo a préstamos</p>
           </div>
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
             <p class="text-xs text-[#bbcabf]">Fondo Retenido en Reserva/Liquidez</p>
@@ -600,7 +600,7 @@
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
                 <th class="p-3">Fecha</th>
-                <th class="p-3">PrÃ©stamo</th>
+                <th class="p-3">Préstamo</th>
                 <th class="p-3">Prestatario</th>
                 <th class="p-3">Monto Pagado</th>
                 <th class="p-3">A Capital</th>
@@ -616,15 +616,15 @@
     <!-- TAB: AUDITORÃA -->
     <section id="tab-audit" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
-        <h3 class="font-display text-lg font-bold text-white">BitÃ¡cora Inmutable de AuditorÃ­a</h3>
+        <h3 class="font-display text-lg font-bold text-white">Bitácora Inmutable de AuditorÃ­a</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
                 <th class="p-3">Fecha</th>
                 <th class="p-3">Usuario</th>
-                <th class="p-3">AcciÃ³n</th>
-                <th class="p-3">MÃ³dulo</th>
+                <th class="p-3">Acción</th>
+                <th class="p-3">Módulo</th>
                 <th class="p-3">Detalles</th>
               </tr>
             </thead>
@@ -639,8 +639,8 @@
       <div class="glass-card p-6 space-y-6">
         <div class="flex justify-between items-center border-b border-white/5 pb-4">
           <div>
-            <h3 class="font-display text-lg font-bold text-white">Motor de Notificaciones & Recordatorios AutomÃ¡ticos</h3>
-            <p class="text-xs text-[#bbcabf]">EnvÃ­o multi-canal por WhatsApp, Email y SMS con prevenciÃ³n de duplicados</p>
+            <h3 class="font-display text-lg font-bold text-white">Motor de Notificaciones & Recordatorios Automáticos</h3>
+            <p class="text-xs text-[#bbcabf]">EnvÃ­o multi-canal por WhatsApp, Email y SMS con prevención de duplicados</p>
           </div>
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2" onclick="window.triggerAutomatedReminders()">
             <span class="material-symbols-outlined text-[18px]">send</span> Ejecutar Motor de Reminders
@@ -658,18 +658,18 @@
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-2">
             <p class="text-xs font-bold text-white uppercase tracking-wider">Plantilla WhatsApp (Mora Temprana)</p>
             <p class="text-xs text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5">
-              "Estimado {nombre}, tu cuota de ${monto} tiene {dias_mora} dÃ­as de mora. Por favor contÃ¡ctanos para regularizar."
+              "Estimado {nombre}, tu cuota de ${monto} tiene {dias_mora} dÃ­as de mora. Por favor contáctanos para regularizar."
             </p>
           </div>
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-2">
-            <p class="text-xs font-bold text-white uppercase tracking-wider">ConfiguraciÃ³n Webhook (n8n)</p>
+            <p class="text-xs font-bold text-white uppercase tracking-wider">Configuración Webhook (n8n)</p>
             <input type="text" class="w-full bg-[#080C14] border border-white/10 rounded p-2 text-xs text-white outline-none" value="https://n8n.chenloop.com/webhook/reminders" readonly/>
             <span class="text-[10px] text-[#4edea3]">âœ“ Webhook Activo</span>
           </div>
         </div>
 
         <!-- Notification History Table -->
-        <h4 class="font-display font-bold text-white text-base pt-2">BitÃ¡cora de Notificaciones Enviadas</h4>
+        <h4 class="font-display font-bold text-white text-base pt-2">Bitácora de Notificaciones Enviadas</h4>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">

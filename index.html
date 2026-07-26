@@ -41,6 +41,10 @@
     .badge-orange { background: rgba(255, 107, 0, 0.12); color: #FF6B00; }
     .badge-red { background: rgba(244, 63, 94, 0.12); color: #F43F5E; }
     .badge-amber { background: rgba(245, 158, 11, 0.12); color: #F59E0B; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 107, 0, 0.3); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 107, 0, 0.6); }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -132,7 +136,7 @@
       </div>
     </div>
 
-    <nav class="flex-1 space-y-1">
+    <nav class="flex-1 space-y-1 overflow-y-auto min-h-0 pr-1 custom-scrollbar">
       <p class="text-[10px] uppercase font-bold text-[#8E929E] px-4 pt-2 pb-1 tracking-wider">PRINCIPAL</p>
       <button onclick="window.switchTab('dashboard')" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 text-[#FF6B00] font-bold border-r-2 border-[#FF6B00] bg-[#FF6B00]/10 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">dashboard</span>
@@ -186,7 +190,7 @@
       </button>
       <button onclick="window.switchTab('audit')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">shield</span>
-        <span class="text-sm">AuditorÃ­a Log</span>
+        <span class="text-sm">Auditoría Log</span>
       </button>
       <button onclick="window.switchTab('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">settings</span>

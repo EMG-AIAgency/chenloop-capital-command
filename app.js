@@ -387,7 +387,7 @@ window.closeScoreModal = function() {
 };
 
 window.switchTab = function(tabName) {
-  const tabs = ['dashboard', 'borrowers', 'applications', 'loans', 'collections', 'analytics', 'notifications', 'payments', 'audit', 'settings'];
+  const tabs = ['dashboard', 'borrowers', 'applications', 'loans', 'collections', 'analytics', 'notifications', 'payments', 'audit', 'settings', 'quincenal-close', 'operations-expenses', 'owner-debts'];
   tabs.forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     if (el) {
@@ -423,7 +423,10 @@ window.switchTab = function(tabName) {
     notifications: 'Notificaciones & Reminders',
     payments: 'Caja & Registrar Pago',
     audit: 'Auditoría Log',
-    settings: 'Configuración & Reglas'
+    settings: 'Configuración & Reglas',
+    'quincenal-close': 'Cierre Quincenal — Command Center',
+    'operations-expenses': 'Cuentas Lógicas & Gastos Operativos',
+    'owner-debts': 'Deudas del Propietario & Estrategia'
   };
   
   const titleEl = document.getElementById('page-title-text');

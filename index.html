@@ -866,6 +866,106 @@
       </div>
     </section>
 
+    <!-- TAB: ANALYTICS & SIMULADOR FINANCIERO -->
+    <section id="tab-analytics" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white">Analytics de Rendimiento & Simulador "What-If"</h3>
+            <p class="text-xs text-[#bbcabf]">Métricas clave de retorno (ROI, Yield) y motor de simulación de escenarios de cartera</p>
+          </div>
+          <span class="badge-risk badge-green">Simulation Engine Ready</span>
+        </div>
+
+        <!-- KPI Performance Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Yield Mensual Estimado</p>
+            <p class="font-display text-2xl font-bold text-[#4edea3]" id="an-monthly-yield">15.0%</p>
+            <p class="text-[11px] text-[#bbcabf]">Rendimiento bruto sobre colocado</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">ROI Anualizado Proyectado</p>
+            <p class="font-display text-2xl font-bold text-[#818CF8]" id="an-annual-roi">180.0%</p>
+            <p class="text-[11px] text-[#4edea3]">Retorno sobre capital base</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Tasa Efectiva de Recaudación</p>
+            <p class="font-display text-2xl font-bold text-[#FBBF24]" id="an-collection-rate">98.5%</p>
+            <p class="text-[11px] text-[#bbcabf]">Índice de efectividad en cobro</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Multiplicador de Cartera</p>
+            <p class="font-display text-2xl font-bold text-white" id="an-portfolio-multiplier">1.30x</p>
+            <p class="text-[11px] text-[#4edea3]">Factor retorno / capital</p>
+          </div>
+        </div>
+
+        <!-- Interactive What-If Simulator Card -->
+        <div class="bg-[#162032] p-6 rounded-xl border border-white/10 space-y-6">
+          <h4 class="font-bold text-sm text-white uppercase tracking-wider flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#FF6B00]">tune</span> Simulador Escenario "What-If"
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-2">Capital Colocado Simulado ($ USD)</label>
+              <input type="range" id="sim-range-capital" min="1000" max="25000" step="500" value="5000" class="w-full accent-[#FF6B00]" oninput="window.updateScenarioSimulation()"/>
+              <div class="flex justify-between text-xs font-bold text-white mt-1">
+                <span>$1,000</span>
+                <span id="sim-val-capital" class="text-[#FF6B00]">$5,000 USD</span>
+                <span>$25,000</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-2">Tasa Interés Quincenal (%)</label>
+              <input type="range" id="sim-range-rate" min="5" max="35" step="1" value="15" class="w-full accent-[#818CF8]" oninput="window.updateScenarioSimulation()"/>
+              <div class="flex justify-between text-xs font-bold text-white mt-1">
+                <span>5%</span>
+                <span id="sim-val-rate" class="text-[#818CF8]">15% Quincenal</span>
+                <span>35%</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-2">Mora Estimada / Pérdida (%)</label>
+              <input type="range" id="sim-range-mora" min="0" max="15" step="0.5" value="2" class="w-full accent-[#F43F5E]" oninput="window.updateScenarioSimulation()"/>
+              <div class="flex justify-between text-xs font-bold text-white mt-1">
+                <span>0%</span>
+                <span id="sim-val-mora" class="text-[#F43F5E]">2.0% Mora</span>
+                <span>15%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulation Projection Results -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5">
+            <div class="bg-[#080C14] p-4 rounded-lg border border-white/5 space-y-1">
+              <p class="text-xs text-[#bbcabf]">Ganancia Neta Estimada (3 Meses)</p>
+              <p class="font-display text-xl font-bold text-[#4edea3]" id="sim-res-3m">$2,250.00</p>
+              <p class="text-[11px] text-[#bbcabf]">6 quincenas de operación</p>
+            </div>
+
+            <div class="bg-[#080C14] p-4 rounded-lg border border-white/5 space-y-1">
+              <p class="text-xs text-[#bbcabf]">Ganancia Neta Estimada (6 Meses)</p>
+              <p class="font-display text-xl font-bold text-[#818CF8]" id="sim-res-6m">$4,500.00</p>
+              <p class="text-[11px] text-[#4edea3]">12 quincenas de operación</p>
+            </div>
+
+            <div class="bg-[#080C14] p-4 rounded-lg border border-white/5 space-y-1">
+              <p class="text-xs text-[#bbcabf]">Ganancia Neta Estimada (1 Año)</p>
+              <p class="font-display text-xl font-bold text-[#FBBF24]" id="sim-res-12m">$9,000.00</p>
+              <p class="text-[11px] text-[#4edea3]">24 quincenas de operación</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB: AUDITORÍA -->
     <section id="tab-audit" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
@@ -1261,6 +1361,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=10.0"></script>
+  <script src="app.js?v=11.0"></script>
 </body>
 </html>

@@ -586,6 +586,7 @@ function renderAll() {
   if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
   if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI();
   if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI();
+  if (typeof renderAnalyticsUI === 'function') renderAnalyticsUI();
   if (typeof renderSettingsUI === 'function') renderSettingsUI();
   if (typeof window.runScenarioSimulation === 'function') {
     window.runScenarioSimulation();
@@ -2611,6 +2612,71 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
   renderAll();
   alert(`✓ Deuda '${debtName}' de $${balance.toFixed(2)} USD registrada y sincronizada con Supabase.`);
 });
+
+// ----------------------------------------------------
+// MÓDULO 11: ANALYTICS & SIMULADOR FINANCIERO
+// ----------------------------------------------------
+function renderAnalyticsUI() {
+  const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
+  const metrics = typeof computeRiskMetrics === 'function' ? computeRiskMetrics() : null;
+
+  const elYield = document.getElementById('an-monthly-yield');
+  const elRoi = document.getElementById('an-annual-roi');
+  const elRate = document.getElementById('an-collection-rate');
+  const elMult = document.getElementById('an-portfolio-multiplier');
+
+  const activePortfolio = engine ? engine.activePortfolio : 0;
+  const capitalTotal = engine ? engine.capitalTotal : 5000;
+
+  const payments = state.payments || [];
+  const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
+  const totalProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
+
+  const monthlyYield = activePortfolio > 0 ? ((totalProfit / activePortfolio) * 100) : 15.0;
+  const annualRoi = capitalTotal > 0 ? ((totalProfit * 12 / capitalTotal) * 100) : 180.0;
+  const colRate = 100.0 - parseFloat(metrics ? metrics.par30Pct : "1.5");
+  const multiplier = capitalTotal > 0 ? (1 + (totalProfit / capitalTotal)) : 1.30;
+
+  if (elYield) elYield.innerText = `${monthlyYield.toFixed(1)}%`;
+  if (elRoi) elRoi.innerText = `${annualRoi.toFixed(1)}%`;
+  if (elRate) elRate.innerText = `${colRate.toFixed(1)}%`;
+  if (elMult) elMult.innerText = `${multiplier.toFixed(2)}x`;
+
+  window.updateScenarioSimulation();
+}
+
+window.updateScenarioSimulation = function() {
+  const capInput = document.getElementById('sim-range-capital');
+  const rateInput = document.getElementById('sim-range-rate');
+  const moraInput = document.getElementById('sim-range-mora');
+
+  if (!capInput || !rateInput || !moraInput) return;
+
+  const capital = parseFloat(capInput.value);
+  const rate = parseFloat(rateInput.value);
+  const mora = parseFloat(moraInput.value);
+
+  const lblCap = document.getElementById('sim-val-capital');
+  const lblRate = document.getElementById('sim-val-rate');
+  const lblMora = document.getElementById('sim-val-mora');
+
+  if (lblCap) lblCap.innerText = `$${capital.toLocaleString()} USD`;
+  if (lblRate) lblRate.innerText = `${rate}% Quincenal`;
+  if (lblMora) lblMora.innerText = `${mora.toFixed(1)}% Mora`;
+
+  const profitPerBiweek = capital * (rate / 100.0) * (1 - (mora / 100.0));
+  const res3m = profitPerBiweek * 6;
+  const res6m = profitPerBiweek * 12;
+  const res12m = profitPerBiweek * 24;
+
+  const el3m = document.getElementById('sim-res-3m');
+  const el6m = document.getElementById('sim-res-6m');
+  const el12m = document.getElementById('sim-res-12m');
+
+  if (el3m) el3m.innerText = `$${res3m.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (el6m) el6m.innerText = `$${res6m.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (el12m) el12m.innerText = `$${res12m.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 function renderSettingsUI() {
   const elPar30 = document.getElementById('set-par30-limit');

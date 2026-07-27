@@ -615,6 +615,12 @@ function renderDashboard() {
   document.getElementById('val-par30').innerText = `${metrics.par30Pct}%`;
   document.getElementById('val-required-reserve').innerText = `$${metrics.requiredReserve.toFixed(2)}`;
   
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization.riskReservePct || 20.0;
+  const lblReserveEl = document.getElementById('lbl-required-reserve');
+  if (lblReserveEl) {
+    lblReserveEl.innerText = `Reserva Requerida (${targetReservePct}%)`;
+  }
+  
   const statusEl = document.getElementById('val-reserve-status');
   if (statusEl) {
     if (metrics.requiredReserve === 0) {
@@ -886,30 +892,166 @@ function renderApplications() {
   const tbody = document.getElementById('tbody-applications');
   if (!tbody) return;
   tbody.innerHTML = '';
+
+  if (!state.applications || state.applications.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-xs text-[#94A3B8]">No hay solicitudes de crédito registradas en Supabase. Utiliza el formulario superior para registrar la primera solicitud.</td></tr>`;
+    return;
+  }
   
   state.applications.forEach(app => {
     const borrower = state.borrowers.find(b => b.id === app.borrowerId) || {};
     const scoreData = calculateExplicableScore(borrower);
     
+    let badgeClass = "badge-amber";
+    if (app.status === 'Aprobado') badgeClass = "badge-green";
+    else if (app.status === 'Rechazado') badgeClass = "badge-red";
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${app.id}</strong></td>
-      <td>${app.borrowerName}</td>
-      <td>$${app.amount.toFixed(2)}</td>
-      <td>${app.reason}</td>
-      <td><strong style="color: var(--emerald-glow);">${scoreData.totalScore} pts</strong></td>
-      <td style="font-size: 0.8rem; color: var(--text-secondary);">${scoreData.recommendation}</td>
-      <td><span class="badge-risk ${app.status === 'Aprobado' ? 'badge-green' : 'badge-amber'}">${app.status}</span></td>
-      <td>
+      <td class="p-3 font-bold text-white">${app.id}</td>
+      <td class="p-3 font-bold text-white">${app.borrowerName}</td>
+      <td class="p-3 font-bold text-[#818CF8]">$${app.amount.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${app.reason}</td>
+      <td class="p-3"><strong class="text-[#4edea3]">${scoreData.totalScore} pts</strong></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${scoreData.recommendation}</td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${app.status}</span></td>
+      <td class="p-3">
         ${app.status === 'En Revisión' ? `
-          <button class="btn btn-primary" style="padding: 4px 8px; font-size: 0.75rem; cursor: pointer;" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; color: var(--crimson-warning); cursor: pointer;" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
-        ` : `<span style="font-size: 0.8rem; color: var(--text-muted);">${app.status}</span>`}
+          <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold mr-1 cursor-pointer" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
+          <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
+        ` : `<span class="text-xs text-[#94A3B8] font-bold">${app.status}</span>`}
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
+
+window.approveApplication = async function(appId) {
+  const app = state.applications.find(a => a.id === appId);
+  if (!app) return;
+
+  const engine = calculateFinancialEngine();
+  if (app.amount > engine.capitalAvailable) {
+    alert(`No hay suficiente Capital Disponible ($${engine.capitalAvailable.toFixed(2)} USD) para desembolsar $${app.amount.toFixed(2)} USD.`);
+    return;
+  }
+
+  if (!confirm(`¿Confirmas la aprobación y desembolso del crédito de $${app.amount.toFixed(2)} USD para ${app.borrowerName}?`)) {
+    return;
+  }
+
+  app.status = 'Aprobado';
+
+  const count = app.count || 7;
+  const totalScheduled = app.amount * 1.15;
+  const installmentAmount = totalScheduled / count;
+  const scheduledProfit = app.amount * 0.15;
+
+  const newLoan = {
+    id: `LN-${Date.now()}`,
+    borrower_id: app.borrowerId,
+    borrower_name: app.borrowerName,
+    principal: app.amount,
+    installment_amount: installmentAmount,
+    installment_count: count,
+    total_scheduled: totalScheduled,
+    scheduled_profit: scheduledProfit,
+    status: 'Activo',
+    disbursement_date: new Date().toISOString().split('T')[0],
+    paid_amount: 0.0,
+    remaining_amount: totalScheduled,
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+  };
+
+  if (!state.loans) state.loans = [];
+  state.loans.unshift({
+    id: newLoan.id,
+    borrowerId: newLoan.borrower_id,
+    borrowerName: newLoan.borrower_name,
+    principal: newLoan.principal,
+    installmentAmount: newLoan.installment_amount,
+    installmentCount: newLoan.installment_count,
+    totalScheduled: newLoan.total_scheduled,
+    scheduledProfit: newLoan.scheduled_profit,
+    status: newLoan.status,
+    disbursementDate: newLoan.disbursement_date,
+    paidAmount: 0.0,
+    remainingAmount: totalScheduled
+  });
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Administrador",
+    action: "APROBACION_CREDITO",
+    module: "Solicitudes & Riesgo",
+    details: `Solicitud ${app.id} aprobada. Préstamo ${newLoan.id} por $${app.amount.toFixed(2)} USD desembolsado a ${app.borrowerName}.`
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) {
+      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    }
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'applications',
+        record: { id: app.id, status: 'Aprobado', updated_at: new Date().toISOString() }
+      })
+    });
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'loans',
+        record: newLoan
+      })
+    });
+
+    console.log("✓ Solicitud aprobada y Préstamo activo en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error enviando aprobación a Supabase Cloud:", err);
+  }
+
+  saveState();
+  renderAll();
+  alert(`✓ Solicitud ${app.id} aprobada con éxito. Préstamo ${newLoan.id} activo en Supabase.`);
+};
+
+window.rejectApplication = async function(appId) {
+  const app = state.applications.find(a => a.id === appId);
+  if (!app) return;
+
+  if (!confirm(`¿Estás seguro de rechazar la solicitud ${app.id} de ${app.borrowerName}?`)) {
+    return;
+  }
+
+  app.status = 'Rechazado';
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) {
+      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    }
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'applications',
+        record: { id: app.id, status: 'Rechazado', updated_at: new Date().toISOString() }
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando rechazo a Supabase Cloud:", err);
+  }
+
+  saveState();
+  renderAll();
+  alert(`Solicitud ${app.id} rechazada.`);
+};
 
 function renderLoans() {
   const tbody = document.getElementById('tbody-loans');
@@ -1993,6 +2135,77 @@ document.addEventListener('DOMContentLoaded', () => {
       renderBorrowers();
       renderApplications();
       alert(`✓ Prestatario ${name} guardado en Supabase con éxito. Score: ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`);
+    });
+  }
+
+  // ----------------------------------------------------
+  // HANDLER: CREAR SOLICITUD DE CRÉDITO
+  // ----------------------------------------------------
+  const formCreateApp = document.getElementById('form-create-application');
+  if (formCreateApp) {
+    formCreateApp.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const bwId = document.getElementById('app-borrower-select')?.value;
+      const amount = parseFloat(document.getElementById('app-amount')?.value || 0);
+      const reason = document.getElementById('app-reason')?.value.trim();
+      const count = parseInt(document.getElementById('app-count')?.value || 7);
+
+      if (!bwId) {
+        alert('Por favor selecciona un prestatario.');
+        return;
+      }
+
+      const bw = state.borrowers.find(b => b.id === bwId);
+      if (!bw) return;
+
+      const newApp = {
+        id: `APP-${Date.now()}`,
+        borrower_id: bw.id,
+        borrower_name: bw.name,
+        amount,
+        reason,
+        installment_count: count,
+        status: 'En Revisión',
+        created_at: new Date().toISOString(),
+        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+      };
+
+      if (!state.applications) state.applications = [];
+      state.applications.unshift({
+        id: newApp.id,
+        borrowerId: newApp.borrower_id,
+        borrowerName: newApp.borrower_name,
+        amount: newApp.amount,
+        reason: newApp.reason,
+        count: newApp.installment_count,
+        status: newApp.status,
+        createdAt: newApp.created_at
+      });
+
+      // Save to Supabase Cloud
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (currentSession) {
+          headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+        }
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            entity: 'applications',
+            record: newApp
+          })
+        });
+        console.log("✓ Solicitud de crédito guardada en Supabase Cloud");
+      } catch (err) {
+        console.warn("Error enviando solicitud a Supabase Cloud:", err);
+      }
+
+      formCreateApp.reset();
+      saveState();
+      renderAll();
+      alert(`✓ Solicitud de crédito ${newApp.id} por $${amount.toFixed(2)} guardada en Supabase en revisión.`);
     });
   }
 });

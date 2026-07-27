@@ -2470,18 +2470,45 @@ window.switchDebtStrategy = function(strategy) {
 
 // Legacy financial engine helpers removed to prevent duplication
 
+window.deleteDebt = async function(debtId) {
+  const idx = (state.ownerDebts || []).findIndex(d => d.id === debtId);
+  if (idx === -1) return;
+
+  if (!confirm("¿Estás seguro de eliminar este registro de deuda?")) return;
+
+  state.ownerDebts.splice(idx, 1);
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'owner_debts',
+        record: { id: debtId, deleted: true }
+      })
+    });
+  } catch (err) {
+    console.warn("Error eliminando deuda en Supabase:", err);
+  }
+
+  saveState();
+  renderAll();
+};
+
 function renderOwnerDebtsUI() {
-  const engine = calculateFinancialEngine();
+  const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : { distributableBalance: 0 };
   const strategy = state.selectedDebtStrategy || 'avalanche';
 
   const descEl = document.getElementById('debt-strategy-description');
   const tbody = document.getElementById('tbody-debts');
 
-  let sortedDebts = [...state.ownerDebts];
+  let sortedDebts = [...(state.ownerDebts || [])];
   if (strategy === 'avalanche') {
-    sortedDebts.sort((a, b) => b.interestRate - a.interestRate);
+    sortedDebts.sort((a, b) => (b.interestRate || b.interest_rate || 0) - (a.interestRate || a.interest_rate || 0));
   } else {
-    sortedDebts.sort((a, b) => a.balance - b.balance);
+    sortedDebts.sort((a, b) => (a.balance || 0) - (b.balance || 0));
   }
 
   if (descEl) {
@@ -2489,71 +2516,100 @@ function renderOwnerDebtsUI() {
       const target = sortedDebts[0];
       descEl.innerHTML = `
         <strong>${strategy === 'avalanche' ? 'MÉTODO AVALANCHA (Mayor Tasa de Interés)' : 'MÉTODO BOLA DE NIEVE (Menor Saldo)'}:</strong> 
-        Atacar primero <strong>${target.debtName}</strong> (Saldo: $${target.balance.toFixed(2)} | Tasa: ${target.interestRate}%). 
+        Atacar primero <strong>${target.debtName || target.debt_name}</strong> (Saldo: $${(target.balance || 0).toFixed(2)} | Tasa: ${target.interestRate || target.interest_rate}%). 
         Se asignan $${engine.distributableBalance.toFixed(2)} USD de Dinero Distribuible libre como abono extraordinario.
       `;
     } else {
-      descEl.innerText = "No hay deudas personales registradas. ¡Excelente trabajo manteniendo cero deudas!";
+      descEl.innerText = "No hay deudas personales registradas en Supabase. ¡Excelente trabajo manteniendo cero deudas!";
     }
   }
 
-  if (tbody) {
-    tbody.innerHTML = '';
-    sortedDebts.forEach((d, idx) => {
-      const extraPay = idx === 0 ? engine.distributableBalance : 0.0;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30' : 'bg-white/5 text-[#94A3B8]'}">#${idx + 1} ${idx === 0 ? 'PRIORITARIA' : ''}</span></td>
-        <td class="p-3 font-bold text-white">${d.debtName}</td>
-        <td class="p-3 text-white">$${d.balance.toFixed(2)}</td>
-        <td class="p-3 font-bold text-amber-300">${d.interestRate}%</td>
-        <td class="p-3 text-white">$${d.minPayment.toFixed(2)}</td>
-        <td class="p-3 font-bold text-[#22C55E]">$${extraPay.toFixed(2)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (sortedDebts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay deudas personales registradas aún en Supabase. Registra la primera deuda utilizando el formulario superior.</td></tr>`;
+    return;
   }
+
+  sortedDebts.forEach((d, idx) => {
+    const extraPay = idx === 0 ? engine.distributableBalance : 0.0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30' : 'bg-white/5 text-[#94A3B8]'}">#${idx + 1} ${idx === 0 ? 'PRIORITARIA' : ''}</span></td>
+      <td class="p-3 font-bold text-white">${d.debtName || d.debt_name}</td>
+      <td class="p-3 text-white font-bold">$${(d.balance || 0).toFixed(2)}</td>
+      <td class="p-3 font-bold text-amber-300">${d.interestRate || d.interest_rate}%</td>
+      <td class="p-3 text-white">$${(d.minPayment || d.min_payment || 0).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${extraPay.toFixed(2)}</td>
+      <td class="p-3">
+        <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteDebt('${d.id}')">Eliminar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-document.getElementById('form-add-expense')?.addEventListener('submit', function(e) {
+document.getElementById('form-add-debt')?.addEventListener('submit', async function(e) {
   e.preventDefault();
-  const name = document.getElementById('expense-name').value;
-  const category = document.getElementById('expense-category').value;
-  const amount = parseFloat(document.getElementById('expense-amount').value);
+  const debtName = document.getElementById('debt-name')?.value.trim();
+  const balance = parseFloat(document.getElementById('debt-balance')?.value || 0);
+  const interestRate = parseFloat(document.getElementById('debt-rate')?.value || 0);
+  const minPayment = parseFloat(document.getElementById('debt-min')?.value || 0);
 
-  const newExp = {
-    id: `exp-${Date.now()}`,
-    name,
-    category,
-    monthlyAmount: amount
-  };
+  if (!debtName || balance <= 0) {
+    alert("Por favor ingresa un nombre de deuda y un saldo mayor a $0.");
+    return;
+  }
 
-  state.operationalExpenses.push(newExp);
-  saveState();
-  renderAll();
-  e.target.reset();
-});
-
-document.getElementById('form-add-debt')?.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const debtName = document.getElementById('debt-name').value;
-  const balance = parseFloat(document.getElementById('debt-balance').value);
-  const interestRate = parseFloat(document.getElementById('debt-rate').value);
-  const minPayment = parseFloat(document.getElementById('debt-min').value);
-
-  const newDebt = {
-    id: `debt-${Date.now()}`,
-    debtName,
+  const newDebtRecord = {
+    id: `DEBT-${Date.now()}`,
+    debt_name: debtName,
     balance,
-    interestRate,
-    minPayment,
-    priority: state.ownerDebts.length + 1
+    interest_rate: interestRate,
+    min_payment: minPayment,
+    priority: (state.ownerDebts || []).length + 1,
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
   };
 
-  state.ownerDebts.push(newDebt);
+  if (!state.ownerDebts) state.ownerDebts = [];
+  state.ownerDebts.push({
+    id: newDebtRecord.id,
+    debtName: newDebtRecord.debt_name,
+    balance: newDebtRecord.balance,
+    interestRate: newDebtRecord.interest_rate,
+    minPayment: newDebtRecord.min_payment,
+    priority: newDebtRecord.priority
+  });
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Propietario",
+    action: "DEUDA_PERSONAL_REGISTRADA",
+    module: "Deudas Propietario",
+    details: `Deuda de $${balance.toFixed(2)} USD registrada para '${debtName}' (${interestRate}% interés).`
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'owner_debts',
+        record: newDebtRecord
+      })
+    });
+    console.log("✓ Deuda guardada en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error sincronizando deuda con Supabase:", err);
+  }
+
+  document.getElementById('form-add-debt').reset();
   saveState();
   renderAll();
-  e.target.reset();
+  alert(`✓ Deuda '${debtName}' de $${balance.toFixed(2)} USD registrada y sincronizada con Supabase.`);
 });
 
 function renderSettingsUI() {

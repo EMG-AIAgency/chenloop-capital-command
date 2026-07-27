@@ -803,6 +803,69 @@
       </div>
     </section>
 
+    <!-- TAB: DEUDAS PROPIETARIO & ESTRATEGIA DE DESENDEUDAMIENTO -->
+    <section id="tab-owner-debts" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white">Estrategia de Desendeudamiento Acelerado (Propietario)</h3>
+            <p class="text-xs text-[#bbcabf]">Optimización de excedentes distribuibles mediante el Método Avalancha o Bola de Nieve</p>
+          </div>
+          <div class="flex bg-[#162032] p-1 rounded-lg border border-white/10 text-xs">
+            <button id="btn-debt-avalanche" onclick="window.switchDebtStrategy('avalanche')" class="px-3 py-1.5 rounded-md font-bold bg-[#FF6B00] text-white transition-all">Método Avalancha (Interés %)</button>
+            <button id="btn-debt-snowball" onclick="window.switchDebtStrategy('snowball')" class="px-3 py-1.5 rounded-md text-[#94A3B8] hover:text-white transition-all">Método Bola de Nieve (Saldo $)</button>
+          </div>
+        </div>
+
+        <!-- Strategy Active Guidance Banner -->
+        <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-1">
+          <p class="text-xs text-[#bbcabf]" id="debt-strategy-description">
+            <strong>MÉTODO AVALANCHA (Mayor Tasa de Interés):</strong> Ataca primero las deudas con la tasa más alta para minimizar el costo financiero total.
+          </p>
+        </div>
+
+        <form id="form-add-debt" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end pt-2">
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Nombre de la Deuda</label>
+            <input type="text" id="debt-name" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Tarjeta Credicorp / Préstamo Banistmo" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Saldo Pendiente ($ USD)</label>
+            <input type="number" id="debt-balance" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="1200" step="0.01" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Tasa Interés Anual (%)</label>
+            <input type="number" id="debt-rate" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="24" step="0.1" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Pago Mínimo Mensual ($)</label>
+            <input type="number" id="debt-min" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50" step="0.01" required/>
+          </div>
+          <div>
+            <button type="submit" class="w-full bg-[#818CF8] hover:bg-[#6366F1] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#818CF8]/20">Registrar Deuda</button>
+          </div>
+        </form>
+
+        <h3 class="font-display text-lg font-bold text-white pt-4">Plan de Amortización Priorizado</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
+              <tr>
+                <th class="p-3">PRIORIDAD</th>
+                <th class="p-3">DEUDA</th>
+                <th class="p-3">SALDO PENDIENTE</th>
+                <th class="p-3">TASA INTERÉS</th>
+                <th class="p-3">PAGO MÍNIMO</th>
+                <th class="p-3">ABONO EXTRAORDINARIO SUGERIDO</th>
+                <th class="p-3">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-debts" class="divide-y divide-white/5"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB: AUDITORÍA -->
     <section id="tab-audit" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
@@ -1198,6 +1261,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=9.0"></script>
+  <script src="app.js?v=10.0"></script>
 </body>
 </html>

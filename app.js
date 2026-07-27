@@ -189,6 +189,9 @@ async function loadState() {
         if (fa.par30_limit) {
           state.organization.par30Limit = parseFloat(fa.par30_limit);
         }
+        state.capital.totalCapital = state.financialAccounts.capitalTotal;
+        state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+        state.capital.capitalAvailable = Math.max(0, state.capital.totalCapital - state.capital.capitalDeployed);
       }
 
       if (cloudData.operationalExpenses && cloudData.operationalExpenses.length > 0) {
@@ -597,7 +600,13 @@ function renderAll() {
 }
 
 function renderDashboard() {
+  const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
   const cap = state.capital;
+  if (engine) {
+    cap.totalCapital = engine.capitalTotal;
+    cap.capitalAvailable = engine.capitalAvailable;
+    cap.riskReserve = engine.riskReserveBalance;
+  }
   const metrics = computeRiskMetrics();
   
   const totalCapEl = document.getElementById('val-total-capital');

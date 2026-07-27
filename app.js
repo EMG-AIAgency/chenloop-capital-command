@@ -584,6 +584,7 @@ function renderAll() {
   if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
   if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI();
   if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI();
+  if (typeof renderSettingsUI === 'function') renderSettingsUI();
   if (typeof window.runScenarioSimulation === 'function') {
     window.runScenarioSimulation();
   }
@@ -1590,4 +1591,49 @@ document.getElementById('form-add-debt')?.addEventListener('submit', function(e)
   saveState();
   renderAll();
   e.target.reset();
+});
+
+function renderSettingsUI() {
+  const elPar30 = document.getElementById('set-par30-limit');
+  const elReserve = document.getElementById('set-reserve-target');
+  const elPortfolio = document.getElementById('set-portfolio-target');
+  const elOps = document.getElementById('set-ops-months');
+  const elOrg = document.getElementById('set-org-name');
+
+  if (elPar30) elPar30.value = state.organization?.par30Limit || 10.0;
+  if (elReserve) elReserve.value = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  if (elPortfolio) elPortfolio.value = state.financialAccounts?.portfolioTarget || 5000.0;
+  if (elOps) elOps.value = state.financialAccounts?.operationalTargetMonths || 6;
+  if (elOrg) elOrg.value = state.organization?.name || "Mi Cartera Personal";
+}
+
+document.getElementById('form-settings')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const par30Limit = parseFloat(document.getElementById('set-par30-limit').value);
+  const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target').value);
+  const portfolioTarget = parseFloat(document.getElementById('set-portfolio-target').value);
+  const opsMonths = parseInt(document.getElementById('set-ops-months').value);
+  const orgName = document.getElementById('set-org-name').value;
+
+  if (!state.organization) state.organization = {};
+  if (!state.financialAccounts) state.financialAccounts = {};
+
+  state.organization.par30Limit = par30Limit;
+  state.organization.name = orgName;
+
+  state.financialAccounts.riskReserveTargetPct = reserveTargetPct;
+  state.financialAccounts.portfolioTarget = portfolioTarget;
+  state.financialAccounts.operationalTargetMonths = opsMonths;
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Administrador",
+    action: "ACTUALIZACION_CONFIGURACION",
+    module: "Configuración",
+    details: `Nuevas reglas: PAR30 Límite: ${par30Limit}%, Reserva Target: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
+  });
+
+  saveState();
+  renderAll();
+  alert("✓ Configuración y Reglas de Negocio actualizadas con éxito.");
 });

@@ -926,6 +926,93 @@
       </div>
     </section>
 
+    <!-- TAB: CONFIGURACIÓN & REGLAS -->
+    <section id="tab-settings" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h3 class="font-display font-bold text-white text-lg flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#FF6B00]">tune</span>
+              Configuración & Reglas de Negocio
+            </h3>
+            <p class="text-xs text-[#94A3B8]">Administración de políticas de riesgo, objetivos de cartera y reglas disciplinarias del Motor Financiero.</p>
+          </div>
+          <span class="px-3 py-1 bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] text-xs font-bold rounded-lg flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#FF6B00] animate-pulse"></span>
+            REGLAS ACTIVAS
+          </span>
+        </div>
+
+        <form id="form-settings" class="space-y-6">
+          <!-- Card 1: Políticas de Riesgo y Control -->
+          <div class="bg-[#16181D] p-5 rounded-xl border border-white/5 space-y-4">
+            <h4 class="font-display font-bold text-[#FF6B00] text-sm uppercase tracking-wider flex items-center gap-2">
+              <span class="material-symbols-outlined">shield_lock</span>
+              1. Políticas de Riesgo & Control de Cartera
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Límite Máximo PAR30 (%)</label>
+                <input type="number" step="0.1" id="set-par30-limit" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Nivel de mora > 30 días que activa el Modo Defensivo.</p>
+              </div>
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Reserva de Riesgo Target (%)</label>
+                <input type="number" step="0.1" id="set-reserve-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Porcentaje de cartera activa destinado a blindar pérdidas.</p>
+              </div>
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Objetivo de Cartera ($ USD)</label>
+                <input type="number" step="100" id="set-portfolio-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Meta de capital colocado para la Etapa 4 de estabilización.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Cobertura Operativa y Gastos -->
+          <div class="bg-[#16181D] p-5 rounded-xl border border-white/5 space-y-4">
+            <h4 class="font-display font-bold text-emerald-400 text-sm uppercase tracking-wider flex items-center gap-2">
+              <span class="material-symbols-outlined">account_balance</span>
+              2. Cobertura Operativa & Fondos de Emergencia
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Cobertura Gastos Operativos (Meses)</label>
+                <input type="number" step="1" id="set-ops-months" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Meses acumulados de liquidez operativa requerida (Recomendado: 6 meses).</p>
+              </div>
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Nombre de la Cartera / Entidad</label>
+                <input type="text" id="set-org-name" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Nombre visible de tu organización en reportes y cierres.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Resumen de Reglas Disciplinarias del Sistema -->
+          <div class="bg-[#080C14] p-5 rounded-xl border border-white/5 space-y-3">
+            <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#FF6B00]">gavel</span>
+              Reglas Disciplinarias del Motor Financiero
+            </h4>
+            <ul class="text-xs text-[#94A3B8] space-y-2 list-disc list-inside">
+              <li><strong>Prioridad de Reposición (P1):</strong> Todo capital devuelto en cuotas se reinvierte o repone primero para sostener la cartera meta.</li>
+              <li><strong>Reserva Obligatoria (P1):</strong> Si existe déficit en la Reserva de Riesgo, las ganancias se desvían automáticamente a la reserva antes de cualquier distribución.</li>
+              <li><strong>Modo Defensivo Inviolable (P3):</strong> Al superar el límite PAR30 o caer la reserva por debajo del 15%, los retiros personales quedan en $0.00 USD.</li>
+              <li><strong>Gestión de Deudas Personales:</strong> El excedente distribuible se asigna siguiendo la estrategia elegida (Avalancha o Bola de Nieve).</li>
+            </ul>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="submit" class="bg-[#FF6B00] hover:bg-[#FF5500] text-white px-6 py-3 rounded-lg font-bold text-xs transition-all shadow-lg shadow-[#FF6B00]/20 flex items-center gap-2 cursor-pointer">
+              <span class="material-symbols-outlined text-[18px]">save</span>
+              Guardar Configuración & Aplicar Reglas
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </main>
 
   <!-- MODAL SCORING BREAKDOWN STITCH STYLE -->

@@ -615,6 +615,21 @@ function renderDashboard() {
   document.getElementById('val-par30').innerText = `${metrics.par30Pct}%`;
   document.getElementById('val-required-reserve').innerText = `$${metrics.requiredReserve.toFixed(2)}`;
   
+  const statusEl = document.getElementById('val-reserve-status');
+  if (statusEl) {
+    if (metrics.requiredReserve === 0) {
+      statusEl.innerText = "Sin requerimiento (0 colocados)";
+      statusEl.className = "text-[11px] text-[#bbcabf]";
+    } else if (cap.riskReserve >= metrics.requiredReserve) {
+      statusEl.innerText = "✓ Cobertura Completa";
+      statusEl.className = "text-[11px] text-[#4edea3]";
+    } else {
+      const deficit = (metrics.requiredReserve - cap.riskReserve).toFixed(2);
+      statusEl.innerText = `⚠️ Déficit de Reserva: -$${deficit}`;
+      statusEl.className = "text-[11px] text-[#F59E0B]";
+    }
+  }
+  
   const total = cap.totalCapital || 1;
   const depPct = Math.round((cap.capitalDeployed / total) * 100);
   const availPct = Math.round((cap.capitalAvailable / total) * 100);
@@ -781,20 +796,25 @@ function renderBorrowers() {
   tbody.innerHTML = '';
   if (appSelect) appSelect.innerHTML = '<option value="">-- Seleccionar Prestatario --</option>';
   
+  if (!state.borrowers || state.borrowers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay prestatarios registrados en Supabase. Haz clic en <strong>+ Nuevo Prestatario</strong> para registrar el primero.</td></tr>`;
+    return;
+  }
+
   state.borrowers.forEach(bw => {
     const scoreData = calculateExplicableScore(bw);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${bw.name}</strong></td>
-      <td>${bw.idNumber}</td>
-      <td>${bw.phone}</td>
-      <td>
-        <strong style="color: var(--emerald-glow);">${scoreData.totalScore} pts</strong>
-        <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.7rem; margin-left: 6px; cursor: pointer;" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
+      <td class="p-3 font-bold text-white">${bw.name}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${bw.idNumber || bw.id_number || 'N/A'}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${bw.phone || 'N/A'}</td>
+      <td class="p-3">
+        <strong class="text-[#4edea3]">${scoreData.totalScore} pts</strong>
+        <button class="bg-[#162032] hover:bg-[#1f2d47] text-white px-2 py-1 rounded text-[11px] ml-2 cursor-pointer border border-white/10" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
       </td>
-      <td><span class="badge-risk ${scoreData.totalScore >= 80 ? 'badge-green' : 'badge-amber'}">${scoreData.riskLevel}</span></td>
-      <td>$${bw.maxExposure || 150.0}</td>
-      <td><span class="badge-risk badge-green">${bw.status}</span></td>
+      <td class="p-3"><span class="badge-risk ${scoreData.totalScore >= 80 ? 'badge-green' : (scoreData.totalScore >= 60 ? 'badge-amber' : 'badge-red')}">${scoreData.riskLevel}</span></td>
+      <td class="p-3 font-bold text-white">$${(bw.exposureLimit || bw.maxExposure || 150.0).toFixed(2)}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${bw.status || 'Activo'}</span></td>
     `;
     tbody.appendChild(tr);
     
@@ -806,6 +826,61 @@ function renderBorrowers() {
     }
   });
 }
+
+window.showScoreModal = function(borrowerId) {
+  const bw = state.borrowers.find(b => b.id === borrowerId);
+  if (!bw) return;
+
+  const scoreData = calculateExplicableScore(bw);
+  const modal = document.getElementById('modal-score-breakdown');
+  const content = document.getElementById('modal-score-content');
+
+  if (!modal || !content) return;
+
+  content.innerHTML = `
+    <div class="p-3 rounded-lg bg-[#080C14] border border-white/5 space-y-2">
+      <div class="flex justify-between items-center">
+        <span class="font-bold text-white text-sm">${bw.name}</span>
+        <span class="text-xs px-2 py-0.5 rounded font-bold ${scoreData.totalScore >= 80 ? 'bg-emerald-500/20 text-[#4edea3]' : 'bg-amber-500/20 text-[#F59E0B]'}">${scoreData.riskLevel}</span>
+      </div>
+      <div class="text-2xl font-bold text-[#4edea3]">${scoreData.totalScore} <span class="text-xs text-[#bbcabf] font-normal">/ 100 Puntos Totales</span></div>
+    </div>
+    
+    <div class="space-y-1.5 text-xs text-[#bbcabf]">
+      <div class="flex justify-between p-2 rounded bg-white/5">
+        <span>Score de Base</span>
+        <span class="font-bold text-white">+${scoreData.breakdown.base} pts</span>
+      </div>
+      <div class="flex justify-between p-2 rounded bg-white/5">
+        <span>Capacidad de Pago (Ingresos: $${bw.income || 0})</span>
+        <span class="font-bold text-white">+${scoreData.breakdown.income} pts</span>
+      </div>
+      <div class="flex justify-between p-2 rounded bg-white/5">
+        <span>Estabilidad Laboral (${bw.employmentType || bw.employment || 'Empleado'})</span>
+        <span class="font-bold text-white">+${scoreData.breakdown.employment} pts</span>
+      </div>
+      <div class="flex justify-between p-2 rounded bg-white/5">
+        <span>Identidad Verificada (${bw.verified ? 'Sí' : 'No'})</span>
+        <span class="font-bold text-white">+${scoreData.breakdown.verification} pts</span>
+      </div>
+    </div>
+
+    <div class="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-[#818CF8]">
+      <strong>Recomendación del Motor:</strong> ${scoreData.recommendation}
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+};
+
+window.closeScoreModal = function() {
+  const modal = document.getElementById('modal-score-breakdown');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
 
 function renderApplications() {
   const tbody = document.getElementById('tbody-applications');
@@ -1821,4 +1896,103 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   saveState();
   renderAll();
   alert("✓ Configuración y Reglas de Negocio guardadas y sincronizadas en Supabase con éxito.");
+});
+
+// ----------------------------------------------------
+// HANDLER: AGREGAR NUEVO PRESTATARIO & SCORING
+// ----------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+  const formAddBw = document.getElementById('form-add-borrower');
+  if (formAddBw) {
+    formAddBw.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('bw-name')?.value.trim();
+      const idNum = document.getElementById('bw-id')?.value.trim();
+      const phone = document.getElementById('bw-phone')?.value.trim();
+      const income = parseFloat(document.getElementById('bw-income')?.value || 0);
+      const employment = document.getElementById('bw-employment')?.value || 'Empleado';
+      const verified = document.getElementById('bw-verified')?.value === 'true';
+
+      if (!name || !idNum) {
+        alert('Por favor ingrese el nombre e identificación del prestatario.');
+        return;
+      }
+
+      const tempBw = {
+        id: `BW-${Date.now()}`,
+        name,
+        idNumber: idNum,
+        phone,
+        income,
+        employmentType: employment,
+        verified,
+        status: 'Activo'
+      };
+
+      const scoreObj = calculateExplicableScore(tempBw);
+      const maxExposure = scoreObj.totalScore >= 80 ? 300.0 : (scoreObj.totalScore >= 60 ? 150.0 : 50.0);
+
+      const newBorrower = {
+        id: tempBw.id,
+        name: tempBw.name,
+        id_number: tempBw.idNumber,
+        phone: tempBw.phone,
+        income: tempBw.income,
+        employment_type: tempBw.employmentType,
+        verified: tempBw.verified,
+        risk_score: scoreObj.totalScore,
+        risk_level: scoreObj.riskLevel,
+        exposure_limit: maxExposure,
+        status: 'Activo',
+        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+      };
+
+      // Add to local state
+      if (!state.borrowers) state.borrowers = [];
+      state.borrowers.unshift({
+        id: newBorrower.id,
+        name: newBorrower.name,
+        idNumber: newBorrower.id_number,
+        phone: newBorrower.phone,
+        income: newBorrower.income,
+        employmentType: newBorrower.employment_type,
+        verified: newBorrower.verified,
+        riskScore: newBorrower.risk_score,
+        riskLevel: newBorrower.risk_level,
+        maxExposure: newBorrower.exposure_limit,
+        status: newBorrower.status
+      });
+
+      // Save to Supabase Cloud
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (currentSession) {
+          headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+        }
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            entity: 'borrowers',
+            record: newBorrower
+          })
+        });
+        console.log("✓ Prestatario guardado y sincronizado en Supabase Cloud");
+      } catch (err) {
+        console.warn("Error enviando prestatario a Supabase Cloud:", err);
+      }
+
+      // Reset form and hide form
+      formAddBw.reset();
+      if (typeof window.toggleBorrowerForm === 'function') {
+        window.toggleBorrowerForm();
+      }
+
+      // Re-render UI
+      renderBorrowers();
+      renderApplications();
+      alert(`✓ Prestatario ${name} guardado en Supabase con éxito. Score: ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`);
+    });
+  }
 });

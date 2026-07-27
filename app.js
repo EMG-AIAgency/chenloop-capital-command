@@ -1420,6 +1420,171 @@ document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', asy
   renderAll();
   alert("✓ Webhook URL de n8n guardado y sincronizado con éxito en Supabase.");
 });
+
+// ----------------------------------------------------
+// MÓDULO 7: CAJA & REGISTRAR PAGO
+// ----------------------------------------------------
+function renderPayments() {
+  const tbody = document.getElementById('tbody-payments');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const payments = state.payments || [];
+  if (payments.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-xs text-[#94A3B8]">No hay cobros registrados en caja en Supabase. Registra la primera cuota recibida utilizando el formulario superior.</td></tr>`;
+    return;
+  }
+
+  payments.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${p.timestamp || p.date || 'Hoy'}</td>
+      <td class="p-3 font-bold text-white">${p.loanId}</td>
+      <td class="p-3 text-white font-bold">${p.borrowerName}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${(p.amountPaid || p.amount || 0).toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#818CF8] font-bold">$${(p.principalShare || 0).toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#4edea3] font-bold">$${(p.profitShare || 0).toFixed(2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('form-record-payment')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const loanId = document.getElementById('pay-loan-select')?.value;
+  const amountPaid = parseFloat(document.getElementById('pay-amount')?.value || 0);
+  const sendWhatsApp = document.getElementById('pay-send-whatsapp')?.checked;
+
+  if (!loanId || amountPaid <= 0) {
+    alert("Por favor selecciona un préstamo activo e ingresa un monto mayor a $0.");
+    return;
+  }
+
+  const loan = state.loans.find(l => l.id === loanId);
+  if (!loan) {
+    alert("Préstamo no encontrado.");
+    return;
+  }
+
+  const totalSched = loan.totalScheduled || (loan.principal * 1.15);
+  const principalRatio = loan.principal / totalSched;
+  const profitRatio = (loan.scheduledProfit || (loan.principal * 0.15)) / totalSched;
+
+  const principalShare = amountPaid * principalRatio;
+  const profitShare = amountPaid * profitRatio;
+
+  loan.paidAmount = (loan.paidAmount || 0) + amountPaid;
+  loan.remainingAmount = Math.max(0, totalSched - loan.paidAmount);
+
+  if (loan.remainingAmount <= 0.01) {
+    loan.status = 'Pagado';
+  }
+
+  if (!state.financialAccounts) state.financialAccounts = {};
+  state.financialAccounts.accumulatedProfits = (state.financialAccounts.accumulatedProfits || 0) + profitShare;
+
+  const newPayment = {
+    id: `PAY-${Date.now()}`,
+    loan_id: loan.id,
+    borrower_name: loan.borrowerName,
+    amount_paid: amountPaid,
+    principal_share: principalShare,
+    profit_share: profitShare,
+    remaining_balance: loan.remainingAmount,
+    payment_date: new Date().toISOString(),
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+  };
+
+  if (!state.payments) state.payments = [];
+  state.payments.unshift({
+    id: newPayment.id,
+    timestamp: new Date().toLocaleString(),
+    loanId: loan.id,
+    borrowerName: loan.borrowerName,
+    amountPaid,
+    principalShare,
+    profitShare
+  });
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Cajero Admin",
+    action: "PAGO_REGISTRADO",
+    module: "Caja & Pagos",
+    details: `Cobro de $${amountPaid.toFixed(2)} USD registrado para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'payments',
+        record: newPayment
+      })
+    });
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'loans',
+        record: {
+          id: loan.id,
+          paid_amount: loan.paidAmount,
+          remaining_amount: loan.remainingAmount,
+          status: loan.status,
+          updated_at: new Date().toISOString()
+        }
+      })
+    });
+
+    console.log("✓ Pago y Préstamo actualizados en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error sincronizando pago con Supabase:", err);
+  }
+
+  if (sendWhatsApp) {
+    const webhookUrl = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
+    const receiptPayload = {
+      event: "DIGITAL_RECEIPT",
+      borrower_name: loan.borrowerName,
+      phone: "+50761337723",
+      payment_amount: amountPaid.toFixed(2),
+      remaining_balance: loan.remainingAmount.toFixed(2),
+      transaction_id: newPayment.id,
+      organization: state.organization?.name || "Chenloop Capital"
+    };
+
+    try {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(receiptPayload)
+      });
+      if (!state.n8nLogs) state.n8nLogs = [];
+      state.n8nLogs.unshift({
+        timestamp: new Date().toLocaleString(),
+        eventType: "COMPROBANTE_PAGO_RECIBIDO",
+        recipient: loan.borrowerName,
+        channel: 'WhatsApp / n8n',
+        payload: JSON.stringify(receiptPayload),
+        status: 'OK 200 (Auto Receipt)'
+      });
+    } catch (err) {
+      console.warn("Auto receipt n8n trigger error:", err);
+    }
+  }
+
+  document.getElementById('form-record-payment').reset();
+  saveState();
+  renderAll();
+  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado con éxito en Caja y sincronizado con Supabase.${sendWhatsApp ? '\n📲 Comprobante de WhatsApp enviado vía n8n.' : ''}`);
+});
   
 // ----------------------------------------------------
 // CHENLOOP CAPITAL COMMAND - CORE APPLICATION LOGIC

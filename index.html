@@ -621,24 +621,36 @@
     <!-- TAB: CAJA & PAGOS -->
     <section id="tab-payments" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">
-        <h3 class="font-display text-lg font-bold text-white">Registro de Cobro / Cuota Recibida</h3>
-        <form id="form-record-payment" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select id="pay-loan-select" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
-          <input type="number" id="pay-amount" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" required/>
-          <button type="submit" class="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold">Registrar Pago en Caja</button>
+        <h3 class="font-display text-lg font-bold text-white">Registro de Cobro / Cuota Recibida en Caja</h3>
+        <form id="form-record-payment" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Préstamo Activo</label>
+            <select id="pay-loan-select" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Monto Recibido ($ USD)</label>
+            <input type="number" id="pay-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" step="0.01" required/>
+          </div>
+          <div class="flex items-center gap-2 pb-2">
+            <input type="checkbox" id="pay-send-whatsapp" class="w-4 h-4 accent-[#10b981]" checked/>
+            <label for="pay-send-whatsapp" class="text-xs text-[#bbcabf] cursor-pointer">Enviar Recibo por WhatsApp vía n8n</label>
+          </div>
+          <div>
+            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20">Registrar Pago en Caja</button>
+          </div>
         </form>
 
-        <h3 class="font-display text-lg font-bold text-white pt-4">Historial de Pagos & AuditorÃ­a de Caja</h3>
+        <h3 class="font-display text-lg font-bold text-white pt-4">Historial de Pagos & Auditoría de Caja</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
-                <th class="p-3">Fecha</th>
-                <th class="p-3">Préstamo</th>
-                <th class="p-3">Prestatario</th>
-                <th class="p-3">Monto Pagado</th>
-                <th class="p-3">A Capital</th>
-                <th class="p-3">A Ganancia Real</th>
+                <th class="p-3">FECHA & HORA</th>
+                <th class="p-3">PRÉSTAMO</th>
+                <th class="p-3">PRESTATARIO</th>
+                <th class="p-3">MONTO PAGADO</th>
+                <th class="p-3">A CAPITAL (RECIPIENTE)</th>
+                <th class="p-3">A GANANCIA REAL</th>
               </tr>
             </thead>
             <tbody id="tbody-payments" class="divide-y divide-white/5"></tbody>
@@ -1042,6 +1054,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=6.2"></script>
+  <script src="app.js?v=7.0"></script>
 </body>
 </html>

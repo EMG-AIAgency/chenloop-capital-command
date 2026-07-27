@@ -562,61 +562,6 @@
       </div>
     </section>
 
-    <!-- TAB: ANALYTICS & SIMULADOR (Restaurado Selector de Política) -->
-    <section id="tab-analytics" class="hidden space-y-6">
-      <div class="glass-card p-6 space-y-6">
-        <div class="flex justify-between items-center">
-          <h3 class="font-display text-lg font-bold text-white">Simulador de Escenarios de Crecimiento</h3>
-          <span class="badge-risk badge-green">Stitch Analytics Engine</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Capital Meta a Colocar ($)</label>
-            <input type="number" id="sim-target-capital" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="10000" oninput="window.runScenarioSimulation()"/>
-          </div>
-          <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Mora Estimada (%)</label>
-            <input type="number" id="sim-mora-pct" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="4.0" step="0.5" oninput="window.runScenarioSimulation()"/>
-          </div>
-          <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Reserva Requerida (%)</label>
-            <input type="number" id="sim-reserve-pct" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="15.0" step="1" oninput="window.runScenarioSimulation()"/>
-          </div>
-          <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">PolÃ­tica de Reinversión</label>
-            <select id="sim-policy" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" onchange="window.runScenarioSimulation()">
-              <option value="agresiva">Reinversión Agresiva (70% a préstamos / 30% reserva)</option>
-              <option value="balanceada">Reinversión Balanceada (50% a préstamos / 50% reserva)</option>
-              <option value="conservadora">Conservación de Capital (30% a préstamos / 70% reserva)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Reserva Requerida Simulación</p>
-            <p class="font-display text-xl font-bold text-[#FBBF24]" id="sim-res-needed">$1,500.00</p>
-            <p class="text-[11px] text-[#bbcabf]" id="sim-res-pct-text">Tasa de reserva: 15%</p>
-          </div>
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Reinversión en Nuevos Préstamos</p>
-            <p class="font-display text-xl font-bold text-[#4edea3]" id="sim-reinvest-amount">$7,000.00</p>
-            <p class="text-[11px] text-[#4edea3]" id="sim-reinvest-pct-text">70% de flujo a préstamos</p>
-          </div>
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Fondo Retenido en Reserva/Liquidez</p>
-            <p class="font-display text-xl font-bold text-[#818CF8]" id="sim-retained-amount">$3,000.00</p>
-            <p class="text-[11px] text-[#bbcabf]" id="sim-retained-pct-text">30% retenido en reserva/liquidez</p>
-          </div>
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Ganancia Neta Estimada</p>
-            <p class="font-display text-xl font-bold text-[#4edea3]" id="sim-net-profit">$7,100.00</p>
-            <p class="text-[11px] text-[#bbcabf]">Ajustada por mora estimada</p>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- TAB: CAJA & PAGOS -->
     <section id="tab-payments" class="hidden space-y-6">
@@ -1141,6 +1086,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=13.0"></script>
+  <script src="app.js?v=14.0"></script>
 </body>
 </html>

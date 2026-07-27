@@ -508,8 +508,8 @@
         </div>
         <form id="form-save-n8n-webhook" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div class="md:col-span-3">
-            <label class="text-xs text-[#bbcabf] block mb-1">n8n Production Webhook URL (WhatsApp / Email)</label>
-            <input type="url" id="n8n-webhook-url" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="https://n8n.tudominio.com/webhook/chenloop-notifications" required/>
+            <label class="text-xs text-[#bbcabf] block mb-1">n8n Production Webhook URL (Railway / Twilio WhatsApp)</label>
+            <input type="url" id="n8n-webhook-url" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" placeholder="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" required/>
           </div>
           <div>
             <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20">Guardar Webhook</button>
@@ -1042,6 +1042,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=6.0"></script>
+  <script src="app.js?v=6.1"></script>
 </body>
 </html>

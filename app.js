@@ -1281,8 +1281,8 @@ function renderNotifications() {
   const countEl = document.getElementById('n8n-log-count');
   if (!tbody) return;
 
-  if (inputUrl && state.financialAccounts?.n8nWebhookUrl) {
-    inputUrl.value = state.financialAccounts.n8nWebhookUrl;
+  if (inputUrl) {
+    inputUrl.value = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
   }
 
   const logs = state.n8nLogs || [];

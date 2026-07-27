@@ -271,60 +271,7 @@ async function saveState() {
 // ----------------------------------------------------
 // SCENARIO SIMULATOR ENGINE (FASE 4)
 // ----------------------------------------------------
-window.runScenarioSimulation = function() {
-  const targetInput = document.getElementById('sim-target-capital');
-  const moraInput = document.getElementById('sim-mora-pct');
-  const reserveInput = document.getElementById('sim-reserve-pct');
-  const policySelect = document.getElementById('sim-policy');
-  
-  if (!targetInput || !moraInput || !reserveInput || !policySelect) return;
-  
-  const targetCapital = parseFloat(targetInput.value) || 0;
-  const moraPct = parseFloat(moraInput.value) || 0;
-  const reservePct = parseFloat(reserveInput.value) || 0;
-  const policy = policySelect.value;
-  
-  // Parámetros por Política de Reinversión
-  let reinvestPct = 70;
-  let retainedPct = 30;
-  
-  if (policy === 'balanceada') {
-    reinvestPct = 50;
-    retainedPct = 50;
-  } else if (policy === 'conservadora') {
-    reinvestPct = 30;
-    retainedPct = 70;
-  }
-  
-  const projectedProfit = targetCapital * 0.75; // $75 ganancia por cada $100 colocados
-  const requiredReserve = targetCapital * (reservePct / 100.0);
-  const moraRiskAmount = targetCapital * (moraPct / 100.0);
-  const netProfit = projectedProfit - moraRiskAmount;
-  
-  const reinvestAmount = targetCapital * (reinvestPct / 100.0);
-  const retainedAmount = targetCapital * (retainedPct / 100.0);
-  
-  const resEl = document.getElementById('sim-res-needed');
-  if (resEl) resEl.innerText = `$${requiredReserve.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-  
-  const resPctEl = document.getElementById('sim-res-pct-text');
-  if (resPctEl) resPctEl.innerText = `Tasa de reserva: ${reservePct}%`;
-  
-  const reinvestAmountEl = document.getElementById('sim-reinvest-amount');
-  if (reinvestAmountEl) reinvestAmountEl.innerText = `$${reinvestAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-  
-  const reinvestPctEl = document.getElementById('sim-reinvest-pct-text');
-  if (reinvestPctEl) reinvestPctEl.innerText = `${reinvestPct}% de flujo a préstamos`;
-  
-  const retainedAmountEl = document.getElementById('sim-retained-amount');
-  if (retainedAmountEl) retainedAmountEl.innerText = `$${retainedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-  
-  const retainedPctEl = document.getElementById('sim-retained-pct-text');
-  if (retainedPctEl) retainedPctEl.innerText = `${retainedPct}% retenido en reserva/liquidez`;
-  
-  const netProfitEl = document.getElementById('sim-net-profit');
-  if (netProfitEl) netProfitEl.innerText = `$${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-};
+// Legacy runScenarioSimulation removed to use new What-If engine
 
 // ----------------------------------------------------
 // GLOBAL WINDOW BINDINGS
@@ -651,6 +598,18 @@ function renderDashboard() {
 
   renderCapitalFlows();
   renderRealtimeAlerts();
+
+  if (typeof renderBorrowers === 'function') renderBorrowers();
+  if (typeof renderApplications === 'function') renderApplications();
+  if (typeof renderLoans === 'function') renderLoans();
+  if (typeof renderCollections === 'function') renderCollections();
+  if (typeof renderPayments === 'function') renderPayments();
+  if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
+  if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI();
+  if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI();
+  if (typeof renderAudit === 'function') renderAudit();
+  if (typeof renderAnalyticsUI === 'function') renderAnalyticsUI();
+  if (typeof renderSettingsUI === 'function') renderSettingsUI();
 }
 
 function renderCapitalFlows() {

@@ -2614,6 +2614,40 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
 });
 
 // ----------------------------------------------------
+// MÓDULO 12: AUDITORÍA LOG INMUTABLE
+// ----------------------------------------------------
+function renderAudit() {
+  const tbody = document.getElementById('tbody-audit');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const logs = state.auditLogs || [];
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-xs text-[#94A3B8]">No hay acciones registradas en la bitácora de auditoría aún.</td></tr>`;
+    return;
+  }
+
+  logs.forEach(log => {
+    let badgeClass = "badge-green";
+    if (log.action && (log.action.includes('RECHAZAD') || log.action.includes('INCUMPLID') || log.action.includes('MORA'))) {
+      badgeClass = "badge-red";
+    } else if (log.action && (log.action.includes('CONFIG') || log.action.includes('GASTO'))) {
+      badgeClass = "badge-amber";
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${log.timestamp || log.date || 'Hoy'}</td>
+      <td class="p-3 font-bold text-white text-xs">${log.user || 'Sistema'}</td>
+      <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${log.action}</span></td>
+      <td class="p-3 text-xs text-[#818CF8] font-bold">${log.module}</td>
+      <td class="p-3 text-xs text-white max-w-md">${log.details}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ----------------------------------------------------
 // MÓDULO 11: ANALYTICS & SIMULADOR FINANCIERO
 // ----------------------------------------------------
 function renderAnalyticsUI() {

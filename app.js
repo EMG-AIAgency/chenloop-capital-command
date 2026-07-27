@@ -1113,29 +1113,34 @@ function renderCollections() {
   if (!tbody) return;
   tbody.innerHTML = '';
   
+  if (!state.collections || state.collections.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-xs text-[#94A3B8]">No hay registros de gestión de cobranzas o promesas de pago en Supabase. Utiliza el formulario superior para registrar la primera gestión.</td></tr>`;
+    return;
+  }
+
   state.collections.forEach(col => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf]">${col.id}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-bold">${col.id}</td>
       <td class="p-3 font-bold text-white">${col.loanId}</td>
-      <td class="p-3 text-white">${col.borrowerName}</td>
-      <td class="p-3 font-bold text-[#F43F5E]">${col.daysOverdue} días</td>
-      <td class="p-3"><span class="badge-risk badge-amber">${col.delinquencyTier}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate} (${col.channel})</td>
-      <td class="p-3 font-bold text-white">$${col.promiseAmount.toFixed(2)}</td>
-      <td class="p-3"><span class="badge-risk ${col.promiseStatus === 'Cumplida' ? 'badge-green' : 'badge-amber'}">${col.promiseStatus}</span></td>
+      <td class="p-3 text-white font-bold">${col.borrowerName}</td>
+      <td class="p-3 font-bold text-[#F43F5E]">${col.daysOverdue || 0} días</td>
+      <td class="p-3"><span class="badge-risk badge-amber">${col.delinquencyTier || 'Monitoreo'}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate || 'N/A'} (${col.channel || 'Contacto'})</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${(col.promiseAmount || 0).toFixed(2)}</td>
+      <td class="p-3"><span class="badge-risk ${col.promiseStatus === 'Cumplida' ? 'badge-green' : (col.promiseStatus === 'Incumplida' ? 'badge-red' : 'badge-amber')}">${col.promiseStatus || 'Pendiente'}</span></td>
       <td class="p-3">
         ${col.promiseStatus === 'Pendiente' ? `
-          <button class="bg-[#10b981] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" onclick="window.markPromiseFulfilled('${col.id}')">Cumplida</button>
-          <button class="bg-red-500/20 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer" onclick="window.markPromiseBroken('${col.id}')">Incumplida</button>
-        ` : `<span class="text-xs text-[#bbcabf]">Cerrada</span>`}
+          <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" onclick="window.markPromiseFulfilled('${col.id}')">Cumplida</button>
+          <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.markPromiseBroken('${col.id}')">Incumplida</button>
+        ` : `<span class="text-xs text-[#94A3B8] font-bold">Cerrada</span>`}
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-window.markPromiseFulfilled = function(colId) {
+window.markPromiseFulfilled = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
   col.promiseStatus = "Cumplida";
@@ -1144,15 +1149,31 @@ window.markPromiseFulfilled = function(colId) {
     timestamp: new Date().toLocaleString(),
     user: "Gestor Cobros",
     action: "PROMESA_CUMPLIDA",
-    module: "Cobranzas",
+    module: "Gestión de Cobranzas",
     details: `Cliente ${col.borrowerName} cumplió promesa de pago de $${col.promiseAmount}`
   });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'collections',
+        record: { id: col.id, promise_status: 'Cumplida', updated_at: new Date().toISOString() }
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando actualización de promesa a Supabase:", err);
+  }
   
   saveState();
   renderAll();
+  alert(`✓ Promesa de pago de ${col.borrowerName} marcada como CUMPLIDA.`);
 };
 
-window.markPromiseBroken = function(colId) {
+window.markPromiseBroken = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
   col.promiseStatus = "Incumplida";
@@ -1161,43 +1182,94 @@ window.markPromiseBroken = function(colId) {
     timestamp: new Date().toLocaleString(),
     user: "Gestor Cobros",
     action: "PROMESA_INCUMPLIDA",
-    module: "Cobranzas",
-    details: `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago`
+    module: "Gestión de Cobranzas",
+    details: `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago.`
   });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'collections',
+        record: { id: col.id, promise_status: 'Incumplida', updated_at: new Date().toISOString() }
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando incumplimiento a Supabase:", err);
+  }
   
   saveState();
   renderAll();
+  alert(`Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA.`);
 };
 
 // Form collection listener
-document.getElementById('form-add-collection')?.addEventListener('submit', function(e) {
+document.getElementById('form-add-collection')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   
   const loanId = document.getElementById('col-loan-select').value;
   const channel = document.getElementById('col-channel').value;
   const promiseDate = document.getElementById('col-promise-date').value;
-  const promiseAmount = parseFloat(document.getElementById('col-promise-amount').value);
-  const notes = document.getElementById('col-notes').value;
+  const promiseAmount = parseFloat(document.getElementById('col-promise-amount').value || 0);
+  const notes = document.getElementById('col-notes').value.trim();
   
   const loan = state.loans.find(l => l.id === loanId);
-  if (!loan) return;
+  if (!loan) {
+    alert("Por favor selecciona un préstamo activo.");
+    return;
+  }
   
-  const newCol = {
-    id: `COL-${3000 + state.collections.length + 1}`,
-    loanId: loan.id,
-    borrowerName: loan.borrowerName,
-    daysOverdue: 8,
-    delinquencyTier: "Mora Temprana (8-15d)",
+  const newColRecord = {
+    id: `COL-${Date.now()}`,
+    loan_id: loan.id,
+    borrower_name: loan.borrowerName,
+    days_overdue: 0,
+    delinquency_tier: "Monitoreo",
     channel,
-    promiseDate,
-    promiseAmount,
-    promiseStatus: "Pendiente",
-    notes
+    promise_date: promiseDate,
+    promise_amount: promiseAmount,
+    promise_status: "Pendiente",
+    notes,
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
   };
+
+  if (!state.collections) state.collections = [];
+  state.collections.unshift({
+    id: newColRecord.id,
+    loanId: newColRecord.loan_id,
+    borrowerName: newColRecord.borrower_name,
+    daysOverdue: newColRecord.days_overdue,
+    delinquencyTier: newColRecord.delinquency_tier,
+    channel: newColRecord.channel,
+    promiseDate: newColRecord.promise_date,
+    promiseAmount: newColRecord.promise_amount,
+    promiseStatus: newColRecord.promise_status,
+    notes: newColRecord.notes
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'collections',
+        record: newColRecord
+      })
+    });
+    console.log("✓ Gestión de cobranza guardada en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error enviando gestión de cobranza a Supabase:", err);
+  }
   
-  state.collections.unshift(newCol);
+  document.getElementById('form-add-collection').reset();
   saveState();
   renderAll();
+  alert(`✓ Gestión para ${loan.borrowerName} guardada en Supabase con éxito.`);
 });
   
 // ----------------------------------------------------

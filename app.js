@@ -1063,29 +1063,50 @@ function renderLoans() {
   if (paySelect) paySelect.innerHTML = '<option value="">-- Seleccionar Préstamo --</option>';
   if (colSelect) colSelect.innerHTML = '<option value="">-- Seleccionar Préstamo --</option>';
   
+  if (!state.loans || state.loans.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-xs text-[#94A3B8]">No hay préstamos activos registrados en Supabase. Aprueba una solicitud de crédito en el módulo <strong>Solicitudes & Riesgo</strong> para generar el primer préstamo.</td></tr>`;
+    return;
+  }
+
   state.loans.forEach(ln => {
+    let badgeClass = "badge-green";
+    if (ln.status === 'En Mora') badgeClass = "badge-amber";
+    else if (ln.status === 'Pagado') badgeClass = "badge-gray";
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${ln.id}</strong></td>
-      <td>${ln.borrowerName}</td>
-      <td>$${ln.principal.toFixed(2)}</td>
-      <td>$${ln.totalScheduled.toFixed(2)}</td>
-      <td style="color: var(--emerald-glow);">$${ln.scheduledProfit.toFixed(2)}</td>
-      <td>${ln.installmentCount} quincenas ($${ln.installmentAmount})</td>
-      <td><span class="badge-risk badge-green">${ln.status}</span></td>
-      <td><button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; cursor: pointer;" onclick="window.switchTab('payments')">Cobrar</button></td>
+      <td class="p-3 font-bold text-white">${ln.id}</td>
+      <td class="p-3 font-bold text-white">${ln.borrowerName}</td>
+      <td class="p-3 font-bold text-[#818CF8]">$${ln.principal.toFixed(2)}</td>
+      <td class="p-3 text-white">$${ln.totalScheduled.toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${ln.scheduledProfit.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${ln.installmentCount} quincenas ($${(ln.installmentAmount || 0).toFixed(2)})</td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${ln.status}</span></td>
+      <td class="p-3">
+        <button class="bg-[#FF6B00] hover:bg-[#FF5500] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer shadow-md shadow-[#FF6B00]/20" onclick="window.selectLoanForPayment('${ln.id}')">Cobrar</button>
+      </td>
     `;
     tbody.appendChild(tr);
     
-    if (ln.status === 'Activo') {
+    if (ln.status === 'Activo' || ln.status === 'En Mora') {
       const opt = document.createElement('option');
       opt.value = ln.id;
-      opt.innerText = `${ln.id} - ${ln.borrowerName} (Saldo: $${ln.remainingAmount})`;
+      opt.innerText = `${ln.id} - ${ln.borrowerName} (Saldo: $${(ln.remainingAmount || ln.totalScheduled).toFixed(2)})`;
       if (paySelect) paySelect.appendChild(opt);
       if (colSelect) colSelect.appendChild(opt.cloneNode(true));
     }
   });
 }
+
+window.selectLoanForPayment = function(loanId) {
+  const paySelect = document.getElementById('pay-loan-select');
+  if (paySelect) {
+    paySelect.value = loanId;
+  }
+  if (typeof window.switchTab === 'function') {
+    window.switchTab('payments');
+  }
+};
 
 function renderCollections() {
   const tbody = document.getElementById('tbody-collections');

@@ -1595,15 +1595,19 @@ function renderQuincenalCloseUI() {
   const elProfit = document.getElementById('qc-net-profit');
   const elRiskContrib = document.getElementById('qc-risk-contribution');
   const elReinvest = document.getElementById('qc-reinvestment-available');
+  const lblRiskContrib = document.getElementById('lbl-qc-risk-contribution');
 
   const payments = state.payments || [];
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
   const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
-  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization?.riskReservePct || 20.0;
   const riskContrib = netProfit * (targetReservePct / 100.0);
   const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
   const reinvestAvail = engine ? engine.capitalAvailable : (state.capital?.capitalAvailable || 0);
 
+  if (lblRiskContrib) {
+    lblRiskContrib.innerText = `Aporte a Reserva de Riesgo (${targetReservePct}%)`;
+  }
   if (elCollected) elCollected.innerText = `$${totalCollected.toFixed(2)}`;
   if (elProfit) elProfit.innerText = `$${netProfit.toFixed(2)}`;
   if (elRiskContrib) elRiskContrib.innerText = `$${riskContrib.toFixed(2)}`;
@@ -1647,7 +1651,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   const payments = state.payments || [];
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
   const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
-  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization?.riskReservePct || 20.0;
   const riskContribution = netProfit * (targetReservePct / 100.0);
 
   if (!state.capital) state.capital = {};
@@ -1682,7 +1686,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     user: "Ejecutivo Financiero",
     action: "CIERRE_QUINCENAL_PROCESADO",
     module: "Cierre Quincenal",
-    details: `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (20%): $${riskContribution.toFixed(2)}.`
+    details: `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (${targetReservePct}%): $${riskContribution.toFixed(2)}.`
   });
 
   try {
@@ -1706,7 +1710,154 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   document.getElementById('form-quincenal-close').reset();
   saveState();
   renderAll();
-  alert(`✓ Cierre Quincenal '${periodName}' procesado y sincronizado con Supabase con éxito.\nFondo de Reserva incrementado en $${riskContribution.toFixed(2)} USD.`);
+  alert(`✓ Cierre Quincenal '${periodName}' procesado y sincronizado con Supabase con éxito.\nFondo de Reserva incrementado en $${riskContribution.toFixed(2)} USD (${targetReservePct}%).`);
+});
+
+// ----------------------------------------------------
+// MÓDULO 9: GASTOS & CUENTAS OPERATIVAS
+// ----------------------------------------------------
+function renderOperationsExpensesUI() {
+  const tbody = document.getElementById('tbody-operations-expenses');
+  const elTotal = document.getElementById('ops-total-expenses');
+  const elCategory = document.getElementById('ops-top-category');
+  const elNetAfter = document.getElementById('ops-net-after-expenses');
+
+  const expenses = state.operationalExpenses || [];
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const catTotals = {};
+  expenses.forEach(e => {
+    const cat = e.category || 'Varios';
+    catTotals[cat] = (catTotals[cat] || 0) + (e.amount || 0);
+  });
+  let topCat = 'N/A';
+  let maxCatAmount = 0;
+  Object.keys(catTotals).forEach(cat => {
+    if (catTotals[cat] > maxCatAmount) {
+      maxCatAmount = catTotals[cat];
+      topCat = cat;
+    }
+  });
+
+  const payments = state.payments || [];
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
+  const netAfterExpenses = Math.max(0, netProfit - totalExpenses);
+
+  if (elTotal) elTotal.innerText = `$${totalExpenses.toFixed(2)}`;
+  if (elCategory) elCategory.innerText = topCat;
+  if (elNetAfter) elNetAfter.innerText = `$${netAfterExpenses.toFixed(2)}`;
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (expenses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-xs text-[#94A3B8]">No hay gastos operativos registrados aún en Supabase. Registra el primer egreso utilizando el formulario superior.</td></tr>`;
+    return;
+  }
+
+  expenses.forEach(exp => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${exp.timestamp || exp.date || 'Hoy'}</td>
+      <td class="p-3 font-bold text-white">${exp.concept}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${exp.category}</span></td>
+      <td class="p-3 font-bold text-[#F43F5E]">$${(exp.amount || 0).toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${exp.user || 'Administrador'}</td>
+      <td class="p-3">
+        <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteExpense('${exp.id}')">Eliminar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.deleteExpense = async function(expId) {
+  const idx = (state.operationalExpenses || []).findIndex(e => e.id === expId);
+  if (idx === -1) return;
+
+  if (!confirm("¿Estás seguro de eliminar este gasto operativo?")) return;
+
+  state.operationalExpenses.splice(idx, 1);
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'operational_expenses',
+        record: { id: expId, deleted: true }
+      })
+    });
+  } catch (err) {
+    console.warn("Error eliminando gasto en Supabase:", err);
+  }
+
+  saveState();
+  renderAll();
+};
+
+document.getElementById('form-add-expense')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const concept = document.getElementById('exp-concept')?.value.trim();
+  const category = document.getElementById('exp-category')?.value;
+  const amount = parseFloat(document.getElementById('exp-amount')?.value || 0);
+
+  if (!concept || amount <= 0) {
+    alert("Por favor ingresa una descripción y un monto mayor a $0.");
+    return;
+  }
+
+  const newExpRecord = {
+    id: `EXP-${Date.now()}`,
+    concept,
+    category,
+    amount,
+    user: "Administrador",
+    created_at: new Date().toISOString(),
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+  };
+
+  if (!state.operationalExpenses) state.operationalExpenses = [];
+  state.operationalExpenses.unshift({
+    id: newExpRecord.id,
+    timestamp: new Date().toLocaleString(),
+    concept: newExpRecord.concept,
+    category: newExpRecord.category,
+    amount: newExpRecord.amount,
+    user: newExpRecord.user
+  });
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Administrador",
+    action: "GASTO_OPERATIVO_REGISTRADO",
+    module: "Gastos & Cuentas",
+    details: `Gasto de $${amount.toFixed(2)} USD registrado para '${concept}' (${category}).`
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'operational_expenses',
+        record: newExpRecord
+      })
+    });
+    console.log("✓ Gasto operativo guardado en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error sincronizando gasto con Supabase:", err);
+  }
+
+  document.getElementById('form-add-expense').reset();
+  saveState();
+  renderAll();
+  alert(`✓ Gasto de $${amount.toFixed(2)} USD para '${concept}' guardado y sincronizado con Supabase.`);
 });
   
 // ----------------------------------------------------
@@ -2317,97 +2468,7 @@ window.switchDebtStrategy = function(strategy) {
   renderOwnerDebtsUI();
 };
 
-function renderQuincenalCloseUI() {
-  const engine = calculateFinancialEngine();
-  const actions = generateBiweeklyActions();
-
-  const elExp = document.getElementById('close-val-expected');
-  const elColl = document.getElementById('close-val-collected');
-  const elCap = document.getElementById('close-val-cap-recovered');
-  const elProfit = document.getElementById('close-val-gross-profit');
-
-  if (elExp) elExp.innerText = `$${(engine.activePortfolio * 0.15 || 500).toFixed(2)}`;
-  if (elColl) elColl.innerText = `$${(engine.activePortfolio * 0.14 || 470).toFixed(2)}`;
-  if (elCap) elCap.innerText = `$${(engine.activePortfolio * 0.10 || 320).toFixed(2)}`;
-  if (elProfit) elProfit.innerText = `$${(engine.activePortfolio * 0.04 || 150).toFixed(2)}`;
-
-  const actionsContainer = document.getElementById('quincenal-actions-container');
-  if (actionsContainer) {
-    actionsContainer.innerHTML = '';
-    actions.forEach(a => {
-      const card = document.createElement('div');
-      card.className = 'p-3 rounded-lg bg-[#080C14] border border-white/5 flex items-start justify-between gap-4';
-      card.innerHTML = `
-        <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${a.priority.includes('P1') ? 'bg-red-500/20 text-red-400 border border-red-500/30' : a.priority.includes('P2') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">${a.priority}</span>
-            <span class="font-bold text-white text-sm">${a.action}</span>
-          </div>
-          <p class="text-xs text-[#94A3B8]"><strong>Motivo:</strong> ${a.motive}</p>
-        </div>
-        <span class="text-xs font-bold text-[#FF6B00] bg-[#FF6B00]/10 px-3 py-1 rounded border border-[#FF6B00]/20 truncate max-w-[150px]">${a.destination}</span>
-      `;
-      actionsContainer.appendChild(card);
-    });
-  }
-
-  const tbody = document.getElementById('tbody-quincenal-closes');
-  if (tbody) {
-    tbody.innerHTML = '';
-    if (state.quincenalCloses.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales registrados todavía. Haz clic en "Ejecutar Cierre Quincenal".</td></tr>`;
-    } else {
-      state.quincenalCloses.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="p-3 font-bold text-white">${c.closeDate}</td>
-          <td class="p-3 text-white">$${c.collectedAmount.toFixed(2)} / $${c.expectedAmount.toFixed(2)}</td>
-          <td class="p-3 font-bold text-[#22C55E]">${c.collectionRate.toFixed(1)}%</td>
-          <td class="p-3 text-[#818CF8]">$${c.capitalRecovered.toFixed(2)}</td>
-          <td class="p-3 font-bold text-[#FF6B00]">$${c.grossProfit.toFixed(2)}</td>
-          <td class="p-3 text-xs text-[#94A3B8]">${getStageName(c.businessStage)}</td>
-          <td class="p-3 font-bold text-[#22C55E]">$${c.distributableAmount.toFixed(2)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-  }
-}
-
-function renderOperationsExpensesUI() {
-  const engine = calculateFinancialEngine();
-
-  const elCap = document.getElementById('op-acc-capital');
-  const elCapStatus = document.getElementById('op-acc-capital-status');
-  const elRes = document.getElementById('op-acc-reserve');
-  const elResStatus = document.getElementById('op-acc-reserve-status');
-  const elOps = document.getElementById('op-acc-ops');
-  const elOpsStatus = document.getElementById('op-acc-ops-status');
-  const elDist = document.getElementById('op-acc-distributable');
-
-  if (elCap) elCap.innerText = `$${engine.capitalTotal.toFixed(2)}`;
-  if (elCapStatus) elCapStatus.innerText = `Colocado: $${engine.capitalDeployed.toFixed(2)} | Disp: $${engine.capitalAvailable.toFixed(2)}`;
-  if (elRes) elRes.innerText = `$${engine.riskReserveBalance.toFixed(2)}`;
-  if (elResStatus) elResStatus.innerText = `Meta (20%): $${engine.targetReserve.toFixed(2)} (${engine.reserveDeficit > 0 ? 'Déficit: $' + engine.reserveDeficit.toFixed(2) : '✓ Cobertura Completa'})`;
-  if (elOps) elOps.innerText = `$${engine.operationalBalance.toFixed(2)}`;
-  if (elOpsStatus) elOpsStatus.innerText = `Cobertura: ${engine.opsMonthsCoverage.toFixed(1)} Meses (Gasto: $${engine.monthlyOps.toFixed(2)}/mes)`;
-  if (elDist) elDist.innerText = `$${engine.distributableBalance.toFixed(2)}`;
-
-  const tbody = document.getElementById('tbody-expenses');
-  if (tbody) {
-    tbody.innerHTML = '';
-    state.operationalExpenses.forEach(e => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="p-3 font-bold text-white">${e.name}</td>
-        <td class="p-3 text-xs text-[#94A3B8]">${e.category}</td>
-        <td class="p-3 font-bold text-[#FF6B00]">$${e.monthlyAmount.toFixed(2)}</td>
-        <td class="p-3 text-white">$${(e.monthlyAmount * 12).toFixed(2)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-}
+// Legacy financial engine helpers removed to prevent duplication
 
 function renderOwnerDebtsUI() {
   const engine = calculateFinancialEngine();

@@ -684,7 +684,7 @@
           </div>
 
           <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
-            <p class="text-xs text-[#bbcabf]">Aporte a Reserva de Riesgo (20%)</p>
+            <p class="text-xs text-[#bbcabf]" id="lbl-qc-risk-contribution">Aporte a Reserva de Riesgo (20%)</p>
             <p class="font-display text-2xl font-bold text-[#FBBF24]" id="qc-risk-contribution">$0.00</p>
             <p class="text-[11px] text-[#bbcabf]">Fondo de cobertura automática</p>
           </div>
@@ -725,6 +725,79 @@
               </tr>
             </thead>
             <tbody id="tbody-quincenal-closes" class="divide-y divide-white/5"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: GASTOS & CUENTAS OPERATIVAS -->
+    <section id="tab-operations-expenses" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white">Gestión de Gastos Operativos & Deducción de Cuentas</h3>
+            <p class="text-xs text-[#bbcabf]">Control de egresos administrativos, comisiones y tecnología para mantener el balance neto del capital</p>
+          </div>
+          <span class="badge-risk badge-green">Expense Audit Live</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Total Gastos Operativos</p>
+            <p class="font-display text-2xl font-bold text-[#F43F5E]" id="ops-total-expenses">$0.00</p>
+            <p class="text-[11px] text-[#bbcabf]">Egresos acumulados</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Categoría Mayor Gasto</p>
+            <p class="font-display text-2xl font-bold text-white" id="ops-top-category">N/A</p>
+            <p class="text-[11px] text-[#818CF8]">Mayor centro de costos</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Ganancia Neta Ajustada</p>
+            <p class="font-display text-2xl font-bold text-[#4edea3]" id="ops-net-after-expenses">$0.00</p>
+            <p class="text-[11px] text-[#4edea3]">Utilidad libre de gastos</p>
+          </div>
+        </div>
+
+        <form id="form-add-expense" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end pt-2">
+          <div class="md:col-span-2">
+            <label class="text-xs text-[#bbcabf] block mb-1">Descripción / Concepto del Gasto</label>
+            <input type="text" id="exp-concept" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Licencia n8n / Twilio / Servidor Railway" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Categoría</label>
+            <select id="exp-category" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+              <option value="Tecnología & Servidores">Tecnología & Servidores</option>
+              <option value="Comisiones & Cobranza">Comisiones & Cobranza</option>
+              <option value="Gastos Administrativos">Gastos Administrativos</option>
+              <option value="Legal & Cumplimiento">Legal & Cumplimiento</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Monto ($ USD)</label>
+            <input type="number" id="exp-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50" step="0.01" required/>
+          </div>
+          <div>
+            <button type="submit" class="w-full bg-[#F43F5E] hover:bg-[#E11D48] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#F43F5E]/20">Registrar Gasto</button>
+          </div>
+        </form>
+
+        <h3 class="font-display text-lg font-bold text-white pt-4">Bitácora de Gastos Registrados</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
+              <tr>
+                <th class="p-3">FECHA & HORA</th>
+                <th class="p-3">CONCEPTO</th>
+                <th class="p-3">CATEGORÍA</th>
+                <th class="p-3">MONTO ($ USD)</th>
+                <th class="p-3">REGISTRADO POR</th>
+                <th class="p-3">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-operations-expenses" class="divide-y divide-white/5"></tbody>
           </table>
         </div>
       </div>
@@ -1125,6 +1198,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=8.0"></script>
+  <script src="app.js?v=9.0"></script>
 </body>
 </html>

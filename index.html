@@ -659,10 +659,81 @@
       </div>
     </section>
 
-    <!-- TAB: AUDITORÃA -->
+    <!-- TAB: CIERRE QUINCENAL & MOTOR DE RENTABILIDAD -->
+    <section id="tab-quincenal-close" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white">Motor de Cierre Financiero Quincenal</h3>
+            <p class="text-xs text-[#bbcabf]">Consolidado de cobranza, rendimientos netos y transferencia automática a Reserva de Riesgo</p>
+          </div>
+          <span class="badge-risk badge-green">Audit Engine Ready</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Cobros Recibidos en Periodo</p>
+            <p class="font-display text-2xl font-bold text-[#4edea3]" id="qc-total-collected">$0.00</p>
+            <p class="text-[11px] text-[#bbcabf]">Recaudación bruta en caja</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Ganancia Neta Generada</p>
+            <p class="font-display text-2xl font-bold text-[#818CF8]" id="qc-net-profit">$0.00</p>
+            <p class="text-[11px] text-[#4edea3]">Utilidad real cobrada</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Aporte a Reserva de Riesgo (20%)</p>
+            <p class="font-display text-2xl font-bold text-[#FBBF24]" id="qc-risk-contribution">$0.00</p>
+            <p class="text-[11px] text-[#bbcabf]">Fondo de cobertura automática</p>
+          </div>
+
+          <div class="bg-[#162032] p-4 rounded-xl border border-white/5">
+            <p class="text-xs text-[#bbcabf]">Capital Disponible a Reingreso</p>
+            <p class="font-display text-2xl font-bold text-white" id="qc-reinvestment-available">$0.00</p>
+            <p class="text-[11px] text-[#4edea3]">Disponible para colocaciones</p>
+          </div>
+        </div>
+
+        <form id="form-quincenal-close" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end pt-2">
+          <div class="md:col-span-2">
+            <label class="text-xs text-[#bbcabf] block mb-1">Nombre o Periodo del Cierre</label>
+            <input type="text" id="qc-period-name" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Cierre Quincenal - 1ra Quincena Julio 2026" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Notas Ejecutivas</label>
+            <input type="text" id="qc-notes" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Cierre procesado sin incidencias" required/>
+          </div>
+          <div>
+            <button type="submit" class="w-full bg-[#FF6B00] hover:bg-[#FF8800] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#FF6B00]/20">Procesar Cierre Quincenal</button>
+          </div>
+        </form>
+
+        <h3 class="font-display text-lg font-bold text-white pt-4">Historial de Cierres Quincenales Guardados</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
+              <tr>
+                <th class="p-3">FECHA & HORA</th>
+                <th class="p-3">PERIODO</th>
+                <th class="p-3">COBRO TOTAL</th>
+                <th class="p-3">GANANCIA NETA</th>
+                <th class="p-3">APORTE RESERVA</th>
+                <th class="p-3">NOTAS</th>
+                <th class="p-3">ESTADO</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-quincenal-closes" class="divide-y divide-white/5"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: AUDITORÍA -->
     <section id="tab-audit" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
-        <h3 class="font-display text-lg font-bold text-white">Bitácora Inmutable de AuditorÃ­a</h3>
+        <h3 class="font-display text-lg font-bold text-white">Bitácora Inmutable de Auditoría</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
@@ -1054,6 +1125,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=7.0"></script>
+  <script src="app.js?v=8.0"></script>
 </body>
 </html>

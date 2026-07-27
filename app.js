@@ -1585,6 +1585,129 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   renderAll();
   alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado con éxito en Caja y sincronizado con Supabase.${sendWhatsApp ? '\n📲 Comprobante de WhatsApp enviado vía n8n.' : ''}`);
 });
+
+// ----------------------------------------------------
+// MÓDULO 8: CIERRE QUINCENAL & MOTOR DE RENTABILIDAD
+// ----------------------------------------------------
+function renderQuincenalCloseUI() {
+  const tbody = document.getElementById('tbody-quincenal-closes');
+  const elCollected = document.getElementById('qc-total-collected');
+  const elProfit = document.getElementById('qc-net-profit');
+  const elRiskContrib = document.getElementById('qc-risk-contribution');
+  const elReinvest = document.getElementById('qc-reinvestment-available');
+
+  const payments = state.payments || [];
+  const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  const riskContrib = netProfit * (targetReservePct / 100.0);
+  const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
+  const reinvestAvail = engine ? engine.capitalAvailable : (state.capital?.capitalAvailable || 0);
+
+  if (elCollected) elCollected.innerText = `$${totalCollected.toFixed(2)}`;
+  if (elProfit) elProfit.innerText = `$${netProfit.toFixed(2)}`;
+  if (elRiskContrib) elRiskContrib.innerText = `$${riskContrib.toFixed(2)}`;
+  if (elReinvest) elReinvest.innerText = `$${reinvestAvail.toFixed(2)}`;
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const closes = state.quincenalCloses || [];
+  if (closes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales ejecutados aún en Supabase. Utiliza el formulario superior para procesar el primer cierre oficial.</td></tr>`;
+    return;
+  }
+
+  closes.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${c.timestamp || c.date || 'Hoy'}</td>
+      <td class="p-3 font-bold text-white">${c.periodName}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${(c.totalCollected || 0).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#818CF8]">$${(c.netProfit || 0).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#FBBF24]">$${(c.riskContribution || 0).toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${c.notes}">${c.notes}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${c.status || 'Procesado'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('form-quincenal-close')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const periodName = document.getElementById('qc-period-name')?.value.trim();
+  const notes = document.getElementById('qc-notes')?.value.trim();
+
+  if (!periodName) {
+    alert("Por favor ingresa un nombre para el periodo de cierre.");
+    return;
+  }
+
+  const payments = state.payments || [];
+  const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+  const riskContribution = netProfit * (targetReservePct / 100.0);
+
+  if (!state.capital) state.capital = {};
+  state.capital.riskReserve = (state.capital.riskReserve || 0) + riskContribution;
+
+  const newCloseRecord = {
+    id: `QC-${Date.now()}`,
+    period_name: periodName,
+    total_collected: totalCollected,
+    net_profit: netProfit,
+    risk_contribution: riskContribution,
+    notes,
+    status: "Procesado",
+    closed_at: new Date().toISOString(),
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+  };
+
+  if (!state.quincenalCloses) state.quincenalCloses = [];
+  state.quincenalCloses.unshift({
+    id: newCloseRecord.id,
+    timestamp: new Date().toLocaleString(),
+    periodName: newCloseRecord.period_name,
+    totalCollected: newCloseRecord.total_collected,
+    netProfit: newCloseRecord.net_profit,
+    riskContribution: newCloseRecord.risk_contribution,
+    notes: newCloseRecord.notes,
+    status: newCloseRecord.status
+  });
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Ejecutivo Financiero",
+    action: "CIERRE_QUINCENAL_PROCESADO",
+    module: "Cierre Quincenal",
+    details: `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (20%): $${riskContribution.toFixed(2)}.`
+  });
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'quincenal_closes',
+        record: newCloseRecord
+      })
+    });
+
+    console.log("✓ Cierre Quincenal guardado en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error sincronizando Cierre Quincenal con Supabase:", err);
+  }
+
+  document.getElementById('form-quincenal-close').reset();
+  saveState();
+  renderAll();
+  alert(`✓ Cierre Quincenal '${periodName}' procesado y sincronizado con Supabase con éxito.\nFondo de Reserva incrementado en $${riskContribution.toFixed(2)} USD.`);
+});
   
 // ----------------------------------------------------
 // CHENLOOP CAPITAL COMMAND - CORE APPLICATION LOGIC

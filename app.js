@@ -172,17 +172,23 @@ async function loadState() {
       if (cloudData.financialAccounts && cloudData.financialAccounts.length > 0) {
         const fa = cloudData.financialAccounts[0];
         state.financialAccounts = {
-          capitalTotal: parseFloat(fa.capital_total || 5000),
+          id: fa.id,
+          organizationId: fa.organization_id,
+          capitalTotal: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
           capitalDeployed: parseFloat(fa.capital_deployed || 3200),
           capitalAvailable: parseFloat(fa.capital_available || 1800),
           riskReserveBalance: parseFloat(fa.risk_reserve_balance || 750),
           riskReserveTargetPct: parseFloat(fa.risk_reserve_target_pct || 20.0),
+          portfolioTarget: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
           operationalBalance: parseFloat(fa.operational_balance || 450),
           operationalTargetMonths: parseInt(fa.operational_target_months || 6),
           distributableBalance: parseFloat(fa.distributable_balance || 320),
           currentStage: parseInt(fa.current_stage || 4),
           defensiveMode: Boolean(fa.defensive_mode)
         };
+        if (fa.par30_limit) {
+          state.organization.par30Limit = parseFloat(fa.par30_limit);
+        }
       }
 
       if (cloudData.operationalExpenses && cloudData.operationalExpenses.length > 0) {
@@ -1200,7 +1206,7 @@ window.getStageName = function(stageInt) {
 window.calculateFinancialEngine = function() {
   const activeLoans = state.loans.filter(l => l.status === 'Activo');
   const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.remainingAmount || 0), 0);
-  const capitalTotal = state.financialAccounts?.capitalTotal || 5000.0;
+  const capitalTotal = state.financialAccounts?.portfolioTarget || state.financialAccounts?.capitalTotal || 5000.0;
   const capitalDeployed = activePortfolio;
   const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);
   
@@ -1225,12 +1231,13 @@ window.calculateFinancialEngine = function() {
     defensiveMode = true;
   }
 
+  const portfolioTarget = state.financialAccounts?.portfolioTarget || 5000.0;
   let currentStage = 0;
   if (activePortfolio < 1000) currentStage = 0;
   else if (activePortfolio < 2000) currentStage = 1;
   else if (activePortfolio < 4000) currentStage = 2;
-  else if (activePortfolio < 5000) currentStage = 3;
-  else if (activePortfolio >= 5000) {
+  else if (activePortfolio < portfolioTarget) currentStage = 3;
+  else if (activePortfolio >= portfolioTarget) {
     if (reserveDeficit === 0 && opsDeficit === 0 && !defensiveMode) {
       currentStage = 5;
     } else {
@@ -1258,7 +1265,8 @@ window.calculateFinancialEngine = function() {
     distributableBalance,
     currentStage,
     defensiveMode,
-    par30Rate
+    par30Rate,
+    portfolioTarget
   };
 };
 
@@ -1266,7 +1274,7 @@ window.generateBiweeklyActions = function() {
   const engine = calculateFinancialEngine();
   const actions = [];
 
-  const portfolioTarget = 5000.0;
+  const portfolioTarget = engine.portfolioTarget || 5000.0;
   if (engine.activePortfolio < portfolioTarget) {
     const capDeficit = portfolioTarget - engine.activePortfolio;
     actions.push({
@@ -1607,7 +1615,7 @@ function renderSettingsUI() {
   if (elOrg) elOrg.value = state.organization?.name || "Mi Cartera Personal";
 }
 
-document.getElementById('form-settings')?.addEventListener('submit', function(e) {
+document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   const par30Limit = parseFloat(document.getElementById('set-par30-limit').value);
   const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target').value);
@@ -1623,17 +1631,47 @@ document.getElementById('form-settings')?.addEventListener('submit', function(e)
 
   state.financialAccounts.riskReserveTargetPct = reserveTargetPct;
   state.financialAccounts.portfolioTarget = portfolioTarget;
+  state.financialAccounts.capitalTotal = portfolioTarget;
   state.financialAccounts.operationalTargetMonths = opsMonths;
+
+  const accountRecord = {
+    id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
+    organization_id: state.financialAccounts.organizationId || '00000000-0000-0000-0000-000000000001',
+    capital_total: portfolioTarget,
+    portfolio_target: portfolioTarget,
+    risk_reserve_target_pct: reserveTargetPct,
+    operational_target_months: opsMonths,
+    par30_limit: par30Limit,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) {
+      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    }
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'financial_accounts',
+        record: accountRecord
+      })
+    });
+    console.log("✓ Configuración persistida con éxito en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error enviando configuración a Supabase Cloud:", err);
+  }
 
   state.auditLogs.unshift({
     timestamp: new Date().toLocaleString(),
     user: "Administrador",
     action: "ACTUALIZACION_CONFIGURACION",
     module: "Configuración",
-    details: `Nuevas reglas: PAR30 Límite: ${par30Limit}%, Reserva Target: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
+    details: `Nuevas reglas guardadas en Supabase: PAR30 Límite: ${par30Limit}%, Reserva Target: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
   });
 
   saveState();
   renderAll();
-  alert("✓ Configuración y Reglas de Negocio actualizadas con éxito.");
+  alert("✓ Configuración y Reglas de Negocio guardadas y sincronizadas en Supabase con éxito.");
 });

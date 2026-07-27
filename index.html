@@ -236,12 +236,10 @@
   </header>
 
   <!-- Main Content View -->
-  <main class="ml-[260px] pt-24 px-8 pb-12 space-y-8">
-    
-    <!-- Alert Banner -->
+  <main class="ml-[    <!-- Alert Banner -->
     <div id="risk-alert-banner" class="hidden p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-center gap-3">
       <span class="material-symbols-outlined">warning</span>
-      <span><strong>POLÃTICA DE RIESGO ACTIVA:</strong> El crecimiento de la cartera se limita automáticamente debido a reglas PAR30 o reserva.</span>
+      <span><strong>POLÍTICA DE RIESGO ACTIVA:</strong> El crecimiento de la cartera se limita automáticamente debido a reglas PAR30 o reserva.</span>
     </div>
 
     <!-- TAB: DASHBOARD COMMAND CENTER -->
@@ -287,14 +285,14 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="glass-card p-5 space-y-2">
-          <p class="text-xs uppercase text-[#bbcabf]">PAR 7 (Mora > 7 DÃ­as)</p>
+          <p class="text-xs uppercase text-[#bbcabf]">PAR 7 (Mora > 7 Días)</p>
           <p class="font-display text-2xl font-bold text-white" id="val-par7">2.4%</p>
-          <p class="text-[11px] text-[#bbcabf]">LÃ­mite saludable: &lt; 5.0%</p>
+          <p class="text-[11px] text-[#bbcabf]">Límite saludable: &lt; 5.0%</p>
         </div>
         <div class="glass-card p-5 space-y-2">
-          <p class="text-xs uppercase text-[#bbcabf]">PAR 30 (Mora > 30 DÃ­as)</p>
+          <p class="text-xs uppercase text-[#bbcabf]">PAR 30 (Mora > 30 Días)</p>
           <p class="font-display text-2xl font-bold text-white" id="val-par30">1.1%</p>
-          <p class="text-[11px] text-[#bbcabf]">LÃ­mite saludable: &lt; 5.0%</p>
+          <p class="text-[11px] text-[#bbcabf]">Límite saludable: &lt; 5.0%</p>
         </div>
         <div class="glass-card p-5 space-y-2">
           <p class="text-xs uppercase text-[#bbcabf]">Ganancia Acumulada</p>
@@ -304,7 +302,7 @@
         <div class="glass-card p-5 space-y-2">
           <p class="text-xs uppercase text-[#bbcabf]">Reserva Requerida (15%)</p>
           <p class="font-display text-2xl font-bold text-white" id="val-required-reserve">$630.00</p>
-          <p class="text-[11px] text-[#4edea3]" id="val-reserve-status">âœ“ Cobertura Completa</p>
+          <p class="text-[11px] text-[#4edea3]" id="val-reserve-status">✓ Cobertura Completa</p>
         </div>
       </div>
 
@@ -323,34 +321,13 @@
               <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
                 <tr>
                   <th class="p-3">Cliente / Entidad</th>
-                  <th class="p-3">LÃ­mite Crédito</th>
+                  <th class="p-3">Límite Crédito</th>
                   <th class="p-3">Colocado</th>
                   <th class="p-3">Estado Riesgo</th>
-                  <th class="p-3">Ãšltima AuditorÃ­a</th>
+                  <th class="p-3">Última Auditoría</th>
                 </tr>
               </thead>
-              <tbody id="tbody-capital-flows" class="divide-y divide-white/5">
-                <tr>
-                  <td class="p-3 font-bold text-white flex items-center gap-2">
-                    <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold">JP</span>
-                    Juan Pérez
-                  </td>
-                  <td class="p-3 text-white">$300.00</td>
-                  <td class="p-3 font-bold text-[#818CF8]">$100.00</td>
-                  <td class="p-3"><span class="badge-risk badge-green">OPTIMAL</span></td>
-                  <td class="p-3 text-xs text-[#bbcabf]">2026-07-23</td>
-                </tr>
-                <tr>
-                  <td class="p-3 font-bold text-white flex items-center gap-2">
-                    <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold">MR</span>
-                    MarÃ­a RodrÃ­guez
-                  </td>
-                  <td class="p-3 text-white">$150.00</td>
-                  <td class="p-3 font-bold text-[#818CF8]">$100.00</td>
-                  <td class="p-3"><span class="badge-risk badge-amber">CAUTION</span></td>
-                  <td class="p-3 text-xs text-[#bbcabf]">2026-07-20</td>
-                </tr>
-              </tbody>
+              <tbody id="tbody-capital-flows" class="divide-y divide-white/5"></tbody>
             </table>
           </div>
         </div>
@@ -364,34 +341,7 @@
             </span>
           </div>
 
-          <div class="space-y-3">
-            <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 space-y-1">
-              <div class="flex items-center gap-2 text-xs font-bold text-[#F43F5E]">
-                <span class="material-symbols-outlined text-[16px]">error</span>
-                <span>PAR7 Warning - Monitoreo</span>
-              </div>
-              <p class="text-xs text-[#bbcabf]">Cuota LN-1001 con 8 dÃ­as de mora. Alerta generada.</p>
-              <span class="text-[10px] text-[#F43F5E] uppercase font-bold">CRITICAL WARNING</span>
-            </div>
-
-            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-              <div class="flex items-center gap-2 text-xs font-bold text-[#F59E0B]">
-                <span class="material-symbols-outlined text-[16px]">warning</span>
-                <span>Credit Review Due - MarÃ­a R.</span>
-              </div>
-              <p class="text-xs text-[#bbcabf]">Solicitud APP-2002 requiere revisión manual de ingresos.</p>
-              <span class="text-[10px] text-[#F59E0B] uppercase font-bold">ACTION REQUIRED</span>
-            </div>
-
-            <div class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-1">
-              <div class="flex items-center gap-2 text-xs font-bold text-[#818CF8]">
-                <span class="material-symbols-outlined text-[16px]">verified</span>
-                <span>Audit Completed</span>
-              </div>
-              <p class="text-xs text-[#bbcabf]">Verificación de balance contable con 0 desviaciones.</p>
-              <span class="text-[10px] text-[#818CF8] uppercase font-bold">VERIFIED LOG</span>
-            </div>
-          </div>
+          <div id="realtime-risk-alerts-container" class="space-y-3"></div>
         </div>
 
       </div>

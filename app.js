@@ -633,6 +633,151 @@ function renderDashboard() {
   
   document.getElementById('bar-percentage-text').innerText = 
     `Colocado: ${depPct}% | Disponible: ${availPct}% | Reserva: ${resPct}%`;
+
+  renderCapitalFlows();
+  renderRealtimeAlerts();
+}
+
+function renderCapitalFlows() {
+  const tbody = document.getElementById('tbody-capital-flows');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const activeLoans = state.loans.filter(l => l.status === 'Activo');
+  if (activeLoans.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-xs text-[#94A3B8]">No hay préstamos activos registrados en Supabase.</td></tr>`;
+    return;
+  }
+
+  activeLoans.forEach(loan => {
+    const bw = state.borrowers.find(b => b.id === loan.borrowerId) || {};
+    const initials = (loan.borrowerName || "Cliente").split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    const col = state.collections.find(c => c.loanId === loan.id);
+    
+    let riskStatus = "OPTIMAL";
+    let badgeClass = "badge-green";
+    if (col && col.daysOverdue > 30) {
+      riskStatus = "ALTO RIESGO";
+      badgeClass = "badge-red";
+    } else if (col && col.daysOverdue > 0) {
+      riskStatus = "CAUTION";
+      badgeClass = "badge-amber";
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-3 font-bold text-white flex items-center gap-2">
+        <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold border border-white/10 text-[#FF6B00]">${initials}</span>
+        ${loan.borrowerName}
+      </td>
+      <td class="p-3 text-white">$${(bw.exposureLimit || bw.maxExposure || loan.principal || 300).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#818CF8]">$${(loan.remainingAmount || loan.principal).toFixed(2)}</td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${riskStatus}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${loan.disbursementDate || new Date().toISOString().split('T')[0]}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderRealtimeAlerts() {
+  const container = document.getElementById('realtime-risk-alerts-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const alerts = [];
+  const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
+
+  // 1. Check Overdue Loans/Collections (PAR7 / PAR30 Alerts)
+  state.collections.forEach(col => {
+    if (col.daysOverdue > 0) {
+      alerts.push({
+        type: col.daysOverdue > 30 ? 'critical' : 'warning',
+        title: `Mora detectada — ${col.borrowerName}`,
+        message: `Préstamo ${col.loanId} con ${col.daysOverdue} días de mora registrados en Supabase.`,
+        tag: col.daysOverdue > 30 ? 'CRITICAL WARNING' : 'PAR7 MONITOREO'
+      });
+    }
+  });
+
+  // 2. Check Pending Applications requiring Risk Review
+  state.applications.forEach(app => {
+    if (app.status === 'En Revisión') {
+      alerts.push({
+        type: 'warning',
+        title: `Revisión Pendiente — ${app.borrowerName}`,
+        message: `Solicitud ${app.id} por $${app.amount.toFixed(2)} requiere evaluación de riesgo.`,
+        tag: 'ACTION REQUIRED'
+      });
+    }
+  });
+
+  // 3. Check Defensive Mode or Reserve Deficit
+  if (engine && engine.defensiveMode) {
+    alerts.push({
+      type: 'critical',
+      title: 'MODO DEFENSIVO ACTIVO',
+      message: `PAR30 (${engine.par30Rate}%) o reserva insuficiente. Retiros personales suspendidos.`,
+      tag: 'DEFENSIVE LOCK'
+    });
+  } else if (engine && engine.reserveDeficit > 0) {
+    alerts.push({
+      type: 'warning',
+      title: 'Déficit en Reserva de Riesgo',
+      message: `Se requieren $${engine.reserveDeficit.toFixed(2)} USD para alcanzar el objetivo de reserva (20%).`,
+      tag: 'RESERVE DEFICIT'
+    });
+  }
+
+  // 4. Include System Audit Events from Supabase
+  state.auditLogs.slice(0, 2).forEach(log => {
+    alerts.push({
+      type: 'info',
+      title: `${log.action || 'Auditoría Contable'}`,
+      message: `${log.details || 'Verificación contable procesada en Supabase.'}`,
+      tag: 'VERIFIED LOG'
+    });
+  });
+
+  if (alerts.length === 0) {
+    container.innerHTML = `
+      <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+        <div class="flex items-center gap-2 text-xs font-bold text-[#4edea3]">
+          <span class="material-symbols-outlined text-[16px]">check_circle</span>
+          <span>SISTEMA EN ESTADO OPTIMO</span>
+        </div>
+        <p class="text-xs text-[#bbcabf]">Todos los indicadores de riesgo y cartera en Supabase están en parámetros saludables.</p>
+        <span class="text-[10px] text-[#4edea3] uppercase font-bold">PROTECTED</span>
+      </div>
+    `;
+    return;
+  }
+
+  alerts.forEach(a => {
+    const card = document.createElement('div');
+    let colorClass = "bg-indigo-500/10 border-indigo-500/20 text-[#818CF8]";
+    let icon = "info";
+    if (a.type === 'critical') {
+      colorClass = "bg-red-500/10 border-red-500/20 text-[#F43F5E]";
+      icon = "error";
+    } else if (a.type === 'warning') {
+      colorClass = "bg-amber-500/10 border-amber-500/20 text-[#F59E0B]";
+      icon = "warning";
+    }
+
+    const textCol = colorClass.split(' ')[2];
+    const bgBorder = colorClass.split(' ').slice(0, 2).join(' ');
+
+    card.className = `p-3 rounded-xl border space-y-1 ${bgBorder}`;
+    card.innerHTML = `
+      <div class="flex items-center gap-2 text-xs font-bold ${textCol}">
+        <span class="material-symbols-outlined text-[16px]">${icon}</span>
+        <span>${a.title}</span>
+      </div>
+      <p class="text-xs text-[#bbcabf]">${a.message}</p>
+      <span class="text-[10px] uppercase font-bold ${textCol}">${a.tag}</span>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function renderBorrowers() {

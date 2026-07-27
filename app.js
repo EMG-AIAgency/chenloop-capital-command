@@ -19,33 +19,26 @@ const initialState = {
   },
   capital: {
     totalCapital: 5000.0,
-    capitalDeployed: 3200.0,
-    capitalAvailable: 1800.0,
-    riskReserve: 750.0,
-    accumulatedProfits: 850.0
+    capitalDeployed: 0.0,
+    capitalAvailable: 5000.0,
+    riskReserve: 0.0,
+    accumulatedProfits: 0.0
   },
   financialAccounts: {
     capitalTotal: 5000.0,
-    capitalDeployed: 3200.0,
-    capitalAvailable: 1800.0,
-    riskReserveBalance: 750.0,
+    capitalDeployed: 0.0,
+    capitalAvailable: 5000.0,
+    riskReserveBalance: 0.0,
     riskReserveTargetPct: 20.0,
-    operationalBalance: 450.0,
+    operationalBalance: 0.0,
     operationalTargetMonths: 6,
-    distributableBalance: 320.0,
-    currentStage: 4,
+    distributableBalance: 0.0,
+    currentStage: 1,
     defensiveMode: false
   },
-  operationalExpenses: [
-    { id: 'exp-1', name: 'Vercel / Hosting Cloud', category: 'Software/Hosting', monthlyAmount: 25.0 },
-    { id: 'exp-2', name: 'n8n Webhooks & Supabase', category: 'Software/Hosting', monthlyAmount: 30.0 },
-    { id: 'exp-3', name: 'WhatsApp Business API', category: 'Mensajeria/APIs', monthlyAmount: 20.0 }
-  ],
+  operationalExpenses: [],
   quincenalCloses: [],
-  ownerDebts: [
-    { id: 'd-1', debtName: 'Tarjeta BCP Visa', balance: 1200.0, interestRate: 24.5, minPayment: 80.0, priority: 1 },
-    { id: 'd-2', debtName: 'Préstamo Personal BBVA', balance: 3500.0, interestRate: 18.0, minPayment: 150.0, priority: 2 }
-  ],
+  ownerDebts: [],
   financialMovements: [],
   selectedDebtStrategy: 'avalanche',
   borrowers: [],
@@ -175,15 +168,15 @@ async function loadState() {
           id: fa.id,
           organizationId: fa.organization_id,
           capitalTotal: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
-          capitalDeployed: parseFloat(fa.capital_deployed || 3200),
-          capitalAvailable: parseFloat(fa.capital_available || 1800),
-          riskReserveBalance: parseFloat(fa.risk_reserve_balance || 750),
+          capitalDeployed: parseFloat(fa.capital_deployed || 0),
+          capitalAvailable: parseFloat(fa.capital_available || fa.portfolio_target || 5000),
+          riskReserveBalance: parseFloat(fa.risk_reserve_balance || 0),
           riskReserveTargetPct: parseFloat(fa.risk_reserve_target_pct || 20.0),
           portfolioTarget: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
-          operationalBalance: parseFloat(fa.operational_balance || 450),
+          operationalBalance: parseFloat(fa.operational_balance || 0),
           operationalTargetMonths: parseInt(fa.operational_target_months || 6),
-          distributableBalance: parseFloat(fa.distributable_balance || 320),
-          currentStage: parseInt(fa.current_stage || 4),
+          distributableBalance: parseFloat(fa.distributable_balance || 0),
+          currentStage: parseInt(fa.current_stage || 1),
           defensiveMode: Boolean(fa.defensive_mode)
         };
         if (fa.par30_limit) {
@@ -558,7 +551,7 @@ function calculateExplicableScore(borrower) {
 }
 
 function computeRiskMetrics() {
-  const totalDeployed = state.capital.capitalDeployed || 1.0;
+  const totalDeployed = state.capital.capitalDeployed || 0.0;
   let par7Capital = 0;
   let par30Capital = 0;
   
@@ -573,8 +566,8 @@ function computeRiskMetrics() {
     }
   });
   
-  const par7Pct = ((par7Capital / totalDeployed) * 100).toFixed(1);
-  const par30Pct = ((par30Capital / totalDeployed) * 100).toFixed(1);
+  const par7Pct = totalDeployed > 0 ? ((par7Capital / totalDeployed) * 100).toFixed(1) : "0.0";
+  const par30Pct = totalDeployed > 0 ? ((par30Capital / totalDeployed) * 100).toFixed(1) : "0.0";
   const requiredReserve = totalDeployed * (state.organization.riskReservePct / 100.0);
   const reserveDeficit = requiredReserve > state.capital.riskReserve;
   
@@ -1365,14 +1358,14 @@ window.calculateFinancialEngine = function() {
   const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);
   
   const riskReserveTargetPct = state.financialAccounts?.riskReserveTargetPct || 20.0;
-  const riskReserveBalance = state.financialAccounts?.riskReserveBalance || 750.0;
+  const riskReserveBalance = state.financialAccounts?.riskReserveBalance || 0.0;
   const targetReserve = activePortfolio * (riskReserveTargetPct / 100.0);
   const reserveDeficit = Math.max(0, targetReserve - riskReserveBalance);
 
   const monthlyOps = state.operationalExpenses.reduce((sum, e) => sum + (e.monthlyAmount || 0), 0);
   const opsMonthsTarget = state.financialAccounts?.operationalTargetMonths || 6;
   const targetOps = monthlyOps * opsMonthsTarget;
-  const operationalBalance = state.financialAccounts?.operationalBalance || 450.0;
+  const operationalBalance = state.financialAccounts?.operationalBalance || 0.0;
   const opsDeficit = Math.max(0, targetOps - operationalBalance);
   const opsMonthsCoverage = monthlyOps > 0 ? (operationalBalance / monthlyOps) : 6.0;
 

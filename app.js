@@ -1322,8 +1322,8 @@ window.testN8nTrigger = async function(triggerType) {
     eventName = "RECORDATORIO_CUOTA_PROXIMA";
     samplePayload = {
       event: "PAYMENT_REMINDER_3DAYS",
-      borrower_name: "Juan Pérez",
-      phone: "+584141234567",
+      borrower_name: "Edgar García (Prueba)",
+      phone: "+50761337723",
       amount_due: 45.00,
       due_date: new Date(Date.now() + 3*86400000).toISOString().split('T')[0],
       organization: state.organization?.name || "Chenloop Capital"
@@ -1332,8 +1332,8 @@ window.testN8nTrigger = async function(triggerType) {
     eventName = "ALERTA_MORA_PAR30";
     samplePayload = {
       event: "OVERDUE_PAYMENT_ALERT",
-      borrower_name: "Maria Rodríguez",
-      phone: "+584129876543",
+      borrower_name: "Edgar García (Prueba)",
+      phone: "+50761337723",
       days_overdue: 12,
       amount_due: 80.00,
       organization: state.organization?.name || "Chenloop Capital"
@@ -1342,8 +1342,8 @@ window.testN8nTrigger = async function(triggerType) {
     eventName = "COMPROBANTE_PAGO_RECIBIDO";
     samplePayload = {
       event: "DIGITAL_RECEIPT",
-      borrower_name: "Carlos Gómez",
-      phone: "+584165554321",
+      borrower_name: "Edgar García (Prueba)",
+      phone: "+50761337723",
       payment_amount: 50.00,
       remaining_balance: 150.00,
       transaction_id: `PAY-${Date.now()}`,

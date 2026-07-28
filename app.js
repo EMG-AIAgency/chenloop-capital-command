@@ -2732,20 +2732,25 @@ function renderSettingsUI() {
   const elOps = document.getElementById('set-ops-months');
   const elOrg = document.getElementById('set-org-name');
 
+  const currentOrgName = state.organization?.name || state.financialAccounts?.organizationName || "Mi Cartera Personal";
+
   if (elPar30) elPar30.value = state.organization?.par30Limit || 10.0;
   if (elReserve) elReserve.value = state.financialAccounts?.riskReserveTargetPct || 20.0;
   if (elPortfolio) elPortfolio.value = state.financialAccounts?.portfolioTarget || 5000.0;
   if (elOps) elOps.value = state.financialAccounts?.operationalTargetMonths || 6;
-  if (elOrg) elOrg.value = state.organization?.name || "Mi Cartera Personal";
+  if (elOrg) elOrg.value = currentOrgName;
+
+  const orgBadgeEl = document.getElementById('current-org-badge');
+  if (orgBadgeEl) orgBadgeEl.innerText = currentOrgName;
 }
 
 document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();
-  const par30Limit = parseFloat(document.getElementById('set-par30-limit').value);
-  const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target').value);
-  const portfolioTarget = parseFloat(document.getElementById('set-portfolio-target').value);
-  const opsMonths = parseInt(document.getElementById('set-ops-months').value);
-  const orgName = document.getElementById('set-org-name').value;
+  const par30Limit = parseFloat(document.getElementById('set-par30-limit')?.value || 10);
+  const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target')?.value || 20);
+  const portfolioTarget = parseFloat(document.getElementById('set-portfolio-target')?.value || 5000);
+  const opsMonths = parseInt(document.getElementById('set-ops-months')?.value || 6);
+  const orgName = document.getElementById('set-org-name')?.value.trim() || "Mi Cartera Personal";
 
   if (!state.organization) state.organization = {};
   if (!state.financialAccounts) state.financialAccounts = {};
@@ -2757,6 +2762,10 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   state.financialAccounts.portfolioTarget = portfolioTarget;
   state.financialAccounts.capitalTotal = portfolioTarget;
   state.financialAccounts.operationalTargetMonths = opsMonths;
+  state.financialAccounts.organizationName = orgName;
+
+  const orgBadgeEl = document.getElementById('current-org-badge');
+  if (orgBadgeEl) orgBadgeEl.innerText = orgName;
 
   const accountRecord = {
     id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
@@ -2766,6 +2775,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     risk_reserve_target_pct: reserveTargetPct,
     operational_target_months: opsMonths,
     par30_limit: par30Limit,
+    organization_name: orgName,
     updated_at: new Date().toISOString()
   };
 
@@ -2782,7 +2792,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
         record: accountRecord
       })
     });
-    console.log("✓ Configuración persistida con éxito en Supabase Cloud");
+    console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase Cloud");
   } catch (err) {
     console.warn("Error enviando configuración a Supabase Cloud:", err);
   }
@@ -2792,12 +2802,12 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     user: "Administrador",
     action: "ACTUALIZACION_CONFIGURACION",
     module: "Configuración",
-    details: `Nuevas reglas guardadas en Supabase: PAR30 Límite: ${par30Limit}%, Reserva Target: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
+    details: `Nombre de Cartera actualizado a '${orgName}'. PAR30: ${par30Limit}%, Reserva: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
   });
 
   saveState();
   renderAll();
-  alert("✓ Configuración y Reglas de Negocio guardadas y sincronizadas en Supabase con éxito.");
+  alert(`✓ Configuración y Nombre de Cartera '${orgName}' guardados con éxito.`);
 });
 
 // ----------------------------------------------------

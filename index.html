@@ -543,18 +543,27 @@
         <div class="glass-card p-6 space-y-3 border-l-4 border-l-[#818CF8]">
           <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">01. Recordatorio Cuota Próxima</h4>
           <p class="text-xs text-[#bbcabf]">Envía aviso automático 3 días antes del vencimiento quincenal por WhatsApp.</p>
+          <div class="text-[11px] text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5 font-mono">
+            👋 ¡Hola {{1}}! Te recordamos amablemente que tu cuota de 💵 ${{2}} vence el próximo 📅 {{3}}. ¡Gracias por mantener tu impecable historial en 🏛️ {{4}}! ✨
+          </div>
           <button onclick="window.testN8nTrigger('reminder')" class="w-full bg-[#818CF8]/20 hover:bg-[#818CF8]/30 text-[#818CF8] border border-[#818CF8]/30 py-2 rounded text-xs font-bold transition-all cursor-pointer">Disparar Recordatorio</button>
         </div>
 
         <div class="glass-card p-6 space-y-3 border-l-4 border-l-[#F59E0B]">
           <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">02. Alerta de Cuota Vencida</h4>
           <p class="text-xs text-[#bbcabf]">Aviso inmediato de mora PAR7/PAR30 al cliente con enlace de pago.</p>
+          <div class="text-[11px] text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5 font-mono">
+            🚨 Estimado/a {{1}}, tu cuota de 💵 ${{2}} presenta {{3}} día(s) de pendiente en 🏛️ {{4}}. Te invitamos a regularizar tu pago para mantener tu línea activa. 📲
+          </div>
           <button onclick="window.testN8nTrigger('overdue')" class="w-full bg-[#F59E0B]/20 hover:bg-[#F59E0B]/30 text-[#F59E0B] border border-[#F59E0B]/30 py-2 rounded text-xs font-bold transition-all cursor-pointer">Disparar Alerta Mora</button>
         </div>
 
         <div class="glass-card p-6 space-y-3 border-l-4 border-l-[#10b981]">
           <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">03. Comprobante de Pago Recibido</h4>
           <p class="text-xs text-[#bbcabf]">Recibo digital instantáneo por WhatsApp al registrar abono en caja.</p>
+          <div class="text-[11px] text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5 font-mono">
+            ✅ ¡Pago Recibido con Éxito! 🎉 Estimado/a {{1}}, confirmamos tu abono de 💵 ${{2}} en 🏛️ {{3}}. Saldo restante: 📉 ${{4}}. Transacción: 🧾 {{5}} ✨
+          </div>
           <button onclick="window.testN8nTrigger('receipt')" class="w-full bg-[#10b981]/20 hover:bg-[#10b981]/30 text-[#10b981] border border-[#10b981]/30 py-2 rounded text-xs font-bold transition-all cursor-pointer">Disparar Recibo Digital</button>
         </div>
       </div>
@@ -1107,6 +1116,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=16.0"></script>
+  <script src="app.js?v=17.0"></script>
 </body>
 </html>

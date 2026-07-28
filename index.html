@@ -1077,7 +1077,58 @@
             </div>
           </div>
 
-          <!-- Card 3: Resumen de Reglas Disciplinarias del Sistema -->
+          <!-- Card 3: Gestión de Usuarios / Miembros del Equipo -->
+          <div class="bg-[#16181D] p-5 rounded-xl border border-white/5 space-y-4">
+            <div class="flex justify-between items-center">
+              <h4 class="font-display font-bold text-[#818CF8] text-sm uppercase tracking-wider flex items-center gap-2">
+                <span class="material-symbols-outlined">group_add</span>
+                3. Miembros del Equipo & Accesos a la Cartera
+              </h4>
+              <button type="button" onclick="window.toggleUserForm()" class="bg-[#818CF8]/20 hover:bg-[#818CF8]/30 text-[#818CF8] border border-[#818CF8]/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                + Crear Nuevo Usuario
+              </button>
+            </div>
+
+            <!-- Formulario Crear Usuario Miembro -->
+            <div id="user-form-container" class="hidden p-4 bg-[#080C14] rounded-xl border border-white/10 space-y-3">
+              <h5 class="font-bold text-xs text-white uppercase tracking-wider">Nuevo Usuario Miembro de Tu Cartera</h5>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <input type="text" id="usr-name" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]" placeholder="Nombre Completo (ej: María Delgado)"/>
+                <input type="email" id="usr-email" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]" placeholder="Correo (ej: maria@tu-cartera.com)"/>
+                <input type="password" id="usr-pass" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]" placeholder="Contraseña (mín. 6 chars)"/>
+                <select id="usr-role" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]">
+                  <option value="Cajero / Operador">Cajero / Operador de Pagos</option>
+                  <option value="Analista de Crédito">Analista de Crédito</option>
+                  <option value="Tier 1 Admin">Administrador (Tier 1)</option>
+                </select>
+              </div>
+              <div class="flex justify-end pt-1">
+                <button type="button" onclick="window.createTeamMember()" class="bg-[#818CF8] hover:bg-[#6366F1] text-white px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                  Guardar & Asignar a Mi Cartera
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabla de Usuarios Registrados en la Organización -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-[#080C14] text-[#bbcabf] uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th class="p-2.5">Usuario / Nombre</th>
+                    <th class="p-2.5">Correo Electrónico</th>
+                    <th class="p-2.5">Rol en Cartera</th>
+                    <th class="p-2.5">Organización</th>
+                    <th class="p-2.5">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-team-members" class="divide-y divide-white/5">
+                  <!-- Dynamic user profiles rendered by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Card 4: Resumen de Reglas Disciplinarias del Sistema -->
           <div class="bg-[#080C14] p-5 rounded-xl border border-white/5 space-y-3">
             <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider flex items-center gap-2">
               <span class="material-symbols-outlined text-[#FF6B00]">gavel</span>
@@ -1114,6 +1165,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20.0"></script>
+  <script src="app.js?v=21.0"></script>
 </body>
 </html>

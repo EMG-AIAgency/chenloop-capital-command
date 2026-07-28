@@ -2742,7 +2742,147 @@ function renderSettingsUI() {
 
   const orgBadgeEl = document.getElementById('current-org-badge');
   if (orgBadgeEl) orgBadgeEl.innerText = currentOrgName;
+
+  if (typeof window.renderTeamMembers === 'function') {
+    window.renderTeamMembers();
+  }
 }
+
+window.toggleUserForm = function() {
+  const container = document.getElementById('user-form-container');
+  if (container) {
+    container.classList.toggle('hidden');
+  }
+};
+
+window.renderTeamMembers = function() {
+  const tbody = document.getElementById('tbody-team-members');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const members = state.teamMembers || [
+    {
+      id: currentProfile?.id || 'admin-01',
+      name: currentProfile?.full_name || 'Edgar Garcia (Admin)',
+      email: currentSession?.user?.email || 'admin@tu-cartera.com',
+      role: currentProfile?.role || 'Tier 1 Admin',
+      orgName: state.organization?.name || 'Mi Cartera Personal',
+      status: 'Activo'
+    }
+  ];
+
+  members.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-2.5 font-bold text-white flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-[#818CF8]/20 text-[#818CF8] text-[10px] flex items-center justify-center font-bold">
+          ${(m.name || 'US').substring(0, 2).toUpperCase()}
+        </span>
+        ${m.name}
+      </td>
+      <td class="p-2.5 text-[#bbcabf] font-mono text-[11px]">${m.email}</td>
+      <td class="p-2.5"><span class="bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${m.role}</span></td>
+      <td class="p-2.5 text-[#bbcabf]">${m.orgName || state.organization?.name || 'Mi Cartera Personal'}</td>
+      <td class="p-2.5"><span class="badge-risk badge-green">${m.status || 'Activo'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+};
+
+window.createTeamMember = async function() {
+  const name = document.getElementById('usr-name')?.value.trim();
+  const email = document.getElementById('usr-email')?.value.trim();
+  const pass = document.getElementById('usr-pass')?.value;
+  const role = document.getElementById('usr-role')?.value || 'Cajero / Operador';
+
+  if (!name || !email || !pass || pass.length < 6) {
+    alert("Por favor ingresa un nombre completo, correo válido y contraseña de al menos 6 caracteres.");
+    return;
+  }
+
+  const currentOrgId = state.financialAccounts?.organizationId || currentProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
+  const currentOrgName = state.organization?.name || "Mi Cartera Personal";
+
+  if (!supabaseClient) {
+    alert("Supabase Client no está disponible en este momento.");
+    return;
+  }
+
+  try {
+    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          full_name: name,
+          role,
+          org_id: currentOrgId,
+          org_name: currentOrgName
+        }
+      }
+    });
+
+    if (authError) {
+      alert(`Error creando usuario en Supabase: ${authError.message}`);
+      return;
+    }
+
+    const newUserId = authData?.user?.id || `USR-${Date.now()}`;
+
+    const newProfile = {
+      id: newUserId,
+      organization_id: currentOrgId,
+      full_name: name,
+      role: role,
+      created_at: new Date().toISOString()
+    };
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) {
+      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    }
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'profiles',
+        record: newProfile
+      })
+    });
+
+    if (!state.teamMembers) state.teamMembers = [];
+    state.teamMembers.push({
+      id: newUserId,
+      name,
+      email,
+      role,
+      orgName: currentOrgName,
+      status: 'Activo'
+    });
+
+    state.auditLogs.unshift({
+      timestamp: new Date().toLocaleString(),
+      user: "Administrador",
+      action: "NUEVO_USUARIO_CREADO",
+      module: "Configuración / Equipo",
+      details: `Usuario ${name} (${email}) asignado a la organización '${currentOrgName}' con el rol [${role}].`
+    });
+
+    saveState();
+    window.renderTeamMembers();
+    window.toggleUserForm();
+
+    document.getElementById('usr-name').value = '';
+    document.getElementById('usr-email').value = '';
+    document.getElementById('usr-pass').value = '';
+
+    alert(`✓ Usuario '${name}' (${email}) creado exitosamente en tu organización con rol [${role}]. Ya puede iniciar sesión en Vercel.`);
+  } catch (err) {
+    console.error("Error al crear usuario miembro:", err);
+    alert("Ocurrió un error al procesar el alta del usuario miembro.");
+  }
+};
 
 document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();

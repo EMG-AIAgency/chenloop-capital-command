@@ -1286,14 +1286,22 @@ window.testN8nTrigger = async function(triggerType) {
     return;
   }
 
-  // Determinar destinatario según modo
+  // Determinar destinatario según modo (Filtrando préstamos ACTIVOS únicamente)
   let targetPhone = testPhone;
   let targetBorrowerName = "Edgar García (Prueba)";
 
-  if (sendMode === 'production' && state.borrowers && state.borrowers.length > 0) {
-    const activeBorrower = state.borrowers[0];
-    targetPhone = activeBorrower.phone || testPhone;
-    targetBorrowerName = activeBorrower.name || "Prestatario Real";
+  if (sendMode === 'production') {
+    const activeLoans = (state.loans || []).filter(l => l.status === 'Activo');
+    if (activeLoans.length === 0 && triggerType !== 'receipt') {
+      alert("ℹ️ Notificación Omitida: No existen préstamos con estatus 'Activo'. Todos los préstamos están en estatus 'Cancelado' por saldo pagado.");
+      return;
+    }
+    if (activeLoans.length > 0) {
+      const activeLoan = activeLoans[0];
+      const borrower = (state.borrowers || []).find(b => b.id === activeLoan.borrowerId) || {};
+      targetPhone = borrower.phone || testPhone;
+      targetBorrowerName = borrower.name || activeLoan.borrowerName || "Prestatario Real";
+    }
   }
 
   let samplePayload = {};
@@ -1470,7 +1478,14 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   loan.remainingAmount = Math.max(0, totalSched - loan.paidAmount);
 
   if (loan.remainingAmount <= 0.01) {
-    loan.status = 'Pagado';
+    loan.status = 'Cancelado';
+    state.auditLogs.unshift({
+      timestamp: new Date().toLocaleString(),
+      user: "Sistema de Caja",
+      action: "PRESTAMO_CANCELADO",
+      module: "Préstamos",
+      details: `✓ Préstamo ${loan.id} de ${loan.borrowerName} cancelado por completo. Notificaciones automáticas de cobranza deshabilitadas para este crédito.`
+    });
   }
 
   if (!state.financialAccounts) state.financialAccounts = {};

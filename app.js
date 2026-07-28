@@ -167,6 +167,7 @@ async function loadState() {
         state.financialAccounts = {
           id: fa.id,
           organizationId: fa.organization_id,
+          organizationName: fa.organization_name || state.organization?.name || "Mi Cartera Personal",
           capitalTotal: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
           capitalDeployed: parseFloat(fa.capital_deployed || 0),
           capitalAvailable: parseFloat(fa.capital_available || fa.portfolio_target || 5000),
@@ -179,6 +180,10 @@ async function loadState() {
           currentStage: parseInt(fa.current_stage || 1),
           defensiveMode: Boolean(fa.defensive_mode)
         };
+        if (fa.organization_name) {
+          if (!state.organization) state.organization = {};
+          state.organization.name = fa.organization_name;
+        }
         if (fa.par30_limit) {
           state.organization.par30Limit = parseFloat(fa.par30_limit);
         }
@@ -2205,19 +2210,23 @@ document.getElementById('form-register')?.addEventListener('submit', async funct
 async function loadProfileAndInit() {
   if (!currentSession) return;
   
+  await loadState();
+
   const user = currentSession.user;
   const userDispEl = document.getElementById('user-display-name');
   const avatarEl = document.getElementById('user-avatar-initials');
   const orgBadgeEl = document.getElementById('current-org-badge');
   
   const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
-  const orgName = user.user_metadata?.org_name || "Mi Cartera Personal";
+  const orgName = state.organization?.name || state.financialAccounts?.organizationName || user.user_metadata?.org_name || "Mi Cartera Personal";
   
   if (userDispEl) userDispEl.innerText = fullName;
   if (avatarEl) avatarEl.innerText = fullName.substring(0, 2).toUpperCase();
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;
-  
-  await loadState();
+
+  if (typeof renderSettingsUI === 'function') {
+    renderSettingsUI();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2932,7 +2941,14 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
         record: accountRecord
       })
     });
-    console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase Cloud");
+
+    if (supabaseClient && currentSession) {
+      await supabaseClient.auth.updateUser({
+        data: { org_name: orgName }
+      });
+    }
+
+    console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase Cloud & Auth");
   } catch (err) {
     console.warn("Error enviando configuración a Supabase Cloud:", err);
   }

@@ -67,6 +67,20 @@ async function loadState() {
     const res = await fetch('/api/sync', { headers });
     if (res.ok) {
       const cloudData = await res.json();
+
+      if (cloudData.organizations && cloudData.organizations.length > 0) {
+        const org = cloudData.organizations[0];
+        if (org.name) {
+          if (!state.organization) state.organization = {};
+          state.organization.name = org.name;
+          if (!state.financialAccounts) state.financialAccounts = {};
+          state.financialAccounts.organizationName = org.name;
+        }
+        if (org.par30_limit) {
+          if (!state.organization) state.organization = {};
+          state.organization.par30Limit = parseFloat(org.par30_limit);
+        }
+      }
       
       if (cloudData.borrowers && cloudData.borrowers.length > 0) {
         state.borrowers = cloudData.borrowers.map(b => ({
@@ -2942,13 +2956,29 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
       })
     });
 
+    const orgRecord = {
+      id: state.financialAccounts?.organizationId || currentProfile?.organization_id || '00000000-0000-0000-0000-000000000001',
+      name: orgName,
+      par30_limit: par30Limit,
+      reserve_pct: reserveTargetPct
+    };
+
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'organizations',
+        record: orgRecord
+      })
+    });
+
     if (supabaseClient && currentSession) {
       await supabaseClient.auth.updateUser({
         data: { org_name: orgName }
       });
     }
 
-    console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase Cloud & Auth");
+    console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase public.organizations & Auth");
   } catch (err) {
     console.warn("Error enviando configuración a Supabase Cloud:", err);
   }

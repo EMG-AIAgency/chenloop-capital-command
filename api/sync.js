@@ -31,6 +31,7 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
+      const { data: organizations } = await supabase.from('organizations').select('*');
       const { data: borrowers } = await supabase.from('borrowers').select('*');
       const { data: applications } = await supabase.from('applications').select('*');
       const { data: loans } = await supabase.from('loans').select('*');
@@ -45,6 +46,7 @@ module.exports = async (req, res) => {
       const { data: financialMovements } = await supabase.from('financial_movements').select('*');
 
       return res.status(200).json({
+        organizations: organizations || [],
         borrowers: borrowers || [],
         applications: applications || [],
         loans: loans || [],

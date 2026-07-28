@@ -1238,11 +1238,19 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
 function renderNotifications() {
   const tbody = document.getElementById('tbody-n8n-notifications');
   const inputUrl = document.getElementById('n8n-webhook-url');
+  const sendModeSelect = document.getElementById('n8n-send-mode');
+  const testPhoneInput = document.getElementById('n8n-test-phone');
   const countEl = document.getElementById('n8n-log-count');
   if (!tbody) return;
 
   if (inputUrl) {
-    inputUrl.value = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
+    inputUrl.value = state.notificationsConfig?.webhookUrl || state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
+  }
+  if (sendModeSelect) {
+    sendModeSelect.value = state.notificationsConfig?.sendMode || "test";
+  }
+  if (testPhoneInput) {
+    testPhoneInput.value = state.notificationsConfig?.testPhone || "+50761337723";
   }
 
   const logs = state.n8nLogs || [];
@@ -1269,10 +1277,23 @@ function renderNotifications() {
 }
 
 window.testN8nTrigger = async function(triggerType) {
-  const webhookUrl = document.getElementById('n8n-webhook-url')?.value || state.financialAccounts?.n8nWebhookUrl;
+  const webhookUrl = document.getElementById('n8n-webhook-url')?.value || state.notificationsConfig?.webhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
+  const sendMode = document.getElementById('n8n-send-mode')?.value || state.notificationsConfig?.sendMode || 'test';
+  const testPhone = document.getElementById('n8n-test-phone')?.value || state.notificationsConfig?.testPhone || '+50761337723';
+
   if (!webhookUrl) {
     alert("Por favor ingresa y guarda tu Endpoint URL de n8n primero.");
     return;
+  }
+
+  // Determinar destinatario según modo
+  let targetPhone = testPhone;
+  let targetBorrowerName = "Edgar García (Prueba)";
+
+  if (sendMode === 'production' && state.borrowers && state.borrowers.length > 0) {
+    const activeBorrower = state.borrowers[0];
+    targetPhone = activeBorrower.phone || testPhone;
+    targetBorrowerName = activeBorrower.name || "Prestatario Real";
   }
 
   let samplePayload = {};
@@ -1282,32 +1303,35 @@ window.testN8nTrigger = async function(triggerType) {
     eventName = "RECORDATORIO_CUOTA_PROXIMA";
     samplePayload = {
       event: "PAYMENT_REMINDER_3DAYS",
-      borrower_name: "Edgar García (Prueba)",
-      phone: "+50761337723",
+      borrower_name: targetBorrowerName,
+      phone: targetPhone,
       amount_due: 45.00,
       due_date: new Date(Date.now() + 3*86400000).toISOString().split('T')[0],
-      organization: state.organization?.name || "Chenloop Capital"
+      organization: state.organization?.name || "Chenloop Capital",
+      mode: sendMode
     };
   } else if (triggerType === 'overdue') {
     eventName = "ALERTA_MORA_PAR30";
     samplePayload = {
       event: "OVERDUE_PAYMENT_ALERT",
-      borrower_name: "Edgar García (Prueba)",
-      phone: "+50761337723",
+      borrower_name: targetBorrowerName,
+      phone: targetPhone,
       days_overdue: 12,
       amount_due: 80.00,
-      organization: state.organization?.name || "Chenloop Capital"
+      organization: state.organization?.name || "Chenloop Capital",
+      mode: sendMode
     };
   } else if (triggerType === 'receipt') {
     eventName = "COMPROBANTE_PAGO_RECIBIDO";
     samplePayload = {
       event: "DIGITAL_RECEIPT",
-      borrower_name: "Edgar García (Prueba)",
-      phone: "+50761337723",
+      borrower_name: targetBorrowerName,
+      phone: targetPhone,
       payment_amount: 50.00,
       remaining_balance: 150.00,
       transaction_id: `PAY-${Date.now()}`,
-      organization: state.organization?.name || "Chenloop Capital"
+      organization: state.organization?.name || "Chenloop Capital",
+      mode: sendMode
     };
   }
 
@@ -1323,36 +1347,44 @@ window.testN8nTrigger = async function(triggerType) {
     state.n8nLogs.unshift({
       timestamp: new Date().toLocaleString(),
       eventType: eventName,
-      recipient: samplePayload.borrower_name,
-      channel: 'WhatsApp / n8n',
+      recipient: `${samplePayload.borrower_name} (${samplePayload.phone})`,
+      channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       payload: JSON.stringify(samplePayload),
       status: statusText
     });
 
     saveState();
     renderAll();
-    alert(`✓ Webhook n8n disparado con éxito. Respuesta del servidor n8n: ${statusText}`);
+    alert(`✓ Notificación disparada (${sendMode === 'test' ? '🧪 Modo Prueba -> ' + targetPhone : '🚀 Modo Producción -> ' + targetPhone}). Estado: ${statusText}`);
   } catch (err) {
     console.warn("Disparo n8n webhook (CORS/Offline):", err);
     if (!state.n8nLogs) state.n8nLogs = [];
     state.n8nLogs.unshift({
       timestamp: new Date().toLocaleString(),
       eventType: eventName,
-      recipient: samplePayload.borrower_name,
-      channel: 'WhatsApp / n8n',
+      recipient: `${samplePayload.borrower_name} (${samplePayload.phone})`,
+      channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       payload: JSON.stringify(samplePayload),
       status: 'Enviado (Client Mode)'
     });
     saveState();
     renderAll();
-    alert(`✓ Evento enviado a n8n (${eventName}).`);
+    alert(`✓ Evento enviado a n8n (${eventName} a ${targetPhone}).`);
   }
 };
 
 document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   const url = document.getElementById('n8n-webhook-url')?.value.trim();
+  const sendMode = document.getElementById('n8n-send-mode')?.value;
+  const testPhone = document.getElementById('n8n-test-phone')?.value.trim();
+
   if (!url) return;
+
+  if (!state.notificationsConfig) state.notificationsConfig = {};
+  state.notificationsConfig.webhookUrl = url;
+  state.notificationsConfig.sendMode = sendMode;
+  state.notificationsConfig.testPhone = testPhone;
 
   if (!state.financialAccounts) state.financialAccounts = {};
   state.financialAccounts.n8nWebhookUrl = url;
@@ -1378,7 +1410,7 @@ document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', asy
 
   saveState();
   renderAll();
-  alert("✓ Webhook URL de n8n guardado y sincronizado con éxito en Supabase.");
+  alert(`✓ Configuración de n8n guardada: Modo [${sendMode.toUpperCase()}] | Teléfono Prueba: [${testPhone}]`);
 });
 
 // ----------------------------------------------------

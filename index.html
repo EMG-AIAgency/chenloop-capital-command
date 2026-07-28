@@ -500,19 +500,40 @@
 
     <!-- TAB: NOTIFICACIONES N8N & AUTOMATIZACIONES -->
     <section id="tab-notifications" class="hidden space-y-6">
-      <!-- Card: Configuración de Webhook n8n -->
-      <div class="glass-card p-6 space-y-4">
-        <div class="flex justify-between items-center">
-          <h3 class="font-display text-lg font-bold text-white">Configuración del Servidor de Notificaciones n8n</h3>
+      <!-- Card: Configuración de Webhook & Celular de Prueba n8n -->
+      <div class="glass-card p-6 space-y-6">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white">Configuración del Servidor & Canales de Notificación n8n</h3>
+            <p class="text-xs text-[#bbcabf]">Control de URL de Webhook, Modo de Envíos (Prueba / Producción) y Número de Pruebas</p>
+          </div>
           <span class="badge-risk badge-green">Webhook Engine Active</span>
         </div>
-        <form id="form-save-n8n-webhook" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div class="md:col-span-3">
+
+        <form id="form-save-n8n-webhook" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+          <div class="md:col-span-2">
             <label class="text-xs text-[#bbcabf] block mb-1">n8n Production Webhook URL (Railway / Twilio WhatsApp)</label>
-            <input type="url" id="n8n-webhook-url" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" placeholder="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" required/>
+            <input type="url" id="n8n-webhook-url" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]" value="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" placeholder="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" required/>
           </div>
+
           <div>
-            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20">Guardar Webhook</button>
+            <label class="text-xs text-[#bbcabf] block mb-1">Modo de Envíos del Sistema</label>
+            <select id="n8n-send-mode" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]">
+              <option value="test">🧪 Modo Prueba (Enviar a Celular de Prueba)</option>
+              <option value="production">🚀 Modo Producción Real (Enviar a WhatsApp del Prestatario)</option>
+            </select>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-xs text-[#bbcabf] block mb-1">Celular de Prueba (Formato Internacional con +)</label>
+            <input type="text" id="n8n-test-phone" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]" value="+50761337723" placeholder="+50761337723" required/>
+            <p class="text-[11px] text-[#8E929E] mt-1">En Modo Prueba, todo recordatorio, alerta o recibo se redirige a este número para tu validación.</p>
+          </div>
+
+          <div>
+            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20 cursor-pointer">
+              ✓ Guardar Configuración n8n
+            </button>
           </div>
         </form>
       </div>
@@ -1086,6 +1107,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=14.0"></script>
+  <script src="app.js?v=15.0"></script>
 </body>
 </html>

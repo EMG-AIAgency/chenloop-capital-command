@@ -1488,11 +1488,14 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     });
   }
 
+  const seqCount = (state.payments || []).length + 1001;
+  const txId = `PAY-${seqCount}`;
+
   if (!state.financialAccounts) state.financialAccounts = {};
   state.financialAccounts.accumulatedProfits = (state.financialAccounts.accumulatedProfits || 0) + profitShare;
 
   const newPayment = {
-    id: `PAY-${Date.now()}`,
+    id: txId,
     loan_id: loan.id,
     borrower_name: loan.borrowerName,
     amount_paid: amountPaid,
@@ -1519,7 +1522,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     user: "Cajero Admin",
     action: "PAGO_REGISTRADO",
     module: "Caja & Pagos",
-    details: `Cobro de $${amountPaid.toFixed(2)} USD registrado para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
+    details: `Cobro de $${amountPaid.toFixed(2)} USD registrado [${txId}] para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
   });
 
   try {
@@ -1557,13 +1560,17 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
   if (sendWhatsApp) {
     const webhookUrl = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
+    const sendMode = state.notificationsConfig?.sendMode || 'test';
+    const testPhone = state.notificationsConfig?.testPhone || '+50761337723';
+    const targetPhone = (sendMode === 'production' && loan.borrowerPhone) ? loan.borrowerPhone : testPhone;
+
     const receiptPayload = {
       event: "DIGITAL_RECEIPT",
       borrower_name: loan.borrowerName,
-      phone: "+50761337723",
+      phone: targetPhone,
       payment_amount: amountPaid.toFixed(2),
       remaining_balance: loan.remainingAmount.toFixed(2),
-      transaction_id: newPayment.id,
+      transaction_id: txId,
       organization: state.organization?.name || "Chenloop Capital"
     };
 
@@ -1577,13 +1584,13 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       state.n8nLogs.unshift({
         timestamp: new Date().toLocaleString(),
         eventType: "COMPROBANTE_PAGO_RECIBIDO",
-        recipient: loan.borrowerName,
-        channel: 'WhatsApp / n8n',
+        recipient: `${loan.borrowerName} (${targetPhone})`,
+        channel: `WhatsApp / n8n [${txId}]`,
         payload: JSON.stringify(receiptPayload),
-        status: 'OK 200 (Auto Receipt)'
+        status: 'OK 200'
       });
     } catch (err) {
-      console.warn("Auto receipt n8n trigger error:", err);
+      console.warn("Error enviando recibo WhatsApp a n8n:", err);
     }
   }
 

@@ -544,7 +544,26 @@ window.rejectApplication = function(appId) {
 };
 
 function calculateExplicableScore(borrower) {
+  if (!borrower) return { totalScore: 50, breakdown: {}, riskLevel: 'Riesgo Medio', recommendation: 'Sin datos' };
+
   let paymentHistory = 20;
+  let brokenPromisePenalty = 0;
+  let fulfilledBonus = 0;
+
+  const borrowerCollections = (state.collections || []).filter(c => 
+    c.borrowerId === borrower.id || (c.borrowerName && c.borrowerName.toLowerCase() === (borrower.name || '').toLowerCase())
+  );
+
+  borrowerCollections.forEach(col => {
+    if (col.promiseStatus === 'Incumplida') {
+      brokenPromisePenalty += 15;
+    } else if (col.promiseStatus === 'Cumplida') {
+      fulfilledBonus += 5;
+    }
+  });
+
+  paymentHistory = Math.max(0, paymentHistory - brokenPromisePenalty + fulfilledBonus);
+
   let employmentStability = 5;
   let tenure = Math.min((borrower.loansCompleted || 0) * 5, 15);
   let capacity = 0;
@@ -560,12 +579,15 @@ function calculateExplicableScore(borrower) {
   else if (inc >= 300) capacity = 10;
   else capacity = 5;
   
-  const totalScore = paymentHistory + employmentStability + tenure + capacity + verification;
+  const totalScore = Math.max(0, Math.min(100, paymentHistory + employmentStability + tenure + capacity + verification));
                      
   let riskLevel = "Alto Riesgo";
   let recommendation = "Rechazar / Revisión Manual";
   
-  if (totalScore >= 80) {
+  if (brokenPromisePenalty > 0 && totalScore < 65) {
+    riskLevel = "Alto Riesgo (Incumplido)";
+    recommendation = "⛔ Rechazar: Cliente con Promesa de Pago Incumplida";
+  } else if (totalScore >= 80) {
     riskLevel = "Bajo Riesgo";
     recommendation = "Aprobación Rápida Recomendada";
   } else if (totalScore >= 65) {
@@ -582,6 +604,8 @@ function calculateExplicableScore(borrower) {
     tenure,
     capacity,
     verification,
+    brokenPromisePenalty,
+    fulfilledBonus,
     base: paymentHistory,
     income: capacity,
     employment: employmentStability
@@ -1374,9 +1398,33 @@ window.markPromiseBroken = async function(colId) {
     console.warn("Error enviando incumplimiento a Supabase:", err);
   }
   
+  // Sincronizar actualización de Score y Nivel de Riesgo del Prestatario afectado
+  const bw = (state.borrowers || []).find(b => b.id === col.loanId || b.name === col.borrowerName);
+  if (bw) {
+    const updatedScore = calculateExplicableScore(bw);
+    bw.score = updatedScore.totalScore;
+    bw.riskLevel = updatedScore.riskLevel;
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          entity: 'borrowers',
+          record: {
+            id: bw.id,
+            score: bw.score,
+            risk_level: bw.riskLevel
+          }
+        })
+      });
+    } catch(e) {}
+  }
+
   saveState();
   renderAll();
-  alert(`⚠️ Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA. Alerta PAR30 activada.`);
+  alert(`⚠️ Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA. Score del cliente actualizado y penalizado.`);
 };
 
 // Form collection listener

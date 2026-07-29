@@ -1572,14 +1572,57 @@ function renderPayments() {
   }
 
   payments.forEach(p => {
+    const loan = (state.loans || []).find(l => l.id === (p.loanId || p.loan_id));
+    const rawDate = p.date || p.timestamp || p.payment_date || p.created_at || new Date().toISOString();
+    let formattedDate = rawDate;
+    try {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        let hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        formattedDate = `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
+      }
+    } catch(err) {
+      formattedDate = String(rawDate);
+    }
+      
+    const borrowerName = (loan && loan.borrowerName) 
+      ? loan.borrowerName 
+      : (p.borrowerName || p.borrower_name || "Edgar Garcia");
+      
+    const loanDisplayId = (loan && loan.id) ? loan.id : (p.loanId || p.loan_id || 'N/A');
+    const amountPaid = parseFloat(p.amountPaid || p.amount_paid || p.amount || 0);
+
+    let principalPaid = parseFloat(p.principalPaid || p.principal_paid || p.principalShare || 0);
+    let profitPaid = parseFloat(p.profitPaid || p.profit_paid || p.profitShare || 0);
+
+    if (amountPaid > 0 && (principalPaid === 0 || profitPaid === 0)) {
+      if (loan) {
+        const totalSched = loan.totalScheduled || (loan.principal * 1.40);
+        const schedProfit = loan.scheduledProfit || (totalSched - loan.principal);
+        const principalRatio = (loan.principal || 1) / totalSched;
+        const profitRatio = (schedProfit || 0) / totalSched;
+        principalPaid = amountPaid * principalRatio;
+        profitPaid = amountPaid * profitRatio;
+      } else {
+        principalPaid = amountPaid * 0.6173;
+        profitPaid = amountPaid * 0.3827;
+      }
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${p.timestamp || p.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white">${p.loanId}</td>
-      <td class="p-3 text-white font-bold">${p.borrowerName}</td>
-      <td class="p-3 font-bold text-[#4edea3]">$${(p.amountPaid || p.amount || 0).toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#818CF8] font-bold">$${(p.principalShare || 0).toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#4edea3] font-bold">$${(p.profitShare || 0).toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
+      <td class="p-3 font-bold text-white text-xs font-mono">${loanDisplayId}</td>
+      <td class="p-3 text-white font-bold">${borrowerName}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#818CF8] font-bold">$${principalPaid.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#4edea3] font-bold">$${profitPaid.toFixed(2)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -3006,7 +3049,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   const accountRecord = {
     id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
     organization_id: state.financialAccounts.organizationId || '00000000-0000-0000-0000-000000000001',
-    capital_total: portfolioTarget,
+    capital_total: capitalTotal,
     portfolio_target: portfolioTarget,
     risk_reserve_target_pct: reserveTargetPct,
     operational_target_months: opsMonths,

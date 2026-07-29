@@ -1078,6 +1078,7 @@ window.approveApplication = async function(appId) {
     });
 
     console.log("✓ Solicitud aprobada y Préstamo activo en Supabase Cloud");
+    if (typeof window.updateFinancialAccountState === 'function') await window.updateFinancialAccountState();
   } catch (err) {
     console.warn("Error enviando aprobación a Supabase Cloud:", err);
   }
@@ -1107,7 +1108,15 @@ window.rejectApplication = async function(appId) {
       headers,
       body: JSON.stringify({
         entity: 'applications',
-        record: { id: app.id, status: 'Rechazado', updated_at: new Date().toISOString() }
+        record: {
+          id: app.id,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          borrower_id: app.borrowerId,
+          amount: app.amount,
+          reason: app.reason || 'Capital de Trabajo',
+          installments_count: app.count || 7,
+          status: 'Rechazado'
+        }
       })
     });
   } catch (err) {
@@ -1227,7 +1236,12 @@ window.markPromiseFulfilled = async function(colId) {
       headers,
       body: JSON.stringify({
         entity: 'collections',
-        record: { id: col.id, promise_status: 'Cumplida', updated_at: new Date().toISOString() }
+        record: {
+          id: col.id,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          loan_id: col.loanId,
+          promise_status: 'Cumplida'
+        }
       })
     });
   } catch (err) {
@@ -1260,7 +1274,12 @@ window.markPromiseBroken = async function(colId) {
       headers,
       body: JSON.stringify({
         entity: 'collections',
-        record: { id: col.id, promise_status: 'Incumplida', updated_at: new Date().toISOString() }
+        record: {
+          id: col.id,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          loan_id: col.loanId,
+          promise_status: 'Incumplida'
+        }
       })
     });
   } catch (err) {
@@ -1601,21 +1620,19 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   if (!state.financialAccounts) state.financialAccounts = {};
   state.financialAccounts.accumulatedProfits = (state.financialAccounts.accumulatedProfits || 0) + profitShare;
 
-  const newPayment = {
-    id: txId,
+  const newPaymentRecord = {
+    id: generateUUID(),
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
     loan_id: loan.id,
-    borrower_name: loan.borrowerName,
     amount_paid: amountPaid,
-    principal_share: principalShare,
-    profit_share: profitShare,
-    remaining_balance: loan.remainingAmount,
-    payment_date: new Date().toISOString(),
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    principal_paid: principalShare,
+    profit_paid: profitShare,
+    payment_date: new Date().toISOString()
   };
 
   if (!state.payments) state.payments = [];
   state.payments.unshift({
-    id: newPayment.id,
+    id: newPaymentRecord.id,
     timestamp: new Date().toLocaleString(),
     loanId: loan.id,
     borrowerName: loan.borrowerName,
@@ -1641,7 +1658,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       headers,
       body: JSON.stringify({
         entity: 'payments',
-        record: newPayment
+        record: newPaymentRecord
       })
     });
 
@@ -1652,13 +1669,20 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
         entity: 'loans',
         record: {
           id: loan.id,
-          paid_amount: loan.paidAmount,
-          remaining_amount: loan.remainingAmount,
-          status: loan.status,
-          updated_at: new Date().toISOString()
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          borrower_id: loan.borrowerId,
+          principal: loan.principal,
+          total_scheduled: loan.totalScheduled,
+          profit_scheduled: loan.scheduledProfit,
+          installments_count: loan.installmentCount || 7,
+          status: loan.status
         }
       })
     });
+
+    if (typeof updateFinancialAccountState === 'function') {
+      await updateFinancialAccountState();
+    }
 
     console.log("✓ Pago y Préstamo actualizados en Supabase Cloud");
   } catch (err) {
@@ -2944,7 +2968,6 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     risk_reserve_target_pct: reserveTargetPct,
     operational_target_months: opsMonths,
     par30_limit: par30Limit,
-    organization_name: orgName,
     updated_at: new Date().toISOString()
   };
 
@@ -3174,3 +3197,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
+window.updateFinancialAccountState = async function() {
+  const engine = calculateFinancialEngine();
+  const accountRecord = {
+    id: state.financialAccounts?.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    capital_total: engine.totalCapital,
+    capital_deployed: engine.capitalDeployed,
+    capital_available: engine.capitalAvailable,
+    risk_reserve_balance: engine.riskReserveBalance,
+    risk_reserve_target_pct: engine.riskReserveTargetPct || 20.0,
+    operational_balance: engine.operationalBalance,
+    operational_target_months: engine.operationalTargetMonths || 6,
+    distributable_balance: engine.distributableBalance,
+    current_stage: engine.currentStage,
+    defensive_mode: engine.defensiveMode,
+    portfolio_target: engine.portfolioTarget || 5000,
+    par30_limit: engine.par30Limit || 10.0,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'financial_accounts',
+        record: accountRecord
+      })
+    });
+    console.log("✓ Command Center KPIs sincronizados en Supabase Cloud");
+  } catch (err) {
+    console.warn("Error actualizando cuentas financieras en Supabase:", err);
+  }
+};

@@ -598,6 +598,7 @@ function renderDashboard() {
   const cap = state.capital;
   if (engine) {
     cap.totalCapital = engine.capitalTotal;
+    cap.capitalDeployed = engine.capitalDeployed;
     cap.capitalAvailable = engine.capitalAvailable;
     cap.riskReserve = engine.riskReserveBalance;
   }
@@ -698,7 +699,7 @@ function renderCapitalFlows() {
         ${loan.borrowerName}
       </td>
       <td class="p-3 text-white">$${(bw.exposureLimit || bw.maxExposure || loan.principal || 300).toFixed(2)}</td>
-      <td class="p-3 font-bold text-[#818CF8]">$${(loan.remainingAmount || loan.principal).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#818CF8]">$${(loan.principal || 0).toFixed(2)}</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${riskStatus}</span></td>
       <td class="p-3 text-xs text-[#bbcabf]">${loan.disbursementDate || new Date().toISOString().split('T')[0]}</td>
     `;
@@ -2317,7 +2318,7 @@ window.getStageName = function(stageInt) {
 
 window.calculateFinancialEngine = function() {
   const activeLoans = state.loans.filter(l => l.status === 'Activo');
-  const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.remainingAmount || 0), 0);
+  const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
   const capitalTotal = state.financialAccounts?.portfolioTarget || state.financialAccounts?.capitalTotal || 5000.0;
   const capitalDeployed = activePortfolio;
   const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);

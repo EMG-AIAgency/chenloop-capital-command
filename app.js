@@ -1,4 +1,34 @@
 
+window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
+  if (!promiseDateStr) return 0;
+  try {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const promiseDate = new Date(promiseDateStr);
+    promiseDate.setHours(0,0,0,0);
+
+    if (isNaN(promiseDate.getTime())) return 0;
+
+    const diffTime = today.getTime() - promiseDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) {
+      return diffDays;
+    } else if (status === 'Incumplida') {
+      return 1;
+    }
+  } catch(e) {}
+  return 0;
+};
+
+window.calculateDelinquencyTier = function(daysOverdue, promiseStatus) {
+  if (daysOverdue > 30 || promiseStatus === 'Incumplida') return 'PAR30 (Crítico)';
+  if (daysOverdue > 7) return 'PAR7 (Riesgo)';
+  if (daysOverdue > 0) return 'Mora Reciente';
+  return 'Monitoreo';
+};
+
+
 window.logAuditEvent = async function(action, module, details) {
   const timestamp = new Date().toISOString();
   const userName = currentSession?.user?.email || 'Propietario / Admin';
@@ -196,16 +226,20 @@ async function loadState() {
       if (cloudData.collections && cloudData.collections.length > 0) {
         state.collections = cloudData.collections.map(c => {
           const loan = (state.loans || []).find(l => l.id === c.loan_id);
+          const pStatus = c.promise_status || 'Pendiente';
+          const pDate = c.promise_date || new Date().toISOString().split('T')[0];
+          const dynamicDays = window.calculateDynamicDaysOverdue(pDate, pStatus);
+          const dynamicTier = window.calculateDelinquencyTier(dynamicDays, pStatus);
           return {
             id: c.id,
             loanId: c.loan_id,
             borrowerName: c.borrower_name || (loan ? loan.borrowerName : "Edgar Garcia"),
-            daysOverdue: parseInt(c.days_overdue || (c.promise_status === 'Incumplida' ? 35 : 0)),
-            delinquencyTier: c.delinquency_tier || (c.promise_status === 'Incumplida' ? 'PAR30 (Crítico)' : 'Monitoreo'),
+            daysOverdue: dynamicDays,
+            delinquencyTier: dynamicTier,
             channel: c.channel || 'WhatsApp',
-            promiseDate: c.promise_date || new Date().toISOString().split('T')[0],
+            promiseDate: pDate,
             promiseAmount: parseFloat(c.promise_amount || 0),
-            promiseStatus: c.promise_status || 'Pendiente',
+            promiseStatus: pStatus,
             notes: c.notes || ''
           };
         });
@@ -1358,24 +1392,24 @@ window.markPromiseBroken = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
   col.promiseStatus = "Incumplida";
-  col.daysOverdue = 35;
-  col.delinquencyTier = "PAR30 (Crítico)";
+  col.daysOverdue = window.calculateDynamicDaysOverdue(col.promiseDate, "Incumplida");
+  col.delinquencyTier = window.calculateDelinquencyTier(col.daysOverdue, "Incumplida");
   
   if (typeof window.logAuditEvent === 'function') {
     await window.logAuditEvent(
       "PROMESA_INCUMPLIDA",
       "Gestión de Cobranzas",
-      `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago de $${col.promiseAmount || 0} USD. Alerta PAR30 activada.`
+      `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago de $${col.promiseAmount || 0} USD (${col.daysOverdue} día(s) de mora).`
     );
   }
 
   const fullRecord = {
     id: col.id,
     organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-    loan_id: col.loanId || 'LOAN-001',
+    loan_id: String(col.loanId || 'LOAN-001'),
     borrower_name: col.borrowerName || 'Edgar Garcia',
-    days_overdue: 35,
-    delinquency_tier: 'PAR30 (Crítico)',
+    days_overdue: col.daysOverdue,
+    delinquency_tier: col.delinquencyTier,
     channel: col.channel || 'WhatsApp',
     promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
     promise_amount: col.promiseAmount || 25,

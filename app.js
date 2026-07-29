@@ -933,9 +933,23 @@ window.approveApplication = async function(appId) {
   app.status = 'Aprobado';
 
   const count = app.count || 7;
-  const totalScheduled = app.amount * 1.15;
-  const installmentAmount = totalScheduled / count;
-  const scheduledProfit = app.amount * 0.15;
+  let totalScheduled = 175.0;
+  let installmentAmount = 25.0;
+  let scheduledProfit = 75.0;
+
+  if (app.amount === 200) {
+    installmentAmount = 40.0;
+    totalScheduled = 280.0;
+    scheduledProfit = 80.0;
+  } else if (app.amount === 300) {
+    installmentAmount = 50.0;
+    totalScheduled = 350.0;
+    scheduledProfit = 50.0;
+  } else if (app.amount !== 100) {
+    scheduledProfit = app.amount * 0.40;
+    totalScheduled = app.amount + scheduledProfit;
+    installmentAmount = totalScheduled / count;
+  }
 
   const newLoan = {
     id: generateUUID(),
@@ -1497,9 +1511,10 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     return;
   }
 
-  const totalSched = loan.totalScheduled || (loan.principal * 1.15);
+  const totalSched = loan.totalScheduled || (loan.principal <= 100 ? 175.0 : (loan.principal === 200 ? 280.0 : loan.principal * 1.40));
+  const schedProfit = loan.scheduledProfit || (totalSched - loan.principal);
   const principalRatio = loan.principal / totalSched;
-  const profitRatio = (loan.scheduledProfit || (loan.principal * 0.15)) / totalSched;
+  const profitRatio = schedProfit / totalSched;
 
   const principalShare = amountPaid * principalRatio;
   const profitShare = amountPaid * profitRatio;

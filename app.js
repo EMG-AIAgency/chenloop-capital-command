@@ -195,8 +195,8 @@ async function loadState() {
 
       if (cloudData.auditLogs && cloudData.auditLogs.length > 0) {
         state.auditLogs = cloudData.auditLogs.map(l => ({
-          timestamp: l.timestamp,
-          user: l.user_name || l.user,
+          timestamp: l.timestamp || l.created_at,
+          user: l.user_name || l.user || 'Propietario / Admin',
           action: l.action,
           module: l.module,
           details: l.details
@@ -1863,6 +1863,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 
   if (!state.financialAccounts) state.financialAccounts = {};
 
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
   let riskContribution = 0;
   let summaryMsg = "";
 
@@ -1948,6 +1949,24 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 // ----------------------------------------------------
 // MÓDULO 9: GASTOS & CUENTAS OPERATIVAS
 // ----------------------------------------------------
+function formatDateClean(rawDate) {
+  if (!rawDate) return new Date().toLocaleString();
+  try {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
+    }
+  } catch(err) {}
+  return String(rawDate);
+}
+
 function renderOperationsExpensesUI() {
   const tbody = document.getElementById('tbody-operations-expenses');
   const elTotal = document.getElementById('ops-total-expenses');
@@ -1955,14 +1974,15 @@ function renderOperationsExpensesUI() {
   const elNetAfter = document.getElementById('ops-net-after-expenses');
 
   const expenses = state.operationalExpenses || [];
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
 
   const catTotals = {};
   expenses.forEach(e => {
     const cat = e.category || 'Varios';
-    catTotals[cat] = (catTotals[cat] || 0) + (e.amount || 0);
+    const amt = parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0);
+    catTotals[cat] = (catTotals[cat] || 0) + amt;
   });
-  let topCat = 'N/A';
+  let topCat = 'Sin gastos';
   let maxCatAmount = 0;
   Object.keys(catTotals).forEach(cat => {
     if (catTotals[cat] > maxCatAmount) {
@@ -1971,13 +1991,12 @@ function renderOperationsExpensesUI() {
     }
   });
 
-  const payments = state.payments || [];
-  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
-  const netAfterExpenses = Math.max(0, netProfit - totalExpenses);
+  const accumProfits = state.capital?.accumulatedProfits || 0;
+  const netAfterExpenses = Math.max(0, accumProfits - totalExpenses);
 
-  if (elTotal) elTotal.innerText = `$${totalExpenses.toFixed(2)}`;
+  if (elTotal) elTotal.innerText = `$${totalExpenses.toFixed(2)} USD`;
   if (elCategory) elCategory.innerText = topCat;
-  if (elNetAfter) elNetAfter.innerText = `$${netAfterExpenses.toFixed(2)}`;
+  if (elNetAfter) elNetAfter.innerText = `$${netAfterExpenses.toFixed(2)} USD`;
 
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -1988,13 +2007,18 @@ function renderOperationsExpensesUI() {
   }
 
   expenses.forEach(exp => {
+    const concept = exp.concept || exp.name || 'Gasto Operativo';
+    const category = exp.category || 'Varios';
+    const amount = parseFloat(exp.amount || exp.monthlyAmount || exp.monthly_amount || 0);
+    const dateFormatted = formatDateClean(exp.date || exp.timestamp || exp.created_at);
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${exp.timestamp || exp.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white">${exp.concept}</td>
-      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${exp.category}</span></td>
-      <td class="p-3 font-bold text-[#F43F5E]">$${(exp.amount || 0).toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${exp.user || 'Administrador'}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${dateFormatted}</td>
+      <td class="p-3 font-bold text-white">${concept}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${category}</span></td>
+      <td class="p-3 font-bold text-[#F43F5E]">$${amount.toFixed(2)} USD</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${exp.user || 'Propietario'}</td>
       <td class="p-3">
         <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteExpense('${exp.id}')">Eliminar</button>
       </td>
@@ -2053,12 +2077,13 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
   if (!state.operationalExpenses) state.operationalExpenses = [];
   state.operationalExpenses.unshift({
     id: newExpRecord.id,
-    name: newExpRecord.name,
-    category: newExpRecord.category,
-    monthlyAmount: newExpRecord.monthly_amount,
-    category: newExpRecord.category,
-    amount: newExpRecord.amount,
-    user: newExpRecord.user
+    concept: concept,
+    name: concept,
+    category: category,
+    monthlyAmount: amount,
+    amount: amount,
+    user: "Propietario",
+    date: new Date().toISOString()
   });
 
   state.auditLogs.unshift({
@@ -2697,7 +2722,8 @@ function renderOwnerDebtsUI() {
       <td class="p-3 font-bold text-amber-300">${d.interestRate || d.interest_rate}%</td>
       <td class="p-3 text-white">$${(d.minPayment || d.min_payment || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${extraPay.toFixed(2)}</td>
-      <td class="p-3">
+      <td class="p-3 flex items-center gap-2">
+        <button class="bg-[#10b981]/20 hover:bg-[#10b981]/30 text-[#4edea3] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-[#10b981]/30 transition-all" onclick="window.payDebt('${d.id}')">+ Abono</button>
         <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteDebt('${d.id}')">Eliminar</button>
       </td>
     `;
@@ -2783,16 +2809,18 @@ function renderAudit() {
 
   logs.forEach(log => {
     let badgeClass = "badge-green";
-    if (log.action && (log.action.includes('RECHAZAD') || log.action.includes('INCUMPLID') || log.action.includes('MORA'))) {
+    if (log.action && (log.action.includes('RECHAZAD') || log.action.includes('INCUMPLID') || log.action.includes('MORA') || log.action.includes('ELIMINAD'))) {
       badgeClass = "badge-red";
-    } else if (log.action && (log.action.includes('CONFIG') || log.action.includes('GASTO'))) {
+    } else if (log.action && (log.action.includes('CONFIG') || log.action.includes('GASTO') || log.action.includes('DEUDA'))) {
       badgeClass = "badge-amber";
     }
 
+    const formattedDate = formatDateClean(log.timestamp || log.created_at || log.date);
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${log.timestamp || log.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white text-xs">${log.user || 'Sistema'}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
+      <td class="p-3 font-bold text-white text-xs">${log.user || 'Propietario / Admin'}</td>
       <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${log.action}</span></td>
       <td class="p-3 text-xs text-[#818CF8] font-bold">${log.module}</td>
       <td class="p-3 text-xs text-white max-w-md">${log.details}</td>
@@ -2867,6 +2895,7 @@ window.updateScenarioSimulation = function() {
 };
 
 function renderSettingsUI() {
+  const elCapTotal = document.getElementById('set-capital-total');
   const elPar30 = document.getElementById('set-par30-limit');
   const elReserve = document.getElementById('set-reserve-target');
   const elPortfolio = document.getElementById('set-portfolio-target');
@@ -2874,7 +2903,9 @@ function renderSettingsUI() {
   const elOrg = document.getElementById('set-org-name');
 
   const currentOrgName = state.organization?.name || state.financialAccounts?.organizationName || "Mi Cartera Personal";
+  const currentCapTotal = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 800.0;
 
+  if (elCapTotal) elCapTotal.value = currentCapTotal;
   if (elPar30) elPar30.value = state.organization?.par30Limit || 10.0;
   if (elReserve) elReserve.value = state.financialAccounts?.riskReserveTargetPct || 20.0;
   if (elPortfolio) elPortfolio.value = state.financialAccounts?.portfolioTarget || 5000.0;

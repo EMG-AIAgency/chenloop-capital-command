@@ -852,8 +852,18 @@
         </div>
 
         <!-- Strategy Active Guidance Banner -->
-        <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-1">
-          <p class="text-xs text-[#bbcabf]" id="debt-strategy-description">
+        <div class="bg-[#162032] p-4 rounded-xl border border-[#818CF8]/30 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#818CF8]">account_balance</span>
+            <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">¿Cómo se conecta este módulo con el Motor Financiero?</h4>
+          </div>
+          <p class="text-xs text-[#bbcabf]">
+            Las deudas registradas aquí representan los pasivos del Propietario (Tarjetas, Bancos, Financiamientos). 
+            <strong>1. Conexión de Gastos:</strong> Sus pagos mínimos mensuales se suman a tu estructura operativa. 
+            <strong>2. Excedentes del Cierre Quincenal:</strong> Las utilidades libres de tu cartera se destinan automáticamente a liquidar estas deudas según la estrategia elegida. 
+            <strong>3. Abono en Tiempo Real:</strong> Utiliza el botón <strong>"+ Registrar Abono"</strong> para descontar cuotas pagadas y actualizar tu saldo en Supabase Cloud.
+          </p>
+          <p class="text-xs text-[#FF6B00] font-bold" id="debt-strategy-description">
             <strong>MÉTODO AVALANCHA (Mayor Tasa de Interés):</strong> Ataca primero las deudas con la tasa más alta para minimizar el costo financiero total.
           </p>
         </div>
@@ -1231,6 +1241,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=38.0"></script>
+  <script src="app.js?v=39.0"></script>
 </body>
 </html>

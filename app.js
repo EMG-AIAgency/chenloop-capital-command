@@ -1326,7 +1326,7 @@ function renderCollections() {
       <td class="p-3 font-bold text-white">${col.loanId}</td>
       <td class="p-3 text-white font-bold">${col.borrowerName}</td>
       <td class="p-3 font-bold text-[#F43F5E]">${col.daysOverdue || 0} días</td>
-      <td class="p-3"><span class="badge-risk badge-amber">${col.delinquencyTier || 'Monitoreo'}</span></td>
+      <td class="p-3"><span class="badge-risk ${col.delinquencyTier === 'PAR30 (Crítico)' ? 'badge-red' : (col.delinquencyTier === 'PAR7 (Riesgo)' || col.delinquencyTier === 'Mora Reciente' ? 'badge-amber' : 'badge-green')}">${col.delinquencyTier || 'Monitoreo'}</span></td>
       <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate || 'N/A'} (${col.channel || 'Contacto'})</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(col.promiseAmount || 0).toFixed(2)}</td>
       <td class="p-3"><span class="badge-risk ${col.promiseStatus === 'Cumplida' ? 'badge-green' : (col.promiseStatus === 'Incumplida' ? 'badge-red' : 'badge-amber')}">${col.promiseStatus || 'Pendiente'}</span></td>
@@ -1508,7 +1508,7 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
+    const syncRes = await fetch('/api/sync', {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -1516,15 +1516,22 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
         record: newColRecord
       })
     });
-    console.log("✓ Gestión de cobranza guardada en Supabase Cloud");
+    const syncJson = await syncRes.json();
+    if (!syncRes.ok || syncJson.error) {
+      console.error("Supabase sync error:", syncJson.error);
+      alert(`⚠️ Error guardando en Supabase: ${syncJson.error}\n\nLa gestión se guardó localmente en memoria pero NO en la nube.`);
+    } else {
+      console.log("✓ Gestión de cobranza guardada en Supabase Cloud", syncJson);
+    }
   } catch (err) {
-    console.warn("Error enviando gestión de cobranza a Supabase:", err);
+    console.error("Error de red enviando gestión a Supabase:", err);
+    alert(`⚠️ Error de conexión: ${err.message}`);
   }
   
   document.getElementById('form-add-collection').reset();
   saveState();
   renderAll();
-  alert(`✓ Gestión para ${loan.borrowerName} guardada en Supabase con éxito.`);
+  alert(`✓ Gestión para ${loan.borrowerName} guardada. Refresca la página (F5) para confirmar persistencia en Supabase.`);
 });
 
 // ----------------------------------------------------

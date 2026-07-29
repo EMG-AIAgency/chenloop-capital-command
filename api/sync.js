@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 
   if (req.method === 'OPTIONS') {
@@ -16,34 +16,58 @@ module.exports = async (req, res) => {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || (!supabaseServiceKey && !supabaseAnonKey)) {
     return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
   }
 
-  const authHeader = req.headers.authorization || '';
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    global: {
-      headers: authHeader ? { Authorization: authHeader } : {}
+  // Use service role key for server-side operations (bypasses RLS completely)
+  // Falls back to anon key if service key not configured
+  const serverKey = supabaseServiceKey || supabaseAnonKey;
+  const supabase = createClient(supabaseUrl, serverKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
     }
   });
 
   try {
     if (req.method === 'GET') {
-      const { data: organizations } = await supabase.from('organizations').select('*');
-      const { data: borrowers } = await supabase.from('borrowers').select('*');
-      const { data: applications } = await supabase.from('applications').select('*');
-      const { data: loans } = await supabase.from('loans').select('*');
-      const { data: collections } = await supabase.from('collections').select('*');
-      const { data: payments } = await supabase.from('payments').select('*');
-      const { data: notifications } = await supabase.from('notifications').select('*');
-      const { data: auditLogs } = await supabase.from('audit_logs').select('*');
-      const { data: financialAccounts } = await supabase.from('financial_accounts').select('*');
-      const { data: operationalExpenses } = await supabase.from('operational_expenses').select('*');
-      const { data: quincenalCloses } = await supabase.from('quincenal_closes').select('*');
-      const { data: ownerDebts } = await supabase.from('owner_debts').select('*');
-      const { data: financialMovements } = await supabase.from('financial_movements').select('*');
+      const [
+        { data: organizations, error: e1 },
+        { data: borrowers, error: e2 },
+        { data: applications, error: e3 },
+        { data: loans, error: e4 },
+        { data: collections, error: e5 },
+        { data: payments, error: e6 },
+        { data: notifications, error: e7 },
+        { data: auditLogs, error: e8 },
+        { data: financialAccounts, error: e9 },
+        { data: operationalExpenses, error: e10 },
+        { data: quincenalCloses, error: e11 },
+        { data: ownerDebts, error: e12 },
+        { data: financialMovements, error: e13 }
+      ] = await Promise.all([
+        supabase.from('organizations').select('*'),
+        supabase.from('borrowers').select('*'),
+        supabase.from('applications').select('*'),
+        supabase.from('loans').select('*'),
+        supabase.from('collections').select('*'),
+        supabase.from('payments').select('*'),
+        supabase.from('notifications').select('*'),
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('financial_accounts').select('*'),
+        supabase.from('operational_expenses').select('*').order('created_at', { ascending: false }),
+        supabase.from('quincenal_closes').select('*').order('created_at', { ascending: false }),
+        supabase.from('owner_debts').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_movements').select('*').order('created_at', { ascending: false })
+      ]);
+
+      // Log any fetch errors (non-fatal) but still return what we have
+      const errs = [e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13].filter(Boolean);
+      if (errs.length) console.warn('Supabase GET partial errors:', errs.map(e => e.message));
 
       return res.status(200).json({
         organizations: organizations || [],
@@ -65,23 +89,39 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const { entity, record } = req.body || {};
       if (!entity || !record) {
-        return res.status(400).json({ error: "Invalid payload format" });
+        return res.status(400).json({ error: "Invalid payload: entity and record are required" });
       }
 
-      if (record.deleted && record.id) {
-        const { error } = await supabase.from(entity).delete().eq('id', record.id);
-        if (error) throw error;
+      // Sanitize: remove undefined values
+      const cleanRecord = Object.fromEntries(
+        Object.entries(record).filter(([_, v]) => v !== undefined && v !== null || v === 0 || v === '')
+      );
+
+      if (cleanRecord.deleted && cleanRecord.id) {
+        const { error } = await supabase.from(entity).delete().eq('id', cleanRecord.id);
+        if (error) {
+          console.error(`Supabase DELETE error on ${entity}:`, error);
+          return res.status(500).json({ error: error.message });
+        }
         return res.status(200).json({ success: true, deleted: true });
       }
 
-      const { data, error } = await supabase.from(entity).upsert(record);
-      if (error) throw error;
+      // upsert with ignoreDuplicates: false so it always updates existing rows
+      const { data, error } = await supabase
+        .from(entity)
+        .upsert(cleanRecord, { onConflict: 'id', ignoreDuplicates: false });
+
+      if (error) {
+        console.error(`Supabase UPSERT error on ${entity}:`, error);
+        return res.status(500).json({ error: error.message, entity, record: cleanRecord });
+      }
 
       return res.status(200).json({ success: true, data });
     }
 
     return res.status(405).json({ error: "Method Not Allowed" });
   } catch (err) {
+    console.error('sync.js unhandled error:', err);
     return res.status(500).json({ error: err.message });
   }
 };

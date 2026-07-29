@@ -889,6 +889,38 @@
             <button type="submit" class="w-full bg-[#818CF8] hover:bg-[#6366F1] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#818CF8]/20">Registrar Deuda</button>
           </div>
         </form>
+        <!-- Card: Formulario Integrado de Abono a Deuda del Propietario -->
+        <div class="p-4 bg-[#162032] rounded-xl border border-[#10b981]/30 space-y-3 mt-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">Registrar Abono o Pago Parcial a Deuda</h4>
+              <p class="text-xs text-[#bbcabf]">Aplica cuotas pagadas o inyecciones extraordinarias para actualizar el saldo en Supabase Cloud.</p>
+            </div>
+            <span class="text-xs font-bold text-[#10b981] bg-[#10b981]/10 px-3 py-1 rounded border border-[#10b981]/20">💳 Amortización Directa</span>
+          </div>
+          <form id="form-pay-debt" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">Deuda a Amortizar</label>
+              <select id="pay-debt-select" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
+            </div>
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">Monto del Abono ($ USD)</label>
+              <input type="number" id="pay-debt-amount" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50.00" step="0.01" required/>
+            </div>
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Fondo</label>
+              <select id="pay-debt-source" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+                <option value="Excedente de Caja">💰 Excedente de Caja (Utilidad de Cartera)</option>
+                <option value="Aporte Personal del Propietario">👤 Aporte Personal del Propietario</option>
+              </select>
+            </div>
+            <div>
+              <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20 cursor-pointer">
+                ✓ Registrar Abono a Deuda
+              </button>
+            </div>
+          </form>
+        </div>
 
         <h3 class="font-display text-lg font-bold text-white pt-4">Plan de Amortización Priorizado</h3>
         <div class="overflow-x-auto">
@@ -1241,6 +1273,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=39.0"></script>
+  <script src="app.js?v=40.0"></script>
 </body>
 </html>

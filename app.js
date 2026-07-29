@@ -1,4 +1,45 @@
 
+window.logAuditEvent = async function(action, module, details) {
+  const timestamp = new Date().toISOString();
+  const userName = currentSession?.user?.email || 'Propietario / Admin';
+  const orgId = state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001';
+
+  if (!state.auditLogs) state.auditLogs = [];
+  state.auditLogs.unshift({
+    timestamp: timestamp,
+    user: userName,
+    action: action,
+    module: module,
+    details: details
+  });
+
+  const record = {
+    id: generateUUID(),
+    organization_id: orgId,
+    user_name: userName,
+    action: action,
+    module: module,
+    details: details,
+    created_at: timestamp
+  };
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'audit_logs',
+        record: record
+      })
+    });
+  } catch (err) {
+    console.warn("Error enviando audit log a Supabase:", err);
+  }
+};
+
+
 function generateUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -1935,7 +1976,19 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
       })
     });
 
-    console.log("✓ Cierre Quincenal guardado en Supabase Cloud");
+    if (typeof window.updateFinancialAccountState === 'function') {
+      await window.updateFinancialAccountState();
+    }
+
+    if (typeof window.logAuditEvent === 'function') {
+      await window.logAuditEvent(
+        "CIERRE_QUINCENAL_PROCESADO",
+        "Cierre Quincenal",
+        `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (${targetReservePct}%): $${riskContribution.toFixed(2)}.`
+      );
+    }
+
+    console.log("✓ Cierre Quincenal y Cuentas Financieras guardados en Supabase Cloud");
   } catch (err) {
     console.warn("Error sincronizando Cierre Quincenal con Supabase:", err);
   }
@@ -3393,4 +3446,59 @@ document.getElementById('form-deposit-reserve')?.addEventListener('submit', asyn
 
   alert(`✓ ¡Aporte de $${amount.toFixed(2)} USD registrado con éxito en la Reserva de Riesgo!
 El saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`);
+});
+
+
+document.getElementById('form-pay-debt')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const debtId = document.getElementById('pay-debt-select')?.value;
+  const amount = parseFloat(document.getElementById('pay-debt-amount')?.value || 0);
+  const source = document.getElementById('pay-debt-source')?.value || 'Excedente de Caja';
+
+  if (!debtId || amount <= 0) {
+    alert("Por favor selecciona una deuda e ingresa un monto mayor a $0 USD.");
+    return;
+  }
+
+  const debt = (state.ownerDebts || []).find(d => d.id === debtId);
+  if (!debt) return;
+
+  const currentBalance = parseFloat(debt.balance || 0);
+  const newBalance = Math.max(0, currentBalance - amount);
+  debt.balance = newBalance;
+
+  if (typeof window.logAuditEvent === 'function') {
+    await window.logAuditEvent(
+      "ABONO_DEUDA_REGISTRADO",
+      "Deudas Propietario",
+      `Abono de $${amount.toFixed(2)} USD realizado a '${debt.debtName}' desde '${source}'. Saldo Restante: $${newBalance.toFixed(2)} USD.`
+    );
+  }
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'owner_debts',
+        record: {
+          id: debt.id,
+          debt_name: debt.debtName,
+          balance: newBalance,
+          interest_rate: debt.interestRate,
+          min_payment: debt.minPayment,
+          priority: debt.priority,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+        }
+      })
+    });
+  } catch (err) {
+    console.warn("Error guardando abono en Supabase:", err);
+  }
+
+  saveState();
+  renderAll();
+  alert(`✓ ¡Abono de $${amount.toFixed(2)} USD registrado con éxito!\nNuevo Saldo Pendiente de '${debt.debtName}': $${newBalance.toFixed(2)} USD.`);
 });

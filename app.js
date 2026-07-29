@@ -2383,7 +2383,6 @@ window.calculateFinancialEngine = function() {
     defensiveMode = true;
   }
 
-  const portfolioTarget = state.financialAccounts?.portfolioTarget || 5000.0;
   let currentStage = 0;
   if (activePortfolio < 1000) currentStage = 0;
   else if (activePortfolio < 2000) currentStage = 1;

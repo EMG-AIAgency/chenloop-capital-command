@@ -638,6 +638,14 @@
             <label class="text-xs text-[#bbcabf] block mb-1">Monto Recibido ($ USD)</label>
             <input type="number" id="pay-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" step="0.01" required/>
           </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Destino de la Ganancia</label>
+            <select id="pay-profit-destination" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+              <option value="profit">📊 Guardar como Ganancia Acumulada</option>
+              <option value="reinvest">💰 Reinvertir en Capital (aumenta cartera)</option>
+              <option value="reserve">🛡️ Aportar a Reserva de Riesgo</option>
+            </select>
+          </div>
           <div class="flex items-center gap-2 pb-2">
             <input type="checkbox" id="pay-send-whatsapp" class="w-4 h-4 accent-[#10b981]" checked/>
             <label for="pay-send-whatsapp" class="text-xs text-[#bbcabf] cursor-pointer">Enviar Recibo por WhatsApp vía n8n</label>
@@ -647,31 +655,11 @@
           </div>
         </form>
 
-        <div class="p-4 bg-[#162032] rounded-xl border border-[#F59E0B]/30 space-y-3 mt-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">Aportar / Fondear Reserva de Riesgo</h4>
-              <p class="text-xs text-[#bbcabf]">Deposita fondos para cubrir el 20% de reserva requerida y eliminar el Déficit de Reserva en el Command Center.</p>
-            </div>
-            <span class="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 px-3 py-1 rounded border border-[#F59E0B]/20" id="caja-reserve-status-badge">Reserva Actual: $0.00</span>
-          </div>
-          <form id="form-deposit-reserve" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label class="text-xs text-[#bbcabf] block mb-1">Monto a Aportar ($ USD)</label>
-              <input type="number" id="reserve-deposit-amount" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50.00" step="0.01" required/>
-            </div>
-            <div>
-              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Fondo (Tipo de Aporte)</label>
-              <select id="reserve-deposit-source" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-                <option value="Aporte Personal del Propietario">👤 Aporte Personal del Propietario (Inyección de Dinero Externo)</option>
-                <option value="Separacion de Utilidad de Caja">💰 Separación de Utilidad de Caja (Ganancias Cobradas)</option>
-                <option value="Capital de Resguardo">🏛️ Capital de Resguardo (Fondo de Emergencia Previo)</option>
-              </select>
-            </div>
-            <div>
-              <button type="submit" class="w-full bg-[#F59E0B] hover:bg-[#D97706] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#F59E0B]/20 cursor-pointer">+ Aportar a Reserva de Riesgo</button>
-            </div>
-          </form>
+
+        <!-- Reserva de Riesgo: gestionada ÚNICAMENTE desde Cierre Quincenal -->
+        <div class="p-3 bg-[#0f2a1a] rounded-xl border border-[#10b981]/20 mt-2 flex items-start gap-3">
+          <span class="text-[#4edea3] text-lg">ℹ️</span>
+          <p class="text-xs text-[#bbcabf]">Para aportar fondos a la <strong class="text-[#4edea3]">Reserva de Riesgo</strong>, dirígete al módulo <strong class="text-white">Cierre Quincenal</strong>. Allí puedes fondear la reserva de forma manual en cualquier momento sin necesidad de procesar un cierre completo.</p>
         </div>
 
         <h3 class="font-display text-lg font-bold text-white pt-4">Historial de Pagos & Auditoría de Caja</h3>
@@ -679,12 +667,13 @@
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
-                <th class="p-3">FECHA & HORA</th>
+              <th class="p-3">FECHA & HORA</th>
                 <th class="p-3">PRÉSTAMO</th>
                 <th class="p-3">PRESTATARIO</th>
                 <th class="p-3">MONTO PAGADO</th>
-                <th class="p-3">A CAPITAL (RECIPIENTE)</th>
-                <th class="p-3">A GANANCIA REAL</th>
+                <th class="p-3">A CAPITAL</th>
+                <th class="p-3">GANANCIA REAL</th>
+                <th class="p-3">DESTINO GANANCIA</th>
               </tr>
             </thead>
             <tbody id="tbody-payments" class="divide-y divide-white/5"></tbody>
@@ -1300,6 +1289,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=46.0"></script>
+  <script src="app.js?v=47.0"></script>
 </body>
 </html>

@@ -255,7 +255,8 @@ async function loadState() {
             borrowerName: loan ? loan.borrowerName : (p.borrower_name || "Prestatario"),
             amountPaid: parseFloat(p.amount_paid || 0),
             principalPaid: parseFloat(p.principal_paid || 0),
-            profitPaid: parseFloat(p.profit_paid || 0)
+            profitPaid: parseFloat(p.profit_paid || 0),
+            profitDestination: p.profit_destination || 'profit'
           };
         });
       }
@@ -364,25 +365,9 @@ async function loadState() {
 }
 
 async function saveState() {
+  // Only persist to localStorage as a fast local cache.
+  // All real data is synced to Supabase per-entity in each action handler.
   localStorage.setItem('chenloop_state_v4.0', JSON.stringify(state));
-  try {
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entity: 'audit_logs',
-        record: {
-          organization_id: '00000000-0000-0000-0000-000000000001',
-          user_name: 'Usuario App',
-          action: 'SINCRONIZACION_CLOUD',
-          module: 'Core',
-          details: 'Cambio de estado guardado en Supabase Cloud'
-        }
-      })
-    });
-  } catch (err) {
-    console.warn("Error enviando guardado a Supabase Cloud:", err);
-  }
 }
 
 // ----------------------------------------------------
@@ -650,7 +635,8 @@ function calculateExplicableScore(borrower) {
 
 function computeRiskMetrics() {
   const totalDeployed = state.capital.capitalDeployed || 250.0;
-  const totalCapital = state.financialAccounts?.portfolioTarget || 5000.0;
+  // Use ACTUAL capitalTotal (e.g. $800), NOT portfolioTarget ($5000)
+  const totalCapital = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 800.0;
   const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
   
   let par7Capital = 0;
@@ -1385,7 +1371,7 @@ window.markPromiseFulfilled = async function(colId) {
   
   saveState();
   renderAll();
-  alert(`✓ Promesa de pago de ${col.borrowerName} marcada como CUMPLIDA.`);
+  alert(`✓ Promesa de pago de ${col.borrowerName} marcada como CUMPLIDA.\n\n📌 NOTA: Marcar como CUMPLIDA actualiza el Score Crediticio del cliente (+5 pts).\nEl cobro real de la cuota debe registrarse por separado en el módulo 💵 Caja & Registrar Pago.`);
 };
 
 window.markPromiseBroken = async function(colId) {
@@ -1786,6 +1772,9 @@ function renderPayments() {
       }
     }
 
+    const destLabel = p.profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' 
+      : (p.profitDestination === 'reserve' ? '🛡️ A Reserva de Riesgo' : '📊 Ganancia Acumulada');
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
@@ -1794,6 +1783,7 @@ function renderPayments() {
       <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#818CF8] font-bold">$${principalPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#4edea3] font-bold">$${profitPaid.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#FBBF24]">${destLabel}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1805,6 +1795,8 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   const loanId = document.getElementById('pay-loan-select')?.value;
   const amountPaid = parseFloat(document.getElementById('pay-amount')?.value || 0);
   const sendWhatsApp = document.getElementById('pay-send-whatsapp')?.checked;
+  // NEW: Profit destination choice (reinvest into capital, keep as profit, or send to reserve)
+  const profitDestination = document.getElementById('pay-profit-destination')?.value || 'profit';
 
   if (!loanId || amountPaid <= 0) {
     alert("Por favor selecciona un préstamo activo e ingresa un monto mayor a $0.");
@@ -1824,6 +1816,19 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
   const principalShare = amountPaid * principalRatio;
   const profitShare = amountPaid * profitRatio;
+
+  // Apply profit destination decision
+  if (!state.financialAccounts) state.financialAccounts = {};
+  if (profitDestination === 'reinvest') {
+    // Reinvest profit into capital: increase capitalTotal
+    state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + profitShare;
+    state.capital.totalCapital = state.financialAccounts.capitalTotal;
+  } else if (profitDestination === 'reserve') {
+    // Send profit to risk reserve fund
+    state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + profitShare;
+    state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+  }
+  // If 'profit', the profit stays as accumulated profit (default — no extra action needed)
 
   loan.paidAmount = (loan.paidAmount || 0) + amountPaid;
   loan.remainingAmount = Math.max(0, totalSched - loan.paidAmount);
@@ -1852,6 +1857,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     amount_paid: amountPaid,
     principal_paid: principalShare,
     profit_paid: profitShare,
+    profit_destination: profitDestination,
     payment_date: new Date().toISOString()
   };
 
@@ -1866,7 +1872,8 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     principalPaid: principalShare,
     profitPaid: profitShare,
     principalShare,
-    profitShare
+    profitShare,
+    profitDestination
   });
 
   state.auditLogs.unshift({
@@ -1956,7 +1963,8 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   document.getElementById('form-record-payment').reset();
   saveState();
   renderAll();
-  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado con éxito en Caja y sincronizado con Supabase.${sendWhatsApp ? '\n📲 Comprobante de WhatsApp enviado vía n8n.' : ''}`);
+  const destLabel = profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' : (profitDestination === 'reserve' ? '🛡️ Aportada a Reserva de Riesgo' : '📊 Guardada como Ganancia Acumulada');
+  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD\n   💡 Ganancia Real: $${profitShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
 });
 
 // ----------------------------------------------------
@@ -1976,7 +1984,10 @@ function renderQuincenalCloseUI() {
   const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization?.riskReservePct || 20.0;
   const riskContrib = netProfit * (targetReservePct / 100.0);
   const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
-  const reinvestAvail = engine ? engine.capitalAvailable : (state.capital?.capitalAvailable || 0);
+  // Always compute capital available in real-time from actual data
+  const actualCapitalTotal = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 800.0;
+  const activePortfolioRealtime = (state.loans || []).filter(l => l.status === 'Activo').reduce((s,l)=>s+(l.principal||0),0);
+  const reinvestAvail = Math.max(0, actualCapitalTotal - activePortfolioRealtime);
 
   if (lblRiskContrib) {
     lblRiskContrib.innerText = `Aporte a Reserva de Riesgo (${targetReservePct}%)`;
@@ -2884,6 +2895,18 @@ function renderOwnerDebtsUI() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
+  // Always refresh the debt select dropdown
+  const payDebtSel = document.getElementById('pay-debt-select');
+  if (payDebtSel) {
+    payDebtSel.innerHTML = '<option value="">— Selecciona una deuda —</option>';
+    sortedDebts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = `${d.debtName || d.debt_name} ($${(d.balance||0).toFixed(2)} | ${d.interestRate||d.interest_rate}%)`;
+      payDebtSel.appendChild(opt);
+    });
+  }
+
   if (sortedDebts.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay deudas personales registradas aún en Supabase. Registra la primera deuda utilizando el formulario superior.</td></tr>`;
     return;
@@ -2907,6 +2930,85 @@ function renderOwnerDebtsUI() {
     tbody.appendChild(tr);
   });
 }
+
+// ── Populate the Debt Amortization select dropdown ──────────────
+(function populatePayDebtSelect() {
+  const sel = document.getElementById('pay-debt-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecciona una deuda —</option>';
+  (state.ownerDebts || []).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = `${d.debtName || d.debt_name} ($${(d.balance||0).toFixed(2)} | ${d.interestRate||d.interest_rate}%)`;
+    sel.appendChild(opt);
+  });
+})();
+
+// ── Pay Debt (+ Abono button in table row) ───────────────────────
+window.payDebt = function(debtId) {
+  const sel = document.getElementById('pay-debt-select');
+  if (sel) sel.value = debtId;
+  document.getElementById('pay-debt-amount')?.focus();
+};
+
+document.getElementById('form-pay-debt')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const debtId = document.getElementById('pay-debt-select')?.value;
+  const amount = parseFloat(document.getElementById('pay-debt-amount')?.value || 0);
+  const source = document.getElementById('pay-debt-source')?.value || 'Excedente de Caja';
+
+  if (!debtId) { alert('Por favor selecciona una deuda para abonar.'); return; }
+  if (amount <= 0) { alert('El monto del abono debe ser mayor a $0.'); return; }
+
+  const debt = (state.ownerDebts || []).find(d => d.id === debtId);
+  if (!debt) { alert('Deuda no encontrada.'); return; }
+
+  const prevBalance = debt.balance || 0;
+  debt.balance = Math.max(0, prevBalance - amount);
+
+  if (typeof window.logAuditEvent === 'function') {
+    await window.logAuditEvent(
+      'ABONO_DEUDA',
+      'Deudas Propietario',
+      `Abono de $${amount.toFixed(2)} USD aplicado a '${debt.debtName}'. Saldo anterior: $${prevBalance.toFixed(2)}, Saldo nuevo: $${debt.balance.toFixed(2)}. Origen: ${source}.`
+    );
+  }
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'owner_debts',
+        record: {
+          id: debt.id,
+          debt_name: debt.debtName,
+          balance: debt.balance,
+          interest_rate: debt.interestRate,
+          min_payment: debt.minPayment,
+          priority: debt.priority,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+        }
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || json.error) {
+      console.error('Error guardando abono en Supabase:', json.error);
+      alert(`⚠️ Error sincronizando con Supabase: ${json.error}`);
+    } else {
+      console.log('✓ Abono a deuda guardado en Supabase');
+    }
+  } catch (err) {
+    console.error('Error de red en abono:', err);
+  }
+
+  document.getElementById('form-pay-debt').reset();
+  saveState();
+  renderAll();
+  alert(`✓ Abono de $${amount.toFixed(2)} USD aplicado a '${debt.debtName}'.\nNuevo saldo: $${debt.balance.toFixed(2)} USD.`);
+});
 
 document.getElementById('form-add-debt')?.addEventListener('submit', async function(e) {
   e.preventDefault();

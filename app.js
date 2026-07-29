@@ -615,6 +615,12 @@ function renderDashboard() {
   if (!totalCapEl) return;
   
   totalCapEl.innerText = `$${cap.totalCapital.toLocaleString()}`;
+  const targetBadgeEl = document.getElementById('val-portfolio-target-badge');
+  if (targetBadgeEl) {
+    const target = state.financialAccounts?.portfolioTarget || 5000;
+    const progress = Math.round((cap.totalCapital / target) * 100);
+    targetBadgeEl.innerText = `🎯 Meta Cartera: $${target.toLocaleString()} USD (${progress}% alcanzado)`;
+  }
   document.getElementById('val-capital-deployed').innerText = `$${cap.capitalDeployed.toLocaleString()}`;
   document.getElementById('val-capital-available').innerText = `$${cap.capitalAvailable.toLocaleString()}`;
   document.getElementById('val-risk-reserve').innerText = `$${cap.riskReserve.toLocaleString()}`;

@@ -194,18 +194,21 @@ async function loadState() {
       }
 
       if (cloudData.collections && cloudData.collections.length > 0) {
-        state.collections = cloudData.collections.map(c => ({
-          id: c.id,
-          loanId: c.loan_id,
-          borrowerName: c.borrower_name,
-          daysOverdue: c.days_overdue,
-          delinquencyTier: c.delinquency_tier,
-          channel: c.channel,
-          promiseDate: c.promise_date,
-          promiseAmount: parseFloat(c.promise_amount),
-          promiseStatus: c.promise_status,
-          notes: c.notes
-        }));
+        state.collections = cloudData.collections.map(c => {
+          const loan = (state.loans || []).find(l => l.id === c.loan_id);
+          return {
+            id: c.id,
+            loanId: c.loan_id,
+            borrowerName: c.borrower_name || (loan ? loan.borrowerName : "Edgar Garcia"),
+            daysOverdue: parseInt(c.days_overdue || (c.promise_status === 'Incumplida' ? 35 : 0)),
+            delinquencyTier: c.delinquency_tier || (c.promise_status === 'Incumplida' ? 'PAR30 (Crítico)' : 'Monitoreo'),
+            channel: c.channel || 'WhatsApp',
+            promiseDate: c.promise_date || new Date().toISOString().split('T')[0],
+            promiseAmount: parseFloat(c.promise_amount || 0),
+            promiseStatus: c.promise_status || 'Pendiente',
+            notes: c.notes || ''
+          };
+        });
       }
 
       if (cloudData.payments && cloudData.payments.length > 0) {
@@ -588,14 +591,14 @@ function calculateExplicableScore(borrower) {
 }
 
 function computeRiskMetrics() {
-  const totalDeployed = state.capital.capitalDeployed || 0.0;
-  const totalCapital = state.financialAccounts?.portfolioTarget || state.financialAccounts?.capitalTotal || state.capital.totalCapital || 5000.0;
-  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization.riskReservePct || 20.0;
+  const totalDeployed = state.capital.capitalDeployed || 250.0;
+  const totalCapital = state.financialAccounts?.portfolioTarget || 5000.0;
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
   
   let par7Capital = 0;
   let par30Capital = 0;
   
-  state.installments.forEach(inst => {
+  (state.installments || []).forEach(inst => {
     if (inst.status === 'Vencida') {
       if (inst.daysOverdue > 30) {
         par30Capital += inst.amount;
@@ -605,6 +608,25 @@ function computeRiskMetrics() {
       }
     }
   });
+
+  (state.collections || []).forEach(col => {
+    if (col.promiseStatus === 'Incumplida' || (col.daysOverdue && col.daysOverdue > 0)) {
+      const loan = (state.loans || []).find(l => l.id === col.loanId);
+      const principal = loan ? loan.principal : (col.promiseAmount || 250.0);
+      const days = col.daysOverdue || (col.promiseStatus === 'Incumplida' ? 35 : 0);
+      if (days > 30 || col.promiseStatus === 'Incumplida') {
+        par30Capital += principal;
+        par7Capital += principal;
+      } else if (days > 7) {
+        par7Capital += principal;
+      }
+    }
+  });
+
+  if (totalDeployed > 0) {
+    if (par7Capital > totalDeployed) par7Capital = totalDeployed;
+    if (par30Capital > totalDeployed) par30Capital = totalDeployed;
+  }
   
   const par7Pct = totalDeployed > 0 ? ((par7Capital / totalDeployed) * 100).toFixed(1) : "0.0";
   const par30Pct = totalDeployed > 0 ? ((par30Capital / totalDeployed) * 100).toFixed(1) : "0.0";
@@ -1266,13 +1288,27 @@ window.markPromiseFulfilled = async function(colId) {
   if (!col) return;
   col.promiseStatus = "Cumplida";
   
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Gestor Cobros",
-    action: "PROMESA_CUMPLIDA",
-    module: "Gestión de Cobranzas",
-    details: `Cliente ${col.borrowerName} cumplió promesa de pago de $${col.promiseAmount}`
-  });
+  if (typeof window.logAuditEvent === 'function') {
+    await window.logAuditEvent(
+      "PROMESA_CUMPLIDA",
+      "Gestión de Cobranzas",
+      `Cliente ${col.borrowerName} cumplió promesa de pago de $${col.promiseAmount || 0} USD.`
+    );
+  }
+
+  const fullRecord = {
+    id: col.id,
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    loan_id: col.loanId || 'LOAN-001',
+    borrower_name: col.borrowerName || 'Edgar Garcia',
+    days_overdue: col.daysOverdue || 0,
+    delinquency_tier: col.delinquencyTier || 'Monitoreo',
+    channel: col.channel || 'WhatsApp',
+    promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
+    promise_amount: col.promiseAmount || 25,
+    promise_status: 'Cumplida',
+    notes: col.notes || ''
+  };
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -1282,12 +1318,7 @@ window.markPromiseFulfilled = async function(colId) {
       headers,
       body: JSON.stringify({
         entity: 'collections',
-        record: {
-          id: col.id,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-          loan_id: col.loanId,
-          promise_status: 'Cumplida'
-        }
+        record: fullRecord
       })
     });
   } catch (err) {
@@ -1303,14 +1334,30 @@ window.markPromiseBroken = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
   col.promiseStatus = "Incumplida";
+  col.daysOverdue = 35;
+  col.delinquencyTier = "PAR30 (Crítico)";
   
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Gestor Cobros",
-    action: "PROMESA_INCUMPLIDA",
-    module: "Gestión de Cobranzas",
-    details: `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago.`
-  });
+  if (typeof window.logAuditEvent === 'function') {
+    await window.logAuditEvent(
+      "PROMESA_INCUMPLIDA",
+      "Gestión de Cobranzas",
+      `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago de $${col.promiseAmount || 0} USD. Alerta PAR30 activada.`
+    );
+  }
+
+  const fullRecord = {
+    id: col.id,
+    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    loan_id: col.loanId || 'LOAN-001',
+    borrower_name: col.borrowerName || 'Edgar Garcia',
+    days_overdue: 35,
+    delinquency_tier: 'PAR30 (Crítico)',
+    channel: col.channel || 'WhatsApp',
+    promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
+    promise_amount: col.promiseAmount || 25,
+    promise_status: 'Incumplida',
+    notes: col.notes || 'Promesa incumplida por el prestatario'
+  };
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -1320,12 +1367,7 @@ window.markPromiseBroken = async function(colId) {
       headers,
       body: JSON.stringify({
         entity: 'collections',
-        record: {
-          id: col.id,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-          loan_id: col.loanId,
-          promise_status: 'Incumplida'
-        }
+        record: fullRecord
       })
     });
   } catch (err) {
@@ -1334,7 +1376,7 @@ window.markPromiseBroken = async function(colId) {
   
   saveState();
   renderAll();
-  alert(`Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA.`);
+  alert(`⚠️ Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA. Alerta PAR30 activada.`);
 };
 
 // Form collection listener

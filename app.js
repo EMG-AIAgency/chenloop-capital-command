@@ -286,20 +286,13 @@ async function loadState() {
       if (cloudData.quincenalCloses && cloudData.quincenalCloses.length > 0) {
         state.quincenalCloses = cloudData.quincenalCloses.map(c => ({
           id: c.id,
-          closeDate: c.close_date,
-          expectedAmount: parseFloat(c.expected_amount),
-          collectedAmount: parseFloat(c.collected_amount),
-          collectionRate: parseFloat(c.collection_rate),
-          capitalRecovered: parseFloat(c.capital_recovered),
-          grossProfit: parseFloat(c.gross_profit),
-          activePortfolio: parseFloat(c.active_portfolio),
-          portfolioTarget: parseFloat(c.portfolio_target),
-          reserveBalance: parseFloat(c.reserve_balance),
-          operationalBalance: parseFloat(c.operational_balance),
-          distributableAmount: parseFloat(c.distributable_amount),
-          businessStage: c.business_stage,
-          defensiveMode: c.defensive_mode,
-          recommendedActions: c.recommended_actions || []
+          timestamp: c.closed_at || c.close_date || c.created_at || new Date().toISOString(),
+          periodName: c.period_name || (c.close_date ? `Cierre del ${c.close_date}` : 'Periodo Quincenal'),
+          totalCollected: parseFloat(c.total_collected !== undefined && c.total_collected !== null ? c.total_collected : (c.collected_amount || 0)),
+          netProfit: parseFloat(c.net_profit !== undefined && c.net_profit !== null ? c.net_profit : (c.gross_profit || 0)),
+          riskContribution: parseFloat(c.risk_contribution !== undefined && c.risk_contribution !== null ? c.risk_contribution : (c.reserve_balance || 0)),
+          notes: c.notes || 'Cierre procesado sin incidencias',
+          status: c.status || 'Procesado'
         }));
       }
 
@@ -3501,4 +3494,39 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
   saveState();
   renderAll();
   alert(`✓ ¡Abono de $${amount.toFixed(2)} USD registrado con éxito!\nNuevo Saldo Pendiente de '${debt.debtName}': $${newBalance.toFixed(2)} USD.`);
+});
+
+
+document.getElementById('form-deposit-reserve-qc')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const amount = parseFloat(document.getElementById('reserve-deposit-amount-qc')?.value || 0);
+  const source = document.getElementById('reserve-deposit-source-qc')?.value || 'Aporte Personal';
+
+  if (amount <= 0) {
+    alert("Por favor ingresa un monto válido mayor a $0 USD.");
+    return;
+  }
+
+  if (!state.financialAccounts) state.financialAccounts = {};
+  state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + amount;
+
+  if (!state.capital) state.capital = {};
+  state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+
+  if (typeof window.logAuditEvent === 'function') {
+    await window.logAuditEvent(
+      "APORTE_RESERVA_RIESGO",
+      "Cierre Quincenal",
+      `Aporte de $${amount.toFixed(2)} USD ingresado al Fondo de Reserva de Riesgo desde '${source}'. Reserva Actual: $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`
+    );
+  }
+
+  saveState();
+  renderAll();
+
+  if (typeof window.updateFinancialAccountState === 'function') {
+    await window.updateFinancialAccountState();
+  }
+
+  alert(`✓ ¡Aporte de $${amount.toFixed(2)} USD registrado con éxito en la Reserva de Riesgo!\nEl saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`);
 });

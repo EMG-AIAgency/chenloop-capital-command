@@ -110,34 +110,46 @@ async function loadState() {
       }
 
       if (cloudData.applications && cloudData.applications.length > 0) {
-        state.applications = cloudData.applications.map(a => ({
-          id: a.id,
-          borrowerId: a.borrower_id,
-          borrowerName: a.borrower_name || "Prestatario",
-          amount: parseFloat(a.amount),
-          reason: a.reason,
-          count: a.installment_count || 7,
-          rate: parseFloat(a.interest_rate || 15),
-          status: a.status,
-          createdAt: a.created_at
-        }));
+        state.applications = cloudData.applications.map(a => {
+          const bw = (state.borrowers || []).find(b => b.id === a.borrower_id);
+          return {
+            id: a.id,
+            borrowerId: a.borrower_id,
+            borrowerName: bw ? bw.name : (a.borrower_name || "Prestatario"),
+            amount: parseFloat(a.amount || 0),
+            reason: a.reason || 'Capital de Trabajo',
+            count: parseInt(a.installments_count || a.installment_count || 7),
+            rate: parseFloat(a.interest_rate || 15),
+            status: a.status,
+            createdAt: a.created_at
+          };
+        });
       }
 
       if (cloudData.loans && cloudData.loans.length > 0) {
-        state.loans = cloudData.loans.map(l => ({
-          id: l.id,
-          borrowerId: l.borrower_id,
-          borrowerName: l.borrower_name || "Prestatario",
-          principal: parseFloat(l.principal),
-          installmentAmount: parseFloat(l.installment_amount),
-          installmentCount: l.installment_count,
-          totalScheduled: parseFloat(l.total_scheduled),
-          scheduledProfit: parseFloat(l.scheduled_profit),
-          status: l.status,
-          disbursementDate: l.disbursement_date,
-          paidAmount: parseFloat(l.paid_amount || 0),
-          remainingAmount: parseFloat(l.remaining_amount || l.total_scheduled)
-        }));
+        state.loans = cloudData.loans.map(l => {
+          const bw = (state.borrowers || []).find(b => b.id === l.borrower_id);
+          const count = parseInt(l.installments_count || l.installment_count || 7);
+          const principal = parseFloat(l.principal || 0);
+          const totalScheduled = parseFloat(l.total_scheduled || (principal <= 100 ? 175.0 : principal * 1.40));
+          const scheduledProfit = parseFloat(l.profit_scheduled || l.scheduled_profit || (totalScheduled - principal));
+          const installmentAmount = Math.round(totalScheduled / count);
+          
+          return {
+            id: l.id,
+            borrowerId: l.borrower_id,
+            borrowerName: bw ? bw.name : (l.borrower_name || "Prestatario"),
+            principal: principal,
+            installmentAmount: installmentAmount,
+            installmentCount: count,
+            totalScheduled: totalScheduled,
+            scheduledProfit: scheduledProfit,
+            status: l.status,
+            disbursementDate: l.disbursed_at || l.disbursement_date,
+            paidAmount: parseFloat(l.paid_amount || 0),
+            remainingAmount: parseFloat(l.remaining_amount || totalScheduled)
+          };
+        });
       }
 
       if (cloudData.collections && cloudData.collections.length > 0) {
@@ -1025,12 +1037,34 @@ window.approveApplication = async function(appId) {
       headers['Authorization'] = `Bearer ${currentSession.access_token}`;
     }
 
+    const updateAppRecord = {
+      id: app.id,
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_id: app.borrowerId,
+      amount: app.amount,
+      reason: app.reason || 'Capital de Trabajo',
+      installments_count: count,
+      status: 'Aprobado'
+    };
+
+    const newLoanRecord = {
+      id: newLoan.id,
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_id: app.borrowerId,
+      principal: app.amount,
+      total_scheduled: totalScheduled,
+      profit_scheduled: scheduledProfit,
+      installments_count: count,
+      status: 'Activo',
+      disbursed_at: new Date().toISOString()
+    };
+
     await fetch('/api/sync', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         entity: 'applications',
-        record: { id: app.id, status: 'Aprobado', updated_at: new Date().toISOString() }
+        record: updateAppRecord
       })
     });
 
@@ -1039,7 +1073,7 @@ window.approveApplication = async function(appId) {
       headers,
       body: JSON.stringify({
         entity: 'loans',
-        record: newLoan
+        record: newLoanRecord
       })
     });
 
@@ -2067,31 +2101,7 @@ function renderAudit() {
 }
 
 // Listeners
-document.getElementById('form-create-application')?.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const borrowerId = document.getElementById('app-borrower-select').value;
-  const amount = parseFloat(document.getElementById('app-amount').value);
-  const reason = document.getElementById('app-reason').value;
-  const count = parseInt(document.getElementById('app-count').value);
-  
-  const bw = state.borrowers.find(b => b.id === borrowerId);
-  if (!bw) return;
-  
-  const newApp = {
-    id: `APP-${2000 + state.applications.length + 1}`,
-    borrowerId: bw.id,
-    borrowerName: bw.name,
-    amount: amount,
-    reason: reason,
-    count: count,
-    status: "En Revisión",
-    createdAt: new Date().toISOString().split('T')[0]
-  };
-  
-  state.applications.unshift(newApp);
-  saveState();
-  renderAll();
-});
+
 
 
 

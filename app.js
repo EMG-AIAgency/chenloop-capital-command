@@ -1,3 +1,14 @@
+
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // CHENLOOP - Core Financial Engine (v4.0 Auth & Multi-Tenant SaaS Engine)
 
 const SUPABASE_URL = "https://sfikeqgzmyhellqxsqbu.supabase.co";
@@ -927,7 +938,7 @@ window.approveApplication = async function(appId) {
   const scheduledProfit = app.amount * 0.15;
 
   const newLoan = {
-    id: `LN-${Date.now()}`,
+    id: generateUUID(),
     borrower_id: app.borrowerId,
     borrower_name: app.borrowerName,
     principal: app.amount,
@@ -1202,7 +1213,7 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
   }
   
   const newColRecord = {
-    id: `COL-${Date.now()}`,
+    id: generateUUID(),
     loan_id: loan.id,
     borrower_name: loan.borrowerName,
     days_overdue: 0,
@@ -1356,7 +1367,7 @@ window.testN8nTrigger = async function(triggerType) {
       phone: targetPhone,
       payment_amount: 50.00,
       remaining_balance: 150.00,
-      transaction_id: `PAY-${Date.now()}`,
+      transaction_id: generateUUID(),
       organization: state.organization?.name || "Chenloop Capital",
       mode: sendMode
     };
@@ -1691,7 +1702,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   state.capital.riskReserve = (state.capital.riskReserve || 0) + riskContribution;
 
   const newCloseRecord = {
-    id: `QC-${Date.now()}`,
+    id: generateUUID(),
     period_name: periodName,
     total_collected: totalCollected,
     net_profit: netProfit,
@@ -1844,20 +1855,19 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
   }
 
   const newExpRecord = {
-    id: `EXP-${Date.now()}`,
-    concept,
-    category,
-    amount,
-    user: "Administrador",
-    created_at: new Date().toISOString(),
+    id: generateUUID(),
+    name: concept,
+    category: category,
+    monthly_amount: amount,
     organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
   };
 
   if (!state.operationalExpenses) state.operationalExpenses = [];
   state.operationalExpenses.unshift({
     id: newExpRecord.id,
-    timestamp: new Date().toLocaleString(),
-    concept: newExpRecord.concept,
+    name: newExpRecord.name,
+    category: newExpRecord.category,
+    monthlyAmount: newExpRecord.monthly_amount,
     category: newExpRecord.category,
     amount: newExpRecord.amount,
     user: newExpRecord.user
@@ -2052,7 +2062,7 @@ document.getElementById('form-add-borrower')?.addEventListener('submit', async f
   const scoreData = calculateExplicableScore({ income, employment, verified, loansCompleted: 0 });
 
   const newBw = {
-    id: `bw-${Date.now()}`,
+    id: generateUUID(),
     name,
     idNumber,
     phone,
@@ -2600,7 +2610,7 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
   }
 
   const newDebtRecord = {
-    id: `DEBT-${Date.now()}`,
+    id: generateUUID(),
     debt_name: debtName,
     balance,
     interest_rate: interestRate,
@@ -3018,7 +3028,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const tempBw = {
-        id: `BW-${Date.now()}`,
+        id: generateUUID(),
         name,
         idNumber: idNum,
         phone,
@@ -3116,7 +3126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!bw) return;
 
       const newApp = {
-        id: `APP-${Date.now()}`,
+        id: generateUUID(),
         borrower_id: bw.id,
         borrower_name: bw.name,
         amount,

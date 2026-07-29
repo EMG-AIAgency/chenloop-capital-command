@@ -68,6 +68,12 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: "Invalid payload format" });
       }
 
+      if (record.deleted && record.id) {
+        const { error } = await supabase.from(entity).delete().eq('id', record.id);
+        if (error) throw error;
+        return res.status(200).json({ success: true, deleted: true });
+      }
+
       const { data, error } = await supabase.from(entity).upsert(record);
       if (error) throw error;
 

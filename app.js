@@ -555,6 +555,9 @@ function calculateExplicableScore(borrower) {
 
 function computeRiskMetrics() {
   const totalDeployed = state.capital.capitalDeployed || 0.0;
+  const totalCapital = state.financialAccounts?.portfolioTarget || state.financialAccounts?.capitalTotal || state.capital.totalCapital || 5000.0;
+  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization.riskReservePct || 20.0;
+  
   let par7Capital = 0;
   let par30Capital = 0;
   
@@ -571,8 +574,9 @@ function computeRiskMetrics() {
   
   const par7Pct = totalDeployed > 0 ? ((par7Capital / totalDeployed) * 100).toFixed(1) : "0.0";
   const par30Pct = totalDeployed > 0 ? ((par30Capital / totalDeployed) * 100).toFixed(1) : "0.0";
-  const requiredReserve = totalDeployed * (state.organization.riskReservePct / 100.0);
-  const reserveDeficit = requiredReserve > state.capital.riskReserve;
+  const requiredReserve = totalCapital * (targetReservePct / 100.0);
+  const currentReserve = state.financialAccounts?.riskReserveBalance || state.capital.riskReserve || 0.0;
+  const reserveDeficit = requiredReserve > currentReserve;
   
   return { par7Pct, par30Pct, requiredReserve, reserveDeficit };
 }
@@ -628,16 +632,14 @@ function renderDashboard() {
   
   const statusEl = document.getElementById('val-reserve-status');
   if (statusEl) {
-    if (metrics.requiredReserve === 0) {
-      statusEl.innerText = "Sin requerimiento (0 colocados)";
-      statusEl.className = "text-[11px] text-[#bbcabf]";
-    } else if (cap.riskReserve >= metrics.requiredReserve) {
-      statusEl.innerText = "✓ Cobertura Completa";
-      statusEl.className = "text-[11px] text-[#4edea3]";
+    const curReserve = state.financialAccounts?.riskReserveBalance || cap.riskReserve || 0.0;
+    if (curReserve >= metrics.requiredReserve) {
+      statusEl.innerText = `✓ Cobertura Completa ($${curReserve.toFixed(2)} USD)`;
+      statusEl.className = "text-[11px] text-[#4edea3] font-bold";
     } else {
-      const deficit = (metrics.requiredReserve - cap.riskReserve).toFixed(2);
+      const deficit = (metrics.requiredReserve - curReserve).toFixed(2);
       statusEl.innerText = `⚠️ Déficit de Reserva: -$${deficit}`;
-      statusEl.className = "text-[11px] text-[#F59E0B]";
+      statusEl.className = "text-[11px] text-[#F59E0B] font-bold";
     }
   }
   

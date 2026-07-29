@@ -400,13 +400,29 @@
     <section id="tab-applications" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">
         <h3 class="font-display text-lg font-bold text-white">Nueva Solicitud de Crédito</h3>
-        <form id="form-create-application" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select id="app-borrower-select" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" required></select>
-          <input type="number" id="app-amount" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" value="100" required/>
-          <input type="text" id="app-reason" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="Motivo" required/>
-          <input type="number" id="app-count" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" value="7" required/>
-          <div class="md:col-span-4">
-            <button type="submit" class="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold">Crear Solicitud (Borrador)</button>
+        <form id="form-create-application" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Prestatario</label>
+            <select id="app-borrower-select" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" required></select>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Monto Préstamo ($ USD)</label>
+            <input type="number" id="app-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="100" value="100" min="1" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Motivo del Crédito</label>
+            <input type="text" id="app-reason" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="ej. Capital de Trabajo / Inv." required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Cuotas (Quincenas)</label>
+            <input type="number" id="app-count" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="7" value="7" min="1" max="24" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Tasa Interés Quincenal (%)</label>
+            <input type="number" step="0.5" id="app-rate" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-[#4edea3] outline-none" placeholder="15" value="15" min="1" max="50" required/>
+          </div>
+          <div class="md:col-span-5 pt-2">
+            <button type="submit" class="bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20">Crear Solicitud (Borrador)</button>
           </div>
         </form>
 
@@ -459,17 +475,34 @@
     <section id="tab-collections" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-4">
         <h3 class="font-display text-lg font-bold text-white">Registrar Gestión de Contacto o Promesa de Pago</h3>
-        <form id="form-add-collection" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select id="col-loan-select" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
-          <select id="col-channel" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-            <option value="Llamada">Llamada Telefónica</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Visita">Visita Presencial</option>
-          </select>
-          <input type="date" id="col-promise-date" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required/>
-          <input type="number" id="col-promise-amount" class="bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" required/>
-          <input type="text" id="col-notes" class="md:col-span-3 bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Notas de la gestión" required/>
-          <button type="submit" class="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold">Guardar Promesa</button>
+        <form id="form-add-collection" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Préstamo Activo</label>
+            <select id="col-loan-select" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Canal de Contacto</label>
+            <select id="col-channel" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+              <option value="Llamada">Llamada Telefónica</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Visita">Visita Presencial</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Fecha Promesa de Pago</label>
+            <input type="date" id="col-promise-date" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Monto Prometido ($ USD)</label>
+            <input type="number" id="col-promise-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="25" value="25" step="0.01" required/>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Notas de la Gestión</label>
+            <input type="text" id="col-notes" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="ej. Compromiso pago 15/08" required/>
+          </div>
+          <div class="md:col-span-5 pt-2">
+            <button type="submit" class="bg-[#10b981] text-white px-6 py-2.5 rounded-lg text-sm font-bold">Guardar Promesa</button>
+          </div>
         </form>
       </div>
 
@@ -1165,6 +1198,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=25.0"></script>
+  <script src="app.js?v=26.0"></script>
 </body>
 </html>

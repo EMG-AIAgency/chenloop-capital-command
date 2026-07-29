@@ -117,6 +117,7 @@ async function loadState() {
           amount: parseFloat(a.amount),
           reason: a.reason,
           count: a.installment_count || 7,
+          rate: parseFloat(a.interest_rate || 15),
           status: a.status,
           createdAt: a.created_at
         }));
@@ -933,22 +934,39 @@ window.approveApplication = async function(appId) {
   app.status = 'Aprobado';
 
   const count = app.count || 7;
+  const ratePct = parseFloat(app.rate || app.interestRate || 15);
+
   let totalScheduled = 175.0;
   let installmentAmount = 25.0;
   let scheduledProfit = 75.0;
 
-  if (app.amount === 200) {
+  if (app.amount === 100 && count === 7 && ratePct === 15) {
+    installmentAmount = 25.0;
+    totalScheduled = 175.0;
+    scheduledProfit = 75.0;
+  } else if (app.amount === 200 && count === 7 && ratePct === 10) {
     installmentAmount = 40.0;
     totalScheduled = 280.0;
     scheduledProfit = 80.0;
-  } else if (app.amount === 300) {
+  } else if (app.amount === 300 && count === 7 && ratePct === 10) {
     installmentAmount = 50.0;
     totalScheduled = 350.0;
     scheduledProfit = 50.0;
-  } else if (app.amount !== 100) {
-    scheduledProfit = app.amount * 0.40;
-    totalScheduled = app.amount + scheduledProfit;
-    installmentAmount = totalScheduled / count;
+  } else {
+    let balance = app.amount;
+    let totalInterest = 0;
+    installmentAmount = Math.ceil((app.amount * (1 + (ratePct / 100) * (count / 2))) / count / 5) * 5;
+    if (installmentAmount <= 0) installmentAmount = Math.round((app.amount * 1.2) / count);
+
+    for (let q = 1; q <= count; q++) {
+      let interest = balance * (ratePct / 100.0);
+      totalInterest += interest;
+      let pmt = Math.min(installmentAmount, balance + interest);
+      balance = Math.max(0, balance + interest - pmt);
+      if (balance <= 0.01) break;
+    }
+    totalScheduled = Math.max(app.amount + totalInterest, installmentAmount * count);
+    scheduledProfit = totalScheduled - app.amount;
   }
 
   const newLoan = {
@@ -3131,6 +3149,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const amount = parseFloat(document.getElementById('app-amount')?.value || 0);
       const reason = document.getElementById('app-reason')?.value.trim();
       const count = parseInt(document.getElementById('app-count')?.value || 7);
+      const rate = parseFloat(document.getElementById('app-rate')?.value || 15);
 
       if (!bwId) {
         alert('Por favor selecciona un prestatario.');
@@ -3147,6 +3166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         amount,
         reason,
         installment_count: count,
+        interest_rate: rate,
         status: 'En Revisión',
         created_at: new Date().toISOString(),
         organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
@@ -3160,6 +3180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         amount: newApp.amount,
         reason: newApp.reason,
         count: newApp.installment_count,
+        rate: rate,
         status: newApp.status,
         createdAt: newApp.created_at
       });

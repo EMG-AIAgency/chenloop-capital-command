@@ -492,24 +492,23 @@ window.rejectApplication = function(appId) {
 };
 
 function calculateExplicableScore(borrower) {
-  let breakdown = {
-    paymentHistory: 20,
-    employmentStability: 5,
-    tenure: Math.min((borrower.loansCompleted || 0) * 5, 15),
-    capacity: 0,
-    verification: borrower.verified ? 10 : 0
-  };
+  let paymentHistory = 20;
+  let employmentStability = 5;
+  let tenure = Math.min((borrower.loansCompleted || 0) * 5, 15);
+  let capacity = 0;
+  let verification = borrower.verified ? 10 : 0;
   
-  if (borrower.employment === 'Empleado') breakdown.employmentStability = 20;
-  else if (borrower.employment === 'Negocio') breakdown.employmentStability = 15;
-  else breakdown.employmentStability = 5;
+  const emp = borrower.employment || borrower.employmentType || 'Empleado';
+  if (emp === 'Empleado') employmentStability = 20;
+  else if (emp === 'Negocio') employmentStability = 15;
+  else employmentStability = 5;
   
-  if (borrower.income >= 500) breakdown.capacity = 15;
-  else if (borrower.income >= 300) breakdown.capacity = 10;
-  else breakdown.capacity = 5;
+  const inc = parseFloat(borrower.income || borrower.monthlyIncome || 0);
+  if (inc >= 500) capacity = 15;
+  else if (inc >= 300) capacity = 10;
+  else capacity = 5;
   
-  const totalScore = breakdown.paymentHistory + breakdown.employmentStability + 
-                     breakdown.tenure + breakdown.capacity + breakdown.verification;
+  const totalScore = paymentHistory + employmentStability + tenure + capacity + verification;
                      
   let riskLevel = "Alto Riesgo";
   let recommendation = "Rechazar / Revisión Manual";
@@ -525,6 +524,17 @@ function calculateExplicableScore(borrower) {
     recommendation = "Revisión Manual Obligatoria";
   }
   
+  const breakdown = {
+    paymentHistory,
+    employmentStability,
+    tenure,
+    capacity,
+    verification,
+    base: paymentHistory,
+    income: capacity,
+    employment: employmentStability
+  };
+
   return { totalScore, breakdown, riskLevel, recommendation };
 }
 
@@ -2083,64 +2093,7 @@ document.getElementById('form-create-application')?.addEventListener('submit', f
   renderAll();
 });
 
-document.getElementById('form-add-borrower')?.addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const name = document.getElementById('bw-name').value;
-  const idNumber = document.getElementById('bw-id').value;
-  const phone = document.getElementById('bw-phone').value;
-  const income = parseFloat(document.getElementById('bw-income').value);
-  const employment = document.getElementById('bw-employment').value;
-  const verified = document.getElementById('bw-verified').value === 'true';
-  
-  const scoreData = calculateExplicableScore({ income, employment, verified, loansCompleted: 0 });
 
-  const newBw = {
-    id: generateUUID(),
-    name,
-    idNumber,
-    phone,
-    income,
-    employment,
-    verified,
-    score: scoreData.totalScore,
-    riskLevel: scoreData.riskLevel,
-    exposureLimit: 150.0,
-    status: 'Activo'
-  };
-  
-  state.borrowers.push(newBw);
-
-  // Guardar en Supabase Cloud
-  try {
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entity: 'borrowers',
-        record: {
-          organization_id: '00000000-0000-0000-0000-000000000001',
-          name,
-          identification: idNumber,
-          phone,
-          monthly_income: income,
-          employment_type: employment,
-          is_verified: verified,
-          score: scoreData.totalScore,
-          risk_level: scoreData.riskLevel,
-          exposure_limit: 150.0,
-          status: 'Activo'
-        }
-      })
-    });
-    console.log("✓ Prestatario guardado en Supabase Cloud");
-  } catch (err) {
-    console.warn("No se pudo enviar a Supabase Cloud:", err);
-  }
-
-  saveState();
-  renderAll();
-  window.toggleBorrowerForm();
-});
 
 // ----------------------------------------------------
 // SUPABASE AUTHENTICATION & SESSION MANAGEMENT (FASE 2)

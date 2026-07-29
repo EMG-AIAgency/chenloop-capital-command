@@ -1555,6 +1555,11 @@ document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', asy
 // ----------------------------------------------------
 function renderPayments() {
   const tbody = document.getElementById('tbody-payments');
+  const reserveBadge = document.getElementById('caja-reserve-status-badge');
+  if (reserveBadge) {
+    const curRes = state.financialAccounts?.riskReserveBalance || state.capital?.riskReserve || 0;
+    reserveBadge.innerText = `Reserva Actual: $${curRes.toFixed(2)} USD`;
+  }
   if (!tbody) return;
   tbody.innerHTML = '';
 
@@ -1802,12 +1807,36 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 
   const payments = state.payments || [];
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
-  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
-  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization?.riskReservePct || 20.0;
-  const riskContribution = netProfit * (targetReservePct / 100.0);
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || p.profitPaid || 0), 0);
+  const strategy = document.getElementById('qc-profit-strategy')?.value || 'reinvest';
 
-  if (!state.capital) state.capital = {};
-  state.capital.riskReserve = (state.capital.riskReserve || 0) + riskContribution;
+  if (!state.financialAccounts) state.financialAccounts = {};
+
+  let riskContribution = 0;
+  let summaryMsg = "";
+
+  if (strategy === 'reinvest') {
+    // 100% Reinvestment into Capital Total / Portfolio Target
+    state.financialAccounts.portfolioTarget = (state.financialAccounts.portfolioTarget || 5000.0) + netProfit;
+    state.financialAccounts.capitalTotal = state.financialAccounts.portfolioTarget;
+    if (!state.capital) state.capital = {};
+    state.capital.totalCapital = state.financialAccounts.capitalTotal;
+    summaryMsg = `100% de la utilidad ($${netProfit.toFixed(2)} USD) reinvertida directamente en Capital Colocable. Patrimonio Total expandido a $${state.financialAccounts.capitalTotal.toFixed(2)} USD.`;
+  } else {
+    // Split strategy (20% Reserve, 30% Operational, 50% Distributable)
+    const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
+    riskContribution = netProfit * (targetReservePct / 100.0);
+    const opsContribution = netProfit * 0.30;
+    const distContribution = netProfit * 0.50;
+
+    state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + riskContribution;
+    state.financialAccounts.operationalBalance = (state.financialAccounts.operationalBalance || 0) + opsContribution;
+    state.financialAccounts.distributableBalance = (state.financialAccounts.distributableBalance || 0) + distContribution;
+
+    if (!state.capital) state.capital = {};
+    state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+    summaryMsg = `Distribución completada: Reserva +$${riskContribution.toFixed(2)}, Operaciones +$${opsContribution.toFixed(2)}, Distribuible +$${distContribution.toFixed(2)}.`;
+  }
 
   const newCloseRecord = {
     id: generateUUID(),
@@ -3225,3 +3254,39 @@ window.updateFinancialAccountState = async function() {
     console.warn("Error actualizando cuentas financieras en Supabase:", err);
   }
 };
+
+
+document.getElementById('form-deposit-reserve')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const amount = parseFloat(document.getElementById('reserve-deposit-amount')?.value || 0);
+  const source = document.getElementById('reserve-deposit-source')?.value || 'Aporte Personal';
+
+  if (amount <= 0) {
+    alert("Por favor ingresa un monto válido mayor a $0 USD.");
+    return;
+  }
+
+  if (!state.financialAccounts) state.financialAccounts = {};
+  state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + amount;
+
+  if (!state.capital) state.capital = {};
+  state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+
+  state.auditLogs.unshift({
+    timestamp: new Date().toLocaleString(),
+    user: "Propietario / Administrador",
+    action: "APORTE_RESERVA_RIESGO",
+    module: "Caja & Pagos",
+    details: `Aporte de $${amount.toFixed(2)} USD ingresado al Fondo de Reserva de Riesgo desde '${source}'. Reserva Actual: $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`
+  });
+
+  saveState();
+  renderAll();
+
+  if (typeof window.updateFinancialAccountState === 'function') {
+    await window.updateFinancialAccountState();
+  }
+
+  alert(`✓ ¡Aporte de $${amount.toFixed(2)} USD registrado con éxito en la Reserva de Riesgo!
+El saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`);
+});

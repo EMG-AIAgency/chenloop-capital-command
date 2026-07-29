@@ -660,11 +660,11 @@
               <input type="number" id="reserve-deposit-amount" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50.00" step="0.01" required/>
             </div>
             <div>
-              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Fondo</label>
+              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Fondo (Tipo de Aporte)</label>
               <select id="reserve-deposit-source" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-                <option value="Aporte Personal del Propietario">Aporte Personal del Propietario</option>
-                <option value="Separacion de Utilidad de Caja">Separación de Utilidad de Caja</option>
-                <option value="Capital de Resguardo">Capital de Resguardo</option>
+                <option value="Aporte Personal del Propietario">👤 Aporte Personal del Propietario (Inyección de Dinero Externo)</option>
+                <option value="Separacion de Utilidad de Caja">💰 Separación de Utilidad de Caja (Ganancias Cobradas)</option>
+                <option value="Capital de Resguardo">🏛️ Capital de Resguardo (Fondo de Emergencia Previo)</option>
               </select>
             </div>
             <div>
@@ -1098,21 +1098,26 @@
               <span class="material-symbols-outlined">shield_lock</span>
               1. Políticas de Riesgo & Control de Cartera
             </h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Límite Máximo PAR30 (%)</label>
-                <input type="number" step="0.1" id="set-par30-limit" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
-                <p class="text-[10px] text-[#8E929E] mt-1">Nivel de mora > 30 días que activa el Modo Defensivo.</p>
+                <label class="block text-xs uppercase text-[#4edea3] mb-1 font-semibold">Capital Actual de Trabajo ($ USD)</label>
+                <input type="number" step="100" id="set-capital-total" class="w-full bg-[#080C14] border border-[#4edea3]/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#4edea3]" value="1000" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Dinero REAL en caja/banco para operar la cartera.</p>
               </div>
               <div>
-                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Reserva de Riesgo Target (%)</label>
-                <input type="number" step="0.1" id="set-reserve-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
-                <p class="text-[10px] text-[#8E929E] mt-1">Porcentaje de cartera activa destinado a blindar pérdidas.</p>
+                <label class="block text-xs uppercase text-[#FF6B00] mb-1 font-semibold">Objetivo / Meta de Cartera ($ USD)</label>
+                <input type="number" step="100" id="set-portfolio-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" value="5000" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Meta futura a alcanzar (Etapa 4 de estabilización).</p>
               </div>
               <div>
-                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Objetivo de Cartera ($ USD)</label>
-                <input type="number" step="100" id="set-portfolio-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" required/>
-                <p class="text-[10px] text-[#8E929E] mt-1">Meta de capital colocado para la Etapa 4 de estabilización.</p>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Reserva Target (%)</label>
+                <input type="number" step="0.1" id="set-reserve-target" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" value="20" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">% de resguardo sobre el objetivo de cartera.</p>
+              </div>
+              <div>
+                <label class="block text-xs uppercase text-[#94A3B8] mb-1 font-semibold">Límite PAR30 (%)</label>
+                <input type="number" step="0.1" id="set-par30-limit" class="w-full bg-[#080C14] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#FF6B00]" value="10" required/>
+                <p class="text-[10px] text-[#8E929E] mt-1">Límite de mora para activar Modo Defensivo.</p>
               </div>
             </div>
           </div>
@@ -1225,6 +1230,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=33.0"></script>
+  <script src="app.js?v=34.0"></script>
 </body>
 </html>

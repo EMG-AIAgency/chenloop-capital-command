@@ -2339,7 +2339,26 @@ window.getStageName = function(stageInt) {
 window.calculateFinancialEngine = function() {
   const activeLoans = state.loans.filter(l => l.status === 'Activo');
   const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
-  const capitalTotal = state.financialAccounts?.portfolioTarget || state.financialAccounts?.capitalTotal || 5000.0;
+  const capitalTotal = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 1000.0;
+  const portfolioTarget = state.financialAccounts?.portfolioTarget || 5000.0;
+  
+  // Calculate total accumulated profit from recorded payments
+  const payments = state.payments || [];
+  const accumProfits = payments.reduce((sum, p) => {
+    let profit = parseFloat(p.profitPaid || p.profit_paid || p.profitShare || 0);
+    if (profit === 0 && p.amountPaid > 0) {
+      const loan = (state.loans || []).find(l => l.id === (p.loanId || p.loan_id));
+      if (loan) {
+        const totalSched = loan.totalScheduled || (loan.principal * 1.40);
+        const schedProfit = loan.scheduledProfit || (totalSched - loan.principal);
+        profit = p.amountPaid * (schedProfit / totalSched);
+      }
+    }
+    return sum + profit;
+  }, 0);
+  
+  if (!state.capital) state.capital = {};
+  state.capital.accumulatedProfits = accumProfits;
   const capitalDeployed = activePortfolio;
   const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);
   
@@ -2960,6 +2979,7 @@ window.createTeamMember = async function() {
 
 document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();
+  const capitalTotal = parseFloat(document.getElementById('set-capital-total')?.value || 1000);
   const par30Limit = parseFloat(document.getElementById('set-par30-limit')?.value || 10);
   const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target')?.value || 20);
   const portfolioTarget = parseFloat(document.getElementById('set-portfolio-target')?.value || 5000);
@@ -2972,11 +2992,14 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   state.organization.par30Limit = par30Limit;
   state.organization.name = orgName;
 
+  state.financialAccounts.capitalTotal = capitalTotal;
   state.financialAccounts.riskReserveTargetPct = reserveTargetPct;
   state.financialAccounts.portfolioTarget = portfolioTarget;
-  state.financialAccounts.capitalTotal = portfolioTarget;
   state.financialAccounts.operationalTargetMonths = opsMonths;
   state.financialAccounts.organizationName = orgName;
+
+  if (!state.capital) state.capital = {};
+  state.capital.totalCapital = capitalTotal;
 
   const orgBadgeEl = document.getElementById('current-org-badge');
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;

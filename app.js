@@ -168,15 +168,18 @@ async function loadState() {
       }
 
       if (cloudData.payments && cloudData.payments.length > 0) {
-        state.payments = cloudData.payments.map(p => ({
-          id: p.id,
-          date: p.date,
-          loanId: p.loan_id,
-          borrowerName: p.borrower_name,
-          amountPaid: parseFloat(p.amount_paid),
-          principalPaid: parseFloat(p.principal_paid),
-          profitPaid: parseFloat(p.profit_paid)
-        }));
+        state.payments = cloudData.payments.map(p => {
+          const loan = (state.loans || []).find(l => l.id === p.loan_id);
+          return {
+            id: p.id,
+            date: p.payment_date || p.date || p.created_at || new Date().toISOString(),
+            loanId: p.loan_id,
+            borrowerName: loan ? loan.borrowerName : (p.borrower_name || "Prestatario"),
+            amountPaid: parseFloat(p.amount_paid || 0),
+            principalPaid: parseFloat(p.principal_paid || 0),
+            profitPaid: parseFloat(p.profit_paid || 0)
+          };
+        });
       }
 
       if (cloudData.notifications && cloudData.notifications.length > 0) {
@@ -1634,10 +1637,13 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   if (!state.payments) state.payments = [];
   state.payments.unshift({
     id: newPaymentRecord.id,
+    date: new Date().toLocaleString(),
     timestamp: new Date().toLocaleString(),
     loanId: loan.id,
     borrowerName: loan.borrowerName,
     amountPaid,
+    principalPaid: principalShare,
+    profitPaid: profitShare,
     principalShare,
     profitShare
   });
@@ -2088,24 +2094,7 @@ window.triggerAutomatedReminders = function() {
   alert(`Motor de Notificaciones ejecutado con éxito. Se enviaron ${count} recordatorios por WhatsApp/Webhook.`);
 };
 
-function renderPayments() {
-  const tbody = document.getElementById('tbody-payments');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  
-  state.payments.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf]">${p.date}</td>
-      <td class="p-3 font-bold text-white">${p.loanId}</td>
-      <td class="p-3 text-white">${p.borrowerName}</td>
-      <td class="p-3 font-bold text-[#4edea3]">$${p.amountPaid.toFixed(2)}</td>
-      <td class="p-3 text-white">$${p.principalPaid.toFixed(2)}</td>
-      <td class="p-3 font-bold text-[#818CF8]">$${p.profitPaid.toFixed(2)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
+
 
 function renderAudit() {
   const tbody = document.getElementById('tbody-audit');

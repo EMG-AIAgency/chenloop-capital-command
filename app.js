@@ -29,16 +29,16 @@ const initialState = {
     par30Limit: 10.0
   },
   capital: {
-    totalCapital: 5000.0,
-    capitalDeployed: 0.0,
-    capitalAvailable: 5000.0,
+    totalCapital: 800.0,
+    capitalDeployed: 250.0,
+    capitalAvailable: 550.0,
     riskReserve: 0.0,
-    accumulatedProfits: 0.0
+    accumulatedProfits: 68.88
   },
   financialAccounts: {
-    capitalTotal: 5000.0,
-    capitalDeployed: 0.0,
-    capitalAvailable: 5000.0,
+    capitalTotal: 800.0,
+    capitalDeployed: 250.0,
+    capitalAvailable: 550.0,
     riskReserveBalance: 0.0,
     riskReserveTargetPct: 20.0,
     operationalBalance: 0.0,
@@ -209,12 +209,12 @@ async function loadState() {
           id: fa.id,
           organizationId: fa.organization_id,
           organizationName: fa.organization_name || state.organization?.name || "Mi Cartera Personal",
-          capitalTotal: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
-          capitalDeployed: parseFloat(fa.capital_deployed || 0),
-          capitalAvailable: parseFloat(fa.capital_available || fa.portfolio_target || 5000),
+          capitalTotal: parseFloat(fa.capital_total !== undefined && fa.capital_total !== null ? fa.capital_total : 800.0),
+          capitalDeployed: parseFloat(fa.capital_deployed || 250.0),
+          capitalAvailable: parseFloat(fa.capital_available !== undefined && fa.capital_available !== null ? fa.capital_available : 550.0),
           riskReserveBalance: parseFloat(fa.risk_reserve_balance || 0),
           riskReserveTargetPct: parseFloat(fa.risk_reserve_target_pct || 20.0),
-          portfolioTarget: parseFloat(fa.portfolio_target || fa.capital_total || 5000),
+          portfolioTarget: parseFloat(fa.portfolio_target || 5000.0),
           operationalBalance: parseFloat(fa.operational_balance || 0),
           operationalTargetMonths: parseInt(fa.operational_target_months || 6),
           distributableBalance: parseFloat(fa.distributable_balance || 0),
@@ -2332,8 +2332,8 @@ async function loadProfileAndInit() {
   if (avatarEl) avatarEl.innerText = fullName.substring(0, 2).toUpperCase();
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;
 
-  if (typeof renderSettingsUI === 'function') {
-    renderSettingsUI();
+  if (typeof renderAll === 'function') {
+    renderAll();
   }
 }
 

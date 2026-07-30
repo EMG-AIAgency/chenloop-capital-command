@@ -23,15 +23,35 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
   }
 
-  // Use service role key for server-side operations (bypasses RLS completely)
-  // Falls back to anon key if service key not configured
-  const serverKey = supabaseServiceKey || supabaseAnonKey;
-  const supabase = createClient(supabaseUrl, serverKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+  const authHeader = req.headers.authorization || req.headers.Authorization || '';
+  const token = authHeader && authHeader.split(' ')[1];
+
+  let supabase;
+  if (supabaseServiceKey) {
+    // Use service role key for server-side operations (bypasses RLS completely)
+    supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  } else {
+    // Fallback to anon key, but we MUST pass the user's JWT to evaluate RLS correctly
+    const clientOptions = {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    };
+    if (token) {
+      clientOptions.global = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
     }
-  });
+    supabase = createClient(supabaseUrl, supabaseAnonKey, clientOptions);
+  }
 
   try {
     if (req.method === 'GET') {

@@ -2698,11 +2698,38 @@ window.getStageName = function(stageInt) {
 window.calculateFinancialEngine = function() {
   const activeLoans = state.loans.filter(l => l.status === 'Activo');
   const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
-  const capitalTotal = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 1000.0;
+  
+  // Calculate capital total dynamically based on ledger of payments (800 base + reinvested utility)
+  const baseCapital = 800.0;
+  const payments = state.payments || [];
+  
+  const reinvestedFromPayments = payments.reduce((sum, p) => {
+    if (p.profitDestination === 'reinvest' || p.profit_destination === 'reinvest') {
+      let utilidad = parseFloat(p.utilidadPaid || p.utilidad_paid || 0);
+      if (utilidad === 0) {
+        // Fallback for older payments before RLS/split fixes
+        const profit = parseFloat(p.profitPaid || p.profit_paid || p.profitShare || 0);
+        const reserve = parseFloat(p.reservePaid || p.reserve_paid || 0);
+        utilidad = Math.max(0, profit - reserve);
+      }
+      return sum + utilidad;
+    }
+    return sum;
+  }, 0);
+  
+  // Add any reinvestments from quincenal closes
+  const closes = state.quincenalCloses || [];
+  const reinvestedFromCloses = closes.reduce((sum, c) => {
+    if (c.profitStrategy === 'reinvest' || c.strategy === 'reinvest') {
+      return sum + parseFloat(c.utilidad || 0);
+    }
+    return sum;
+  }, 0);
+  
+  const capitalTotal = baseCapital + reinvestedFromPayments + reinvestedFromCloses;
   const portfolioTarget = state.financialAccounts?.portfolioTarget || 5000.0;
   
   // Calculate total accumulated profit from recorded payments
-  const payments = state.payments || [];
   const accumProfits = payments.reduce((sum, p) => {
     let profit = parseFloat(p.profitPaid || p.profit_paid || p.profitShare || 0);
     if (profit === 0 && p.amountPaid > 0) {
@@ -2720,6 +2747,16 @@ window.calculateFinancialEngine = function() {
   state.capital.accumulatedProfits = accumProfits;
   const capitalDeployed = activePortfolio;
   const capitalAvailable = Math.max(0, capitalTotal - capitalDeployed);
+  
+  // Keep state objects in sync
+  if (!state.financialAccounts) state.financialAccounts = {};
+  state.financialAccounts.capitalTotal = capitalTotal;
+  state.financialAccounts.capitalAvailable = capitalAvailable;
+  state.financialAccounts.capitalDeployed = capitalDeployed;
+  
+  state.capital.totalCapital = capitalTotal;
+  state.capital.capitalDeployed = capitalDeployed;
+  state.capital.capitalAvailable = capitalAvailable;
   
   const riskReserveTargetPct = state.financialAccounts?.riskReserveTargetPct || 20.0;
   const riskReserveBalance = state.financialAccounts?.riskReserveBalance || 0.0;

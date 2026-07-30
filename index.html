@@ -757,6 +757,14 @@
               <input type="text" id="qc-period-name" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="2da Quincena Julio 2026" required/>
             </div>
             <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">📅 Fecha Inicio del Período <span class="text-[11px] text-[#4edea3]">— solo toma pagos desde esta fecha</span></label>
+              <input type="date" id="qc-period-start" class="w-full bg-[#0B0F17] border border-[#4edea3]/30 rounded-lg p-2.5 text-sm text-[#4edea3] outline-none"/>
+            </div>
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">📅 Fecha Fin del Período <span class="text-[11px] text-[#4edea3]">— hasta esta fecha (inclusive)</span></label>
+              <input type="date" id="qc-period-end" class="w-full bg-[#0B0F17] border border-[#4edea3]/30 rounded-lg p-2.5 text-sm text-[#4edea3] outline-none"/>
+            </div>
+            <div>
               <label class="text-xs text-[#bbcabf] block mb-1">🛡️ Aporte a Reserva de Riesgo ($ USD) <span class="text-[11px] text-[#FBBF24]">— queda en este cierre</span></label>
               <input type="number" id="qc-reserve-contribution" class="w-full bg-[#0B0F17] border border-[#F59E0B]/30 rounded-lg p-2.5 text-sm text-[#FBBF24] outline-none font-bold" value="0.00" min="0" step="0.01"/>
             </div>
@@ -795,6 +803,7 @@
                 <th class="p-3">COBRO TOTAL</th>
                 <th class="p-3">GANANCIA NETA</th>
                 <th class="p-3">APORTE RESERVA</th>
+                <th class="p-3">UTILIDAD NETA</th>
                 <th class="p-3">NOTAS</th>
                 <th class="p-3">ESTADO</th>
               </tr>
@@ -1314,6 +1323,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=50.0"></script>
+  <script src="app.js?v=51.0"></script>
 </body>
 </html>

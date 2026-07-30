@@ -332,6 +332,9 @@ async function loadState() {
           totalCollected: parseFloat(c.total_collected !== undefined && c.total_collected !== null ? c.total_collected : (c.collected_amount || 0)),
           netProfit: parseFloat(c.net_profit !== undefined && c.net_profit !== null ? c.net_profit : (c.gross_profit || 0)),
           riskContribution: parseFloat(c.risk_contribution !== undefined && c.risk_contribution !== null ? c.risk_contribution : (c.reserve_balance || 0)),
+          utilidad: parseFloat(c.utilidad || 0),
+          periodStart: c.period_start || null,
+          periodEnd: c.period_end || null,
           notes: c.notes || 'Cierre procesado sin incidencias',
           status: c.status || 'Procesado'
         }));
@@ -1938,6 +1941,8 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
           total_scheduled: loan.totalScheduled,
           profit_scheduled: loan.scheduledProfit,
           installments_count: loan.installmentCount || 7,
+          paid_amount: loan.paidAmount,
+          remaining_amount: loan.remainingAmount,
           status: loan.status
         }
       })
@@ -2080,20 +2085,22 @@ function renderQuincenalCloseUI() {
 
   const closes = state.quincenalCloses || [];
   if (closes.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales ejecutados aún en Supabase. Utiliza el formulario superior para procesar el primer cierre oficial.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales ejecutados aún en Supabase. Utiliza el formulario superior para procesar el primer cierre oficial.</td></tr>`;
     return;
   }
 
   closes.forEach(c => {
+    const utilidad = parseFloat(c.utilidad || (c.netProfit || 0) - (c.riskContribution || 0));
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 text-xs text-[#bbcabf] font-mono">${c.timestamp || c.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white">${c.periodName}</td>
+      <td class="p-3 font-bold text-white">${c.periodName}${c.periodStart ? `<br><span class='text-[10px] text-[#4edea3] font-normal'>${c.periodStart} — ${c.periodEnd || 'hoy'}</span>` : ''}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(c.totalCollected || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${(c.netProfit || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#FBBF24]">$${(c.riskContribution || 0).toFixed(2)}</td>
+      <td class="p-3 font-bold text-[#4edea3]">$${utilidad.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${c.notes}">${c.notes}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${c.status || 'Procesado'}</span></td>
+      <td class="p-3"><span class="badge-risk badge-green">${c.status === 'Completado' ? 'Completado' : (c.status || 'Procesado')}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -2104,39 +2111,51 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 
   const periodName = document.getElementById('qc-period-name')?.value.trim();
   const notes = document.getElementById('qc-notes')?.value.trim() || 'Cierre sin incidencias';
-  // ─── NEW: Read reserve contribution directly from form ─────────
   const manualReserveContrib = parseFloat(document.getElementById('qc-reserve-contribution')?.value || 0);
   const reserveSource = document.getElementById('qc-reserve-source')?.value || 'Separacion de Utilidad de Caja';
   const strategy = document.getElementById('qc-profit-strategy')?.value || 'keep';
+
+  // ─── NEW: Read date range — if blank, use all payments ───────────
+  const startVal = document.getElementById('qc-period-start')?.value;
+  const endVal = document.getElementById('qc-period-end')?.value;
+  const startDate = startVal ? new Date(startVal + 'T00:00:00') : null;
+  const endDate = endVal ? new Date(endVal + 'T23:59:59') : null;
 
   if (!periodName) {
     alert("Por favor ingresa un nombre para el periodo de cierre.");
     return;
   }
 
-  const payments = state.payments || [];
+  const allPayments = state.payments || [];
+  // Filter payments by date range if provided
+  const payments = (startDate || endDate) ? allPayments.filter(p => {
+    const pd = new Date(p.timestamp || p.date || p.payment_date);
+    if (isNaN(pd.getTime())) return true; // include if date unparseable
+    if (startDate && pd < startDate) return false;
+    if (endDate && pd > endDate) return false;
+    return true;
+  }) : allPayments;
+
+  if (payments.length === 0 && (startDate || endDate)) {
+    alert(`No se encontraron pagos en el rango ${startVal || 'inicio'} — ${endVal || 'hoy'}. Verifica las fechas o deja los campos en blanco para incluir todos los pagos.`);
+    return;
+  }
+
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
   const netProfit = payments.reduce((sum, p) => sum + (p.profitPaid || p.profitShare || 0), 0);
-
-  // Reserve from individual payments (already added to reserveBalance per-payment)
   const paymentsReserve = payments.reduce((sum, p) => sum + (p.reservePaid || 0), 0);
-  // Manual reserve contribution from this form = the user's explicit input
   const totalRiskContribution = manualReserveContrib + paymentsReserve;
+  const utilidad = Math.max(0, netProfit - totalRiskContribution);
 
   if (!state.financialAccounts) state.financialAccounts = {};
   if (!state.capital) state.capital = {};
 
-  // ─── Apply manual reserve contribution to state ────────────────
   if (manualReserveContrib > 0) {
     state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + manualReserveContrib;
     state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
   }
 
-  // ─── Apply utilidad strategy ───────────────────────────────────
-  // utilidad = netProfit - paymentsReserve (reserve from payments already applied)
-  const utilidad = netProfit - paymentsReserve;
   let summaryMsg = '';
-
   if (strategy === 'reinvest' && utilidad > 0) {
     state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + utilidad;
     state.capital.totalCapital = state.financialAccounts.capitalTotal;
@@ -2150,9 +2169,12 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     period_name: periodName,
     total_collected: totalCollected,
     net_profit: netProfit,
-    risk_contribution: totalRiskContribution,   // includes both per-payment reserves AND manual aporte
+    risk_contribution: totalRiskContribution,
+    utilidad: utilidad,
+    period_start: startVal || null,
+    period_end: endVal || null,
     notes,
-    status: "Procesado",
+    status: "Completado",
     closed_at: new Date().toISOString(),
     organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
   };
@@ -2165,6 +2187,9 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     totalCollected: newCloseRecord.total_collected,
     netProfit: newCloseRecord.net_profit,
     riskContribution: newCloseRecord.risk_contribution,
+    utilidad: newCloseRecord.utilidad,
+    periodStart: newCloseRecord.period_start,
+    periodEnd: newCloseRecord.period_end,
     notes: newCloseRecord.notes,
     status: newCloseRecord.status
   });
@@ -2174,7 +2199,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     user: "Ejecutivo Financiero",
     action: "CIERRE_QUINCENAL_PROCESADO",
     module: "Cierre Quincenal",
-    details: `Cierre '${periodName}' ejecutado. Cobro Total: $${totalCollected.toFixed(2)}, Ganancia Neta: $${netProfit.toFixed(2)}, Aporte Manual a Reserva: $${manualReserveContrib.toFixed(2)}, Reserva de Pagos: $${paymentsReserve.toFixed(2)}, Total Reserva Aportada: $${totalRiskContribution.toFixed(2)}. ${summaryMsg}`
+    details: `Cierre '${periodName}' [${startVal || 'todos'} — ${endVal || 'hoy'}]. ${payments.length} pagos procesados. Cobro: $${totalCollected.toFixed(2)}, Ganancia: $${netProfit.toFixed(2)}, Reserva: $${totalRiskContribution.toFixed(2)}, Utilidad: $${utilidad.toFixed(2)}. ${summaryMsg}`
   });
 
   try {
@@ -2190,7 +2215,6 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
       })
     });
 
-    // Also sync the updated financial accounts (reserve balance, capital total)
     if (typeof window.updateFinancialAccountState === 'function') {
       await window.updateFinancialAccountState();
     }
@@ -2203,7 +2227,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   document.getElementById('form-quincenal-close').reset();
   saveState();
   renderAll();
-  alert(`✓ Cierre Quincenal '${periodName}' procesado y guardado en Supabase.\n\n📋 Resumen del Cierre:\n   💵 Cobro Total del Período: $${totalCollected.toFixed(2)}\n   💡 Ganancia Neta Generada: $${netProfit.toFixed(2)}\n   🛡️ Aporte Manual a Reserva: $${manualReserveContrib.toFixed(2)} (${reserveSource})\n   🛡️ Reserva desde Pagos del Período: $${paymentsReserve.toFixed(2)}\n   📊 Total Aportado a Reserva en este Cierre: $${totalRiskContribution.toFixed(2)}\n   ${summaryMsg}`);
+  alert(`✓ Cierre Quincenal '${periodName}' procesado.\n\n📋 ${payments.length} pagos del período ${startVal ? `(${startVal} — ${endVal || 'hoy'})` : '(todos)'}:\n   💵 Cobro Total: $${totalCollected.toFixed(2)}\n   💡 Ganancia Neta: $${netProfit.toFixed(2)}\n   🛡️ Aporte Manual Reserva: $${manualReserveContrib.toFixed(2)} (${reserveSource})\n   🛡️ Reserva desde Pagos: $${paymentsReserve.toFixed(2)}\n   🛡️ Total Reserva: $${totalRiskContribution.toFixed(2)}\n   📊 Utilidad Neta del Período: $${utilidad.toFixed(2)}\n   ${summaryMsg}`);
 });
 
 

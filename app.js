@@ -215,10 +215,10 @@ async function loadState() {
             installmentCount: count,
             totalScheduled: totalScheduled,
             scheduledProfit: scheduledProfit,
-            status: l.status,
+            status: (l.remaining_amount !== undefined && l.remaining_amount !== null && parseFloat(l.remaining_amount) <= 0.01) ? 'Cancelado' : l.status,
             disbursementDate: l.disbursed_at || l.disbursement_date,
-            paidAmount: parseFloat(l.paid_amount || 0),
-            remainingAmount: parseFloat(l.remaining_amount || totalScheduled)
+            paidAmount: parseFloat(l.paid_amount !== undefined && l.paid_amount !== null ? l.paid_amount : 0),
+            remainingAmount: parseFloat(l.remaining_amount !== undefined && l.remaining_amount !== null ? l.remaining_amount : totalScheduled)
           };
         });
       }

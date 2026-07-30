@@ -629,7 +629,22 @@
     <section id="tab-payments" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">
         <h3 class="font-display text-lg font-bold text-white">Registro de Cobro / Cuota Recibida en Caja</h3>
-        <form id="form-record-payment" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <!-- Desglose previo (auto-actualiza al cambiar el monto) -->
+        <div id="pay-split-preview" class="hidden grid-cols-3 gap-3 mb-1">
+          <div class="bg-[#162032] rounded-lg p-3 border border-[#818CF8]/20 text-center">
+            <p class="text-[10px] text-[#bbcabf] uppercase">A Capital</p>
+            <p class="text-sm font-bold text-[#818CF8]" id="preview-capital">$0.00</p>
+          </div>
+          <div class="bg-[#162032] rounded-lg p-3 border border-[#F59E0B]/20 text-center">
+            <p class="text-[10px] text-[#bbcabf] uppercase">A Reserva</p>
+            <p class="text-sm font-bold text-[#FBBF24]" id="preview-reserve">$0.00</p>
+          </div>
+          <div class="bg-[#162032] rounded-lg p-3 border border-[#4edea3]/20 text-center">
+            <p class="text-[10px] text-[#bbcabf] uppercase">Utilidad</p>
+            <p class="text-sm font-bold text-[#4edea3]" id="preview-utility">$0.00</p>
+          </div>
+        </div>
+        <form id="form-record-payment" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label class="text-xs text-[#bbcabf] block mb-1">Préstamo Activo</label>
             <select id="pay-loan-select" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" required></select>
@@ -639,19 +654,26 @@
             <input type="number" id="pay-amount" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="25" step="0.01" required/>
           </div>
           <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Destino de la Ganancia</label>
+            <label class="text-xs text-[#bbcabf] block mb-1">🛡️ % de Ganancia → Reserva <span class="text-[11px] text-[#FBBF24]">(el resto = Utilidad)</span></label>
+            <div class="flex items-center gap-2">
+              <input type="range" id="pay-reserve-pct" min="0" max="100" value="50" step="5" class="flex-1 accent-[#F59E0B]"/>
+              <span id="pay-reserve-pct-label" class="text-sm font-bold text-[#FBBF24] w-10 text-right">50%</span>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-[#bbcabf] block mb-1">Destino de la Utilidad Neta</label>
             <select id="pay-profit-destination" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-              <option value="profit">📊 Guardar como Ganancia Acumulada</option>
-              <option value="reinvest">💰 Reinvertir en Capital (aumenta cartera)</option>
-              <option value="reserve">🛡️ Aportar a Reserva de Riesgo</option>
+              <option value="keep">📊 Guardar como Utilidad Personal</option>
+              <option value="reinvest">💰 Reinvertir en Capital (crece cartera)</option>
+              <option value="reserve">🛡️ Mandar a Reserva de Riesgo</option>
             </select>
           </div>
-          <div class="flex items-center gap-2 pb-2">
+          <div class="flex items-center gap-2 pt-5">
             <input type="checkbox" id="pay-send-whatsapp" class="w-4 h-4 accent-[#10b981]" checked/>
             <label for="pay-send-whatsapp" class="text-xs text-[#bbcabf] cursor-pointer">Enviar Recibo por WhatsApp vía n8n</label>
           </div>
-          <div>
-            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20">Registrar Pago en Caja</button>
+          <div class="flex items-end">
+            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20 cursor-pointer">✓ Registrar Pago en Caja</button>
           </div>
         </form>
 
@@ -667,13 +689,14 @@
           <table class="w-full text-left text-sm">
             <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
               <tr>
-              <th class="p-3">FECHA & HORA</th>
+                <th class="p-3">FECHA & HORA</th>
                 <th class="p-3">PRÉSTAMO</th>
                 <th class="p-3">PRESTATARIO</th>
-                <th class="p-3">MONTO PAGADO</th>
+                <th class="p-3">COBRO</th>
                 <th class="p-3">A CAPITAL</th>
-                <th class="p-3">GANANCIA REAL</th>
-                <th class="p-3">DESTINO GANANCIA</th>
+                <th class="p-3">A RESERVA</th>
+                <th class="p-3">UTILIDAD</th>
+                <th class="p-3">DESTINO UTILIDAD</th>
               </tr>
             </thead>
             <tbody id="tbody-payments" class="divide-y divide-white/5"></tbody>
@@ -719,43 +742,45 @@
           </div>
         </div>
 
-        <form id="form-quincenal-close" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end pt-2">
-          <div class="md:col-span-2">
-            <label class="text-xs text-[#bbcabf] block mb-1">Nombre o Periodo del Cierre</label>
-            <input type="text" id="qc-period-name" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Cierre Quincenal - 1ra Quincena Julio 2026" required/>
-          </div>
-          <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Notas Ejecutivas</label>
-            <input type="text" id="qc-notes" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Cierre procesado sin incidencias" required/>
-          </div>
-          <div>
-            <button type="submit" class="w-full bg-[#FF6B00] hover:bg-[#FF8800] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#FF6B00]/20">Procesar Cierre Quincenal</button>
-          </div>
-        </form>
-        <!-- Card: Control Explícito de Aporte a Reserva de Riesgo en Cierre Quincenal -->
-        <div class="p-4 bg-[#162032] rounded-xl border border-[#F59E0B]/30 space-y-3 mt-4">
+        <!-- FORM INTEGRADO: Nombre + Aporte Reserva + Notas + Boton todo en UN solo formulario -->
+        <div class="p-4 bg-[#162032] rounded-xl border border-[#F59E0B]/20 space-y-4">
           <div class="flex justify-between items-center">
             <div>
-              <h4 class="font-display text-sm font-bold text-white uppercase tracking-wider">Aportar / Fondear Reserva de Riesgo</h4>
-              <p class="text-xs text-[#bbcabf]">Deposita fondos para cubrir el 20% de reserva requerida y eliminar el Déficit de Reserva en el Command Center.</p>
+              <h4 class="font-display text-sm font-bold text-[#FBBF24] uppercase tracking-wider">Procesar Cierre del Período</h4>
+              <p class="text-xs text-[#bbcabf]">Completa los datos del cierre. El aporte de reserva queda registrado dentro del cierre.</p>
             </div>
             <span class="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 px-3 py-1 rounded border border-[#F59E0B]/20" id="qc-reserve-status-badge">Reserva Actual: $0.00</span>
           </div>
-          <form id="form-deposit-reserve-qc" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label class="text-xs text-[#bbcabf] block mb-1">Monto a Aportar ($ USD)</label>
-              <input type="number" id="reserve-deposit-amount-qc" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" value="50.00" step="0.01" required/>
+          <form id="form-quincenal-close" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="md:col-span-2 lg:col-span-1">
+              <label class="text-xs text-[#bbcabf] block mb-1">Nombre o Período del Cierre <span class="text-red-400">*</span></label>
+              <input type="text" id="qc-period-name" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="2da Quincena Julio 2026" required/>
             </div>
             <div>
-              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Fondo (Tipo de Aporte)</label>
-              <select id="reserve-deposit-source-qc" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
-                <option value="Aporte Personal del Propietario">👤 Aporte Personal del Propietario (Inyección de Dinero Externo)</option>
-                <option value="Separacion de Utilidad de Caja">💰 Separación de Utilidad de Caja (Ganancias Cobradas)</option>
-                <option value="Capital de Resguardo">🏛️ Capital de Resguardo (Fondo de Emergencia Previo)</option>
+              <label class="text-xs text-[#bbcabf] block mb-1">🛡️ Aporte a Reserva de Riesgo ($ USD) <span class="text-[11px] text-[#FBBF24]">— queda en este cierre</span></label>
+              <input type="number" id="qc-reserve-contribution" class="w-full bg-[#0B0F17] border border-[#F59E0B]/30 rounded-lg p-2.5 text-sm text-[#FBBF24] outline-none font-bold" value="0.00" min="0" step="0.01"/>
+            </div>
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">Origen del Aporte de Reserva</label>
+              <select id="qc-reserve-source" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+                <option value="Separacion de Utilidad de Caja">💰 De Utilidad de Caja (Ganancias del Período)</option>
+                <option value="Aporte Personal del Propietario">👤 Aporte Personal del Propietario</option>
+                <option value="Capital de Resguardo">🏛️ Capital de Resguardo</option>
               </select>
             </div>
             <div>
-              <button type="submit" class="w-full bg-[#F59E0B] hover:bg-[#D97706] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#F59E0B]/20 cursor-pointer">+ Aportar a Reserva de Riesgo</button>
+              <label class="text-xs text-[#bbcabf] block mb-1">Estrategia de Reinversión de Utilidad</label>
+              <select id="qc-profit-strategy" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none">
+                <option value="keep">📊 Registrar Utilidad (no reinvertir)</option>
+                <option value="reinvest">💰 Reinvertir 100% en Capital</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-[#bbcabf] block mb-1">Notas Ejecutivas</label>
+              <input type="text" id="qc-notes" class="w-full bg-[#0B0F17] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none" placeholder="Cierre sin incidencias"/>
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full bg-[#FF6B00] hover:bg-[#FF8800] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#FF6B00]/20 cursor-pointer">🔐 Procesar Cierre Quincenal</button>
             </div>
           </form>
         </div>
@@ -1289,6 +1314,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=47.0"></script>
+  <script src="app.js?v=48.0"></script>
 </body>
 </html>

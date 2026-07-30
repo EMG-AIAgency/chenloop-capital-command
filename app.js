@@ -1772,8 +1772,11 @@ function renderPayments() {
       }
     }
 
+    const reservePaid = parseFloat(p.reservePaid || p.reserve_paid || 0);
+    const utilidadPaid = parseFloat(p.utilidadPaid || p.utilidad_paid || profitPaid - reservePaid);
+
     const destLabel = p.profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' 
-      : (p.profitDestination === 'reserve' ? '🛡️ A Reserva de Riesgo' : '📊 Ganancia Acumulada');
+      : (p.profitDestination === 'reserve' ? '🛡️ A Reserva' : '📊 Utilidad Personal');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1782,8 +1785,9 @@ function renderPayments() {
       <td class="p-3 text-white font-bold">${borrowerName}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#818CF8] font-bold">$${principalPaid.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#4edea3] font-bold">$${profitPaid.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#FBBF24]">${destLabel}</td>
+      <td class="p-3 text-xs text-[#FBBF24] font-bold">$${reservePaid.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#4edea3] font-bold">$${utilidadPaid.toFixed(2)}</td>
+      <td class="p-3 text-xs text-[#94A3B8]">${destLabel}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1795,8 +1799,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   const loanId = document.getElementById('pay-loan-select')?.value;
   const amountPaid = parseFloat(document.getElementById('pay-amount')?.value || 0);
   const sendWhatsApp = document.getElementById('pay-send-whatsapp')?.checked;
-  // NEW: Profit destination choice (reinvest into capital, keep as profit, or send to reserve)
-  const profitDestination = document.getElementById('pay-profit-destination')?.value || 'profit';
+  // 3-WAY SPLIT: reservePct = % of profit going to reserve, rest = utilidad
+  const reservePct = parseFloat(document.getElementById('pay-reserve-pct')?.value || 50) / 100.0;
+  const profitDestination = document.getElementById('pay-profit-destination')?.value || 'keep';
 
   if (!loanId || amountPaid <= 0) {
     alert("Por favor selecciona un préstamo activo e ingresa un monto mayor a $0.");
@@ -1815,20 +1820,34 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   const profitRatio = schedProfit / totalSched;
 
   const principalShare = amountPaid * principalRatio;
-  const profitShare = amountPaid * profitRatio;
+  const totalProfitShare = amountPaid * profitRatio;   // total ganancia de este pago
 
-  // Apply profit destination decision
+  // ── 3-WAY SPLIT of the profit portion ────────────────────────
+  // 1) reserveShare: % of profit the user chose to route to reserve
+  // 2) utilidadShare: remaining profit → user decides destination
+  const reserveShare = totalProfitShare * reservePct;           // → Reserva de Riesgo (auto)
+  const utilidadShare = totalProfitShare * (1 - reservePct);    // → destino elegido por el usuario
+
+  // Convenience alias for audit / alerts (total profit, not split)
+  const profitShare = totalProfitShare;
+
+  // ── Apply allocations to state ────────────────────────────────
   if (!state.financialAccounts) state.financialAccounts = {};
+
+  // Always route reserveShare to risk reserve
+  state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + reserveShare;
+  state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
+
+  // Route utilidadShare based on user's choice
   if (profitDestination === 'reinvest') {
-    // Reinvest profit into capital: increase capitalTotal
-    state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + profitShare;
+    state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + utilidadShare;
     state.capital.totalCapital = state.financialAccounts.capitalTotal;
   } else if (profitDestination === 'reserve') {
-    // Send profit to risk reserve fund
-    state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + profitShare;
+    // All utilidad also goes to reserve
+    state.financialAccounts.riskReserveBalance += utilidadShare;
     state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
   }
-  // If 'profit', the profit stays as accumulated profit (default — no extra action needed)
+  // 'keep' → stays as accumulated profit (no extra action)
 
   loan.paidAmount = (loan.paidAmount || 0) + amountPaid;
   loan.remainingAmount = Math.max(0, totalSched - loan.paidAmount);
@@ -1857,6 +1876,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     amount_paid: amountPaid,
     principal_paid: principalShare,
     profit_paid: profitShare,
+    reserve_paid: reserveShare,
+    utilidad_paid: utilidadShare,
+    reserve_pct: Math.round(reservePct * 100),
     profit_destination: profitDestination,
     payment_date: new Date().toISOString()
   };
@@ -1871,6 +1893,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     amountPaid,
     principalPaid: principalShare,
     profitPaid: profitShare,
+    reservePaid: reserveShare,
+    utilidadPaid: utilidadShare,
+    reservePct: Math.round(reservePct * 100),
     principalShare,
     profitShare,
     profitDestination
@@ -1963,9 +1988,51 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   document.getElementById('form-record-payment').reset();
   saveState();
   renderAll();
-  const destLabel = profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' : (profitDestination === 'reserve' ? '🛡️ Aportada a Reserva de Riesgo' : '📊 Guardada como Ganancia Acumulada');
-  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD\n   💡 Ganancia Real: $${profitShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
+  const destLabel = profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' : (profitDestination === 'reserve' ? '🛡️ A Reserva' : '📊 Utilidad Personal');
+  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD (siempre regresa a la cartera)\n   🛡️ A Reserva de Riesgo: $${reserveShare.toFixed(2)} USD (${Math.round(reservePct*100)}% de la ganancia)\n   📊 Utilidad: $${utilidadShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
 });
+
+// ── Live Preview for payment split ────────────────────────────────
+function updatePaymentSplitPreview() {
+  const loanId = document.getElementById('pay-loan-select')?.value;
+  const amountPaid = parseFloat(document.getElementById('pay-amount')?.value || 0);
+  const reservePct = parseFloat(document.getElementById('pay-reserve-pct')?.value || 50) / 100.0;
+  const previewBox = document.getElementById('pay-split-preview');
+  const previewCapital = document.getElementById('preview-capital');
+  const previewReserve = document.getElementById('preview-reserve');
+  const previewUtility = document.getElementById('preview-utility');
+  const pctLabel = document.getElementById('pay-reserve-pct-label');
+
+  if (pctLabel) pctLabel.textContent = `${Math.round(reservePct * 100)}%`;
+
+  if (!previewBox || amountPaid <= 0 || !loanId) {
+    if (previewBox) previewBox.classList.add('hidden');
+    return;
+  }
+
+  const loan = (state.loans || []).find(l => l.id === loanId);
+  if (!loan) { previewBox.classList.add('hidden'); return; }
+
+  const totalSched = loan.totalScheduled || loan.principal * 1.40;
+  const schedProfit = loan.scheduledProfit || (totalSched - loan.principal);
+  const principalRatio = loan.principal / totalSched;
+  const profitRatio = schedProfit / totalSched;
+
+  const capital = amountPaid * principalRatio;
+  const totalProfit = amountPaid * profitRatio;
+  const reserve = totalProfit * reservePct;
+  const utility = totalProfit * (1 - reservePct);
+
+  if (previewCapital) previewCapital.textContent = `$${capital.toFixed(2)}`;
+  if (previewReserve) previewReserve.textContent = `$${reserve.toFixed(2)}`;
+  if (previewUtility) previewUtility.textContent = `$${utility.toFixed(2)}`;
+  previewBox.classList.remove('hidden');
+  previewBox.classList.add('grid');
+}
+
+document.getElementById('pay-amount')?.addEventListener('input', updatePaymentSplitPreview);
+document.getElementById('pay-loan-select')?.addEventListener('change', updatePaymentSplitPreview);
+document.getElementById('pay-reserve-pct')?.addEventListener('input', updatePaymentSplitPreview);
 
 // ----------------------------------------------------
 // MÓDULO 8: CIERRE QUINCENAL & MOTOR DE RENTABILIDAD
@@ -2025,7 +2092,11 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   e.preventDefault();
 
   const periodName = document.getElementById('qc-period-name')?.value.trim();
-  const notes = document.getElementById('qc-notes')?.value.trim();
+  const notes = document.getElementById('qc-notes')?.value.trim() || 'Cierre sin incidencias';
+  // ─── NEW: Read reserve contribution directly from form ─────────
+  const manualReserveContrib = parseFloat(document.getElementById('qc-reserve-contribution')?.value || 0);
+  const reserveSource = document.getElementById('qc-reserve-source')?.value || 'Separacion de Utilidad de Caja';
+  const strategy = document.getElementById('qc-profit-strategy')?.value || 'keep';
 
   if (!periodName) {
     alert("Por favor ingresa un nombre para el periodo de cierre.");
@@ -2034,36 +2105,33 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 
   const payments = state.payments || [];
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
-  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || p.profitPaid || 0), 0);
-  const strategy = document.getElementById('qc-profit-strategy')?.value || 'reinvest';
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitPaid || p.profitShare || 0), 0);
+
+  // Reserve from individual payments (already added to reserveBalance per-payment)
+  const paymentsReserve = payments.reduce((sum, p) => sum + (p.reservePaid || 0), 0);
+  // Manual reserve contribution from this form = the user's explicit input
+  const totalRiskContribution = manualReserveContrib + paymentsReserve;
 
   if (!state.financialAccounts) state.financialAccounts = {};
+  if (!state.capital) state.capital = {};
 
-  const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
-  let riskContribution = 0;
-  let summaryMsg = "";
-
-  if (strategy === 'reinvest') {
-    // 100% Reinvestment into Capital Total / Portfolio Target
-    state.financialAccounts.portfolioTarget = (state.financialAccounts.portfolioTarget || 5000.0) + netProfit;
-    state.financialAccounts.capitalTotal = state.financialAccounts.portfolioTarget;
-    if (!state.capital) state.capital = {};
-    state.capital.totalCapital = state.financialAccounts.capitalTotal;
-    summaryMsg = `100% de la utilidad ($${netProfit.toFixed(2)} USD) reinvertida directamente en Capital Colocable. Patrimonio Total expandido a $${state.financialAccounts.capitalTotal.toFixed(2)} USD.`;
-  } else {
-    // Split strategy (20% Reserve, 30% Operational, 50% Distributable)
-    const targetReservePct = state.financialAccounts?.riskReserveTargetPct || 20.0;
-    riskContribution = netProfit * (targetReservePct / 100.0);
-    const opsContribution = netProfit * 0.30;
-    const distContribution = netProfit * 0.50;
-
-    state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + riskContribution;
-    state.financialAccounts.operationalBalance = (state.financialAccounts.operationalBalance || 0) + opsContribution;
-    state.financialAccounts.distributableBalance = (state.financialAccounts.distributableBalance || 0) + distContribution;
-
-    if (!state.capital) state.capital = {};
+  // ─── Apply manual reserve contribution to state ────────────────
+  if (manualReserveContrib > 0) {
+    state.financialAccounts.riskReserveBalance = (state.financialAccounts.riskReserveBalance || 0) + manualReserveContrib;
     state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
-    summaryMsg = `Distribución completada: Reserva +$${riskContribution.toFixed(2)}, Operaciones +$${opsContribution.toFixed(2)}, Distribuible +$${distContribution.toFixed(2)}.`;
+  }
+
+  // ─── Apply utilidad strategy ───────────────────────────────────
+  // utilidad = netProfit - paymentsReserve (reserve from payments already applied)
+  const utilidad = netProfit - paymentsReserve;
+  let summaryMsg = '';
+
+  if (strategy === 'reinvest' && utilidad > 0) {
+    state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + utilidad;
+    state.capital.totalCapital = state.financialAccounts.capitalTotal;
+    summaryMsg = `Utilidad de $${utilidad.toFixed(2)} USD reinvertida en Capital. Nuevo capital total: $${state.financialAccounts.capitalTotal.toFixed(2)}.`;
+  } else {
+    summaryMsg = `Utilidad de $${utilidad.toFixed(2)} USD registrada como ganancia (sin reinversión).`;
   }
 
   const newCloseRecord = {
@@ -2071,7 +2139,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     period_name: periodName,
     total_collected: totalCollected,
     net_profit: netProfit,
-    risk_contribution: riskContribution,
+    risk_contribution: totalRiskContribution,   // includes both per-payment reserves AND manual aporte
     notes,
     status: "Procesado",
     closed_at: new Date().toISOString(),
@@ -2095,7 +2163,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     user: "Ejecutivo Financiero",
     action: "CIERRE_QUINCENAL_PROCESADO",
     module: "Cierre Quincenal",
-    details: `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (${targetReservePct}%): $${riskContribution.toFixed(2)}.`
+    details: `Cierre '${periodName}' ejecutado. Cobro Total: $${totalCollected.toFixed(2)}, Ganancia Neta: $${netProfit.toFixed(2)}, Aporte Manual a Reserva: $${manualReserveContrib.toFixed(2)}, Reserva de Pagos: $${paymentsReserve.toFixed(2)}, Total Reserva Aportada: $${totalRiskContribution.toFixed(2)}. ${summaryMsg}`
   });
 
   try {
@@ -2111,16 +2179,9 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
       })
     });
 
+    // Also sync the updated financial accounts (reserve balance, capital total)
     if (typeof window.updateFinancialAccountState === 'function') {
       await window.updateFinancialAccountState();
-    }
-
-    if (typeof window.logAuditEvent === 'function') {
-      await window.logAuditEvent(
-        "CIERRE_QUINCENAL_PROCESADO",
-        "Cierre Quincenal",
-        `Cierre '${periodName}' ejecutado con éxito. Cobro Total: $${totalCollected.toFixed(2)}, Utilidad Neta: $${netProfit.toFixed(2)}, Aporte a Reserva (${targetReservePct}%): $${riskContribution.toFixed(2)}.`
-      );
     }
 
     console.log("✓ Cierre Quincenal y Cuentas Financieras guardados en Supabase Cloud");
@@ -2131,8 +2192,9 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   document.getElementById('form-quincenal-close').reset();
   saveState();
   renderAll();
-  alert(`✓ Cierre Quincenal '${periodName}' procesado y sincronizado con Supabase con éxito.\nFondo de Reserva incrementado en $${riskContribution.toFixed(2)} USD (${targetReservePct}%).`);
+  alert(`✓ Cierre Quincenal '${periodName}' procesado y guardado en Supabase.\n\n📋 Resumen del Cierre:\n   💵 Cobro Total del Período: $${totalCollected.toFixed(2)}\n   💡 Ganancia Neta Generada: $${netProfit.toFixed(2)}\n   🛡️ Aporte Manual a Reserva: $${manualReserveContrib.toFixed(2)} (${reserveSource})\n   🛡️ Reserva desde Pagos del Período: $${paymentsReserve.toFixed(2)}\n   📊 Total Aportado a Reserva en este Cierre: $${totalRiskContribution.toFixed(2)}\n   ${summaryMsg}`);
 });
+
 
 // ----------------------------------------------------
 // MÓDULO 9: GASTOS & CUENTAS OPERATIVAS

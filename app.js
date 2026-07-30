@@ -256,7 +256,10 @@ async function loadState() {
             amountPaid: parseFloat(p.amount_paid || 0),
             principalPaid: parseFloat(p.principal_paid || 0),
             profitPaid: parseFloat(p.profit_paid || 0),
-            profitDestination: p.profit_destination || 'profit'
+            reservePaid: parseFloat(p.reserve_paid || 0),
+            utilidadPaid: parseFloat(p.utilidad_paid || 0),
+            reservePct: parseInt(p.reserve_pct || 0),
+            profitDestination: p.profit_destination || 'keep'
           };
         });
       }
@@ -1940,11 +1943,12 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       })
     });
 
-    if (typeof updateFinancialAccountState === 'function') {
-      await updateFinancialAccountState();
-    }
+    // NOTE: Do NOT call loadState()/updateFinancialAccountState() here.
+    // That would overwrite state.payments (which already has the new payment in memory)
+    // with Supabase data that may not yet include it — causing the row to disappear.
+    // The in-memory state is already correct; Supabase is the async backup.
 
-    console.log("✓ Pago y Préstamo actualizados en Supabase Cloud");
+    console.log("Pago y Prestamo actualizados en Supabase Cloud");
   } catch (err) {
     console.warn("Error sincronizando pago con Supabase:", err);
   }

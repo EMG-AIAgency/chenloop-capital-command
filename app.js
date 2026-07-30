@@ -1992,6 +1992,13 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
   document.getElementById('form-record-payment').reset();
   saveState();
   renderAll();
+  // Sync financial_accounts KPIs to Supabase in background (fire-and-forget)
+  // This ensures Command Center values persist after page reload.
+  // Safe to call here because state.payments already has the new payment
+  // and the reserve_paid mapping in loadState is correct (fixed in v49.0).
+  if (typeof window.updateFinancialAccountState === 'function') {
+    window.updateFinancialAccountState();
+  }
   const destLabel = profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' : (profitDestination === 'reserve' ? '🛡️ A Reserva' : '📊 Utilidad Personal');
   alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD (siempre regresa a la cartera)\n   🛡️ A Reserva de Riesgo: $${reserveShare.toFixed(2)} USD (${Math.round(reservePct*100)}% de la ganancia)\n   📊 Utilidad: $${utilidadShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
 });

@@ -250,6 +250,7 @@ async function loadState() {
           const loan = (state.loans || []).find(l => l.id === p.loan_id);
           return {
             id: p.id,
+            transactionId: p.transaction_id || p.transactionId,
             date: p.payment_date || p.date || p.created_at || new Date().toISOString(),
             loanId: p.loan_id,
             borrowerName: loan ? loan.borrowerName : (p.borrower_name || "Prestatario"),
@@ -1788,7 +1789,11 @@ function renderPayments() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">
+        ${formattedDate}
+        <br>
+        <span class="inline-block mt-1 text-[10px] text-[#818CF8] bg-[#818CF8]/10 px-1.5 py-0.5 rounded border border-[#818CF8]/20 font-bold">${p.transactionId || 'PAY-N/A'}</span>
+      </td>
       <td class="p-3 font-bold text-white text-xs font-mono">${loanDisplayId}</td>
       <td class="p-3 text-white font-bold">${borrowerName}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
@@ -1888,12 +1893,14 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     utilidad_paid: utilidadShare,
     reserve_pct: Math.round(reservePct * 100),
     profit_destination: profitDestination,
-    payment_date: new Date().toISOString()
+    payment_date: new Date().toISOString(),
+    transaction_id: txId
   };
 
   if (!state.payments) state.payments = [];
   state.payments.unshift({
     id: newPaymentRecord.id,
+    transactionId: txId,
     date: new Date().toLocaleString(),
     timestamp: new Date().toLocaleString(),
     loanId: loan.id,

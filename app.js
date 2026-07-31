@@ -215,7 +215,7 @@ async function loadState() {
             installmentCount: count,
             totalScheduled: totalScheduled,
             scheduledProfit: scheduledProfit,
-            status: (l.remaining_amount !== undefined && l.remaining_amount !== null && parseFloat(l.remaining_amount) <= 0.01) ? 'Cancelado' : l.status,
+            status: (l.remaining_amount !== undefined && l.remaining_amount !== null && parseFloat(l.remaining_amount) <= 0.01 && parseFloat(l.paid_amount || 0) > 0) ? 'Cancelado' : l.status,
             disbursementDate: l.disbursed_at || l.disbursement_date,
             paidAmount: parseFloat(l.paid_amount !== undefined && l.paid_amount !== null ? l.paid_amount : 0),
             remainingAmount: parseFloat(l.remaining_amount !== undefined && l.remaining_amount !== null ? l.remaining_amount : totalScheduled)
@@ -1174,6 +1174,8 @@ window.approveApplication = async function(appId) {
       profit_scheduled: scheduledProfit,
       installments_count: count,
       status: 'Activo',
+      paid_amount: 0.0,
+      remaining_amount: totalScheduled,
       disbursed_at: new Date().toISOString()
     };
 

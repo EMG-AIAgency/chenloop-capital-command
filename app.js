@@ -1962,7 +1962,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     const webhookUrl = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
     const sendMode = state.notificationsConfig?.sendMode || 'test';
     const testPhone = state.notificationsConfig?.testPhone || '+50761337723';
-    const targetPhone = (sendMode === 'production' && loan.borrowerPhone) ? loan.borrowerPhone : testPhone;
+    const borrower = (state.borrowers || []).find(b => b.id === loan.borrowerId) || {};
+    const borrowerPhone = borrower.phone;
+    const targetPhone = (sendMode === 'production' && borrowerPhone) ? borrowerPhone : testPhone;
 
     const receiptPayload = {
       event: "DIGITAL_RECEIPT",

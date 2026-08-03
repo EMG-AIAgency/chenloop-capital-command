@@ -45,6 +45,21 @@
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 107, 0, 0.3); border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 107, 0, 0.6); }
+    
+    /* Copilot Chat UI Custom Styles */
+    #copilot-chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+    #copilot-chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #copilot-chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(129, 140, 248, 0.2);
+      border-radius: 4px;
+    }
+    #copilot-chat-messages::-webkit-scrollbar-thumb:hover {
+      background: rgba(129, 140, 248, 0.5);
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -1315,6 +1330,71 @@ Te recordamos amablemente que tu cuota de 💵 ${{2}} vence el próximo 📅 {{3
         <button onclick="window.closeScoreModal()" class="text-white hover:text-[#4edea3] font-bold text-base">✕</button>
       </div>
       <div id="modal-score-content" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- COPILOTO AI CHAT WIDGET -->
+  <!-- Floating Action Button (FAB) -->
+  <button id="copilot-fab" onclick="window.toggleCopilotWidget()" class="fixed bottom-6 right-6 z-[90] bg-gradient-to-r from-[#818CF8] to-[#6366F1] hover:from-[#6366F1] hover:to-[#4F46E5] text-white p-4 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 group border border-white/20">
+    <span class="material-symbols-outlined text-[24px]">smart_toy</span>
+    <span class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-out whitespace-nowrap text-xs font-bold font-display pl-0 group-hover:pl-2">Copiloto Chenloop AI</span>
+    <span class="absolute top-0 right-0 w-3 h-3 bg-[#10B981] rounded-full border-2 border-[#111827] animate-pulse"></span>
+  </button>
+
+  <!-- Chat Modal Window -->
+  <div id="copilot-widget" class="hidden fixed bottom-24 right-6 w-[90%] sm:w-[400px] h-[550px] z-[90] glass-card flex-col border border-white/15 overflow-hidden transition-all duration-300 shadow-2xl">
+    <!-- Header -->
+    <div class="p-4 bg-[#1E293B]/80 backdrop-blur-md border-b border-white/10 flex justify-between items-center">
+      <div class="flex items-center gap-2.5">
+        <span class="material-symbols-outlined text-[#818CF8]">smart_toy</span>
+        <div>
+          <h4 class="text-xs font-bold text-white uppercase tracking-wider font-display">Copiloto Chenloop IA</h4>
+          <p class="text-[9px] text-[#10B981] font-semibold flex items-center gap-1">
+            <span class="inline-block w-1.5 h-1.5 bg-[#10B981] rounded-full"></span> En línea | Gemini 1.5 Flash
+          </p>
+        </div>
+      </div>
+      <button onclick="window.toggleCopilotWidget()" class="text-white/60 hover:text-white transition-colors text-sm">✕</button>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="copilot-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs scrollbar-thin scrollbar-thumb-white/10">
+      <!-- Welcome Message -->
+      <div class="flex gap-2">
+        <div class="w-6 h-6 rounded-full bg-[#818CF8]/10 border border-[#818CF8]/30 flex items-center justify-center text-[#818CF8] shrink-0 text-[10px]">🤖</div>
+        <div class="bg-[#1E293B]/60 border border-white/5 p-3 rounded-xl max-w-[85%] text-[#bbcabf] space-y-1.5 shadow-sm leading-relaxed">
+          <p>¡Hola **Edgar**! Soy tu Copiloto Financiero en tiempo real. 📊</p>
+          <p>Tengo acceso a las estadísticas actuales de Supabase y a las reglas operativas de Chenloop Capital.</p>
+          <p>¿En qué puedo apoyarte hoy? Puedes probar algunas preguntas rápidas aquí abajo:</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions Chips -->
+      <div class="flex flex-col gap-2 pt-2">
+        <button onclick="window.sendCopilotQuery('¿Quién es el cliente más atrasado y cuánta mora tiene?')" class="bg-white/5 hover:bg-[#818CF8]/15 border border-white/10 hover:border-[#818CF8]/30 px-3 py-1.5 rounded-lg text-[10px] text-white transition-all text-left cursor-pointer">🔍 ¿Quién está en mora hoy?</button>
+        <button onclick="window.sendCopilotQuery('Dame un resumen de los fondos actuales en capital total y reserva.')" class="bg-white/5 hover:bg-[#818CF8]/15 border border-white/10 hover:border-[#818CF8]/30 px-3 py-1.5 rounded-lg text-[10px] text-white transition-all text-left cursor-pointer">💰 Resumen de balances actuales</button>
+        <button onclick="window.sendCopilotQuery('¿Cómo funciona la regla de la Reserva de Riesgo en el cierre quincenal?')" class="bg-white/5 hover:bg-[#818CF8]/15 border border-white/10 hover:border-[#818CF8]/30 px-3 py-1.5 rounded-lg text-[10px] text-white transition-all text-left cursor-pointer">🛡️ Regla de Cierre de Reserva</button>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="copilot-typing-indicator" class="hidden px-4 py-2 flex items-center gap-2">
+      <div class="w-6 h-6 rounded-full bg-[#818CF8]/10 flex items-center justify-center text-[#818CF8] text-[10px]">🤖</div>
+      <div class="bg-[#1E293B]/60 p-2 rounded-xl flex items-center gap-1">
+        <span class="w-1.5 h-1.5 bg-[#818CF8] rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+        <span class="w-1.5 h-1.5 bg-[#818CF8] rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+        <span class="w-1.5 h-1.5 bg-[#818CF8] rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+      </div>
+    </div>
+
+    <!-- Input Box -->
+    <div class="p-3 bg-[#1E293B]/80 backdrop-blur-md border-t border-white/10">
+      <form id="copilot-chat-form" onsubmit="window.handleCopilotSubmit(event)" class="flex gap-2">
+        <input id="copilot-chat-input" type="text" autocomplete="off" placeholder="Pregunta sobre préstamos, reglas, balances..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder:text-[#94A3B8] focus:border-[#818CF8] focus:outline-none focus:ring-1 focus:ring-[#818CF8]">
+        <button type="submit" class="bg-[#818CF8] hover:bg-[#6366F1] text-white p-2 rounded-lg flex items-center justify-center transition-colors cursor-pointer shadow-md shadow-[#818CF8]/10">
+          <span class="material-symbols-outlined text-[18px]">send</span>
+        </button>
+      </form>
     </div>
   </div>
 

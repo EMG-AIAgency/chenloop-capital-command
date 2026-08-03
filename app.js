@@ -3934,3 +3934,117 @@ document.getElementById('form-deposit-reserve-qc')?.addEventListener('submit', a
 
   alert(`✓ ¡Aporte de $${amount.toFixed(2)} USD registrado con éxito en la Reserva de Riesgo!\nEl saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`);
 });
+
+// ==========================================
+// COPILOTO AI CHAT WIDGET INTEGRATION
+// ==========================================
+let copilotHistory = [];
+
+window.toggleCopilotWidget = function() {
+  const widget = document.getElementById('copilot-widget');
+  if (widget) {
+    if (widget.classList.contains('hidden')) {
+      widget.classList.remove('hidden');
+      widget.classList.add('flex');
+      const messagesContainer = document.getElementById('copilot-chat-messages');
+      if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      document.getElementById('copilot-chat-input')?.focus();
+    } else {
+      widget.classList.add('hidden');
+      widget.classList.remove('flex');
+    }
+  }
+};
+
+window.sendCopilotQuery = function(text) {
+  const input = document.getElementById('copilot-chat-input');
+  if (input) {
+    input.value = text;
+    window.handleCopilotSubmit(new Event('submit'));
+  }
+};
+
+window.handleCopilotSubmit = async function(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  
+  const input = document.getElementById('copilot-chat-input');
+  const messageText = input?.value?.trim();
+  if (!messageText) return;
+
+  if (input) input.value = '';
+
+  appendCopilotMessage('user', messageText);
+
+  const indicator = document.getElementById('copilot-typing-indicator');
+  if (indicator) indicator.classList.remove('hidden');
+
+  const messagesContainer = document.getElementById('copilot-chat-messages');
+  if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  try {
+    const response = await fetch('/api/copilot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: messageText,
+        history: copilotHistory
+      })
+    });
+
+    const data = await response.json();
+    if (indicator) indicator.classList.add('hidden');
+
+    if (response.ok && data.reply) {
+      appendCopilotMessage('bot', data.reply);
+      copilotHistory.push({ role: 'user', text: messageText });
+      copilotHistory.push({ role: 'bot', text: data.reply });
+      
+      if (copilotHistory.length > 20) {
+        copilotHistory = copilotHistory.slice(-20);
+      }
+    } else {
+      appendCopilotMessage('bot', `⚠️ Error del Copiloto: ${data.error || 'No se pudo generar una respuesta.'}`);
+    }
+  } catch (err) {
+    if (indicator) indicator.classList.add('hidden');
+    appendCopilotMessage('bot', `⚠️ Error de conexión: No pude conectar con el servidor del copiloto. Detalles: ${err.message}`);
+  }
+
+  if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+};
+
+function appendCopilotMessage(role, text) {
+  const container = document.getElementById('copilot-chat-messages');
+  if (!container) return;
+
+  const bubbleDiv = document.createElement('div');
+  bubbleDiv.className = 'flex gap-2 items-start';
+
+  let formattedText = String(text)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code class="bg-black/40 px-1.5 py-0.5 rounded text-[#818CF8] font-mono text-[10px]">$1</code>')
+    .replace(/\n/g, '<br>');
+
+  if (role === 'user') {
+    bubbleDiv.innerHTML = `
+      <div class="flex-1"></div>
+      <div class="bg-[#818CF8]/25 border border-[#818CF8]/30 p-2.5 rounded-xl max-w-[80%] text-white leading-relaxed">
+        ${formattedText}
+      </div>
+      <div class="w-6 h-6 rounded-full bg-[#818CF8]/10 border border-[#818CF8]/30 flex items-center justify-center text-[#818CF8] shrink-0 text-[10px] font-bold">Yo</div>
+    `;
+  } else {
+    bubbleDiv.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-[#818CF8]/10 border border-[#818CF8]/30 flex items-center justify-center text-[#818CF8] shrink-0 text-[10px]">🤖</div>
+      <div class="bg-[#1E293B]/60 border border-white/5 p-2.5 rounded-xl max-w-[80%] text-[#bbcabf] leading-relaxed">
+        ${formattedText}
+      </div>
+    `;
+  }
+
+  container.appendChild(bubbleDiv);
+}
+

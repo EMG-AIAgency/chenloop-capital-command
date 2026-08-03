@@ -1957,12 +1957,38 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       })
     });
 
-    // NOTE: Do NOT call loadState()/updateFinancialAccountState() here.
-    // That would overwrite state.payments (which already has the new payment in memory)
-    // with Supabase data that may not yet include it — causing the row to disappear.
-    // The in-memory state is already correct; Supabase is the async backup.
+    // Auto-fulfill matching pending collection for this loan so automated n8n reminders stop
+    const pendingCols = (state.collections || []).filter(c => (c.loanId === loan.id || String(c.loanId) === String(loan.id)) && c.promiseStatus === 'Pendiente');
+    if (pendingCols.length > 0) {
+      const colsToFulfill = loan.status === 'Cancelado' ? pendingCols : [pendingCols[0]];
+      for (const col of colsToFulfill) {
+        col.promiseStatus = 'Cumplida';
+        col.daysOverdue = 0;
+        col.delinquencyTier = 'Al Día';
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            entity: 'collections',
+            record: {
+              id: col.id,
+              organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+              loan_id: String(col.loanId || loan.id),
+              borrower_name: col.borrowerName || loan.borrowerName,
+              days_overdue: 0,
+              delinquency_tier: 'Al Día',
+              channel: col.channel || 'WhatsApp',
+              promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
+              promise_amount: col.promiseAmount || 25,
+              promise_status: 'Cumplida',
+              notes: col.notes || ''
+            }
+          })
+        });
+      }
+    }
 
-    console.log("Pago y Prestamo actualizados en Supabase Cloud");
+    console.log("✓ Pago, Préstamo y Cobranzas actualizados en Supabase Cloud");
   } catch (err) {
     console.warn("Error sincronizando pago con Supabase:", err);
   }

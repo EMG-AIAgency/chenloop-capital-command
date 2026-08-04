@@ -266,12 +266,12 @@ async function loadState() {
       }
 
       if (cloudData.notifications && cloudData.notifications.length > 0) {
-        state.notifications = cloudData.notifications.map(n => ({
-          timestamp: n.timestamp,
-          borrowerName: n.borrower_name,
+        state.n8nLogs = cloudData.notifications.map(n => ({
+          timestamp: n.created_at ? new Date(n.created_at).toLocaleString() : n.timestamp,
+          eventType: n.event,
+          recipient: n.borrower_name,
           channel: n.channel,
-          event: n.event,
-          message: n.message,
+          payload: n.message,
           status: n.status
         }));
       }
@@ -1648,30 +1648,83 @@ window.testN8nTrigger = async function(triggerType) {
     });
 
     const statusText = response.ok ? 'OK 200' : `HTTP ${response.status}`;
+    const newLogRecord = {
+      id: generateUUID(),
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_name: `${samplePayload.borrower_name} (${targetPhone})`,
+      channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
+      event: eventName,
+      message: JSON.stringify(samplePayload),
+      status: statusText,
+      created_at: new Date().toISOString()
+    };
+
     if (!state.n8nLogs) state.n8nLogs = [];
     state.n8nLogs.unshift({
       timestamp: new Date().toLocaleString(),
       eventType: eventName,
-      recipient: `${samplePayload.borrower_name} (${samplePayload.phone})`,
+      recipient: `${samplePayload.borrower_name} (${targetPhone})`,
       channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       payload: JSON.stringify(samplePayload),
       status: statusText
     });
+
+    try {
+      const syncHeaders = { 'Content-Type': 'application/json' };
+      if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: syncHeaders,
+        body: JSON.stringify({
+          entity: 'notifications',
+          record: newLogRecord
+        })
+      });
+    } catch (syncErr) {
+      console.warn("Error syncing manual notification log:", syncErr);
+    }
 
     saveState();
     renderAll();
     alert(`✓ Notificación disparada (${sendMode === 'test' ? '🧪 Modo Prueba -> ' + targetPhone : '🚀 Modo Producción -> ' + targetPhone}). Estado: ${statusText}`);
   } catch (err) {
     console.warn("Disparo n8n webhook (CORS/Offline):", err);
+    const newLogRecord = {
+      id: generateUUID(),
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_name: `${samplePayload.borrower_name} (${targetPhone})`,
+      channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
+      event: eventName,
+      message: JSON.stringify(samplePayload),
+      status: 'Enviado (Client Mode)',
+      created_at: new Date().toISOString()
+    };
+
     if (!state.n8nLogs) state.n8nLogs = [];
     state.n8nLogs.unshift({
       timestamp: new Date().toLocaleString(),
       eventType: eventName,
-      recipient: `${samplePayload.borrower_name} (${samplePayload.phone})`,
+      recipient: `${samplePayload.borrower_name} (${targetPhone})`,
       channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       payload: JSON.stringify(samplePayload),
       status: 'Enviado (Client Mode)'
     });
+
+    try {
+      const syncHeaders = { 'Content-Type': 'application/json' };
+      if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: syncHeaders,
+        body: JSON.stringify({
+          entity: 'notifications',
+          record: newLogRecord
+        })
+      });
+    } catch (syncErr) {
+      console.warn("Error syncing manual notification log:", syncErr);
+    }
+
     saveState();
     renderAll();
     alert(`✓ Evento enviado a n8n (${eventName} a ${targetPhone}).`);
@@ -2012,11 +2065,23 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     };
 
     try {
-      fetch(webhookUrl, {
+      await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(receiptPayload)
       });
+      
+      const newLogRecord = {
+        id: generateUUID(),
+        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        borrower_name: `${loan.borrowerName} (${targetPhone})`,
+        channel: `WhatsApp / n8n [${txId}]`,
+        event: "COMPROBANTE_PAGO_RECIBIDO",
+        message: JSON.stringify(receiptPayload),
+        status: 'OK 200',
+        created_at: new Date().toISOString()
+      };
+
       if (!state.n8nLogs) state.n8nLogs = [];
       state.n8nLogs.unshift({
         timestamp: new Date().toLocaleString(),
@@ -2026,8 +2091,58 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
         payload: JSON.stringify(receiptPayload),
         status: 'OK 200'
       });
+
+      try {
+        const syncHeaders = { 'Content-Type': 'application/json' };
+        if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: syncHeaders,
+          body: JSON.stringify({
+            entity: 'notifications',
+            record: newLogRecord
+          })
+        });
+      } catch (syncErr) {
+        console.warn("Error syncing receipt notification log:", syncErr);
+      }
     } catch (err) {
       console.warn("Error enviando recibo WhatsApp a n8n:", err);
+      const newLogRecord = {
+        id: generateUUID(),
+        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        borrower_name: `${loan.borrowerName} (${targetPhone})`,
+        channel: `WhatsApp / n8n [${txId}]`,
+        event: "COMPROBANTE_PAGO_RECIBIDO",
+        message: JSON.stringify(receiptPayload),
+        status: 'Error / Offline',
+        created_at: new Date().toISOString()
+      };
+
+      if (!state.n8nLogs) state.n8nLogs = [];
+      state.n8nLogs.unshift({
+        timestamp: new Date().toLocaleString(),
+        eventType: "COMPROBANTE_PAGO_RECIBIDO",
+        recipient: `${loan.borrowerName} (${targetPhone})`,
+        channel: `WhatsApp / n8n [${txId}]`,
+        payload: JSON.stringify(receiptPayload),
+        status: 'Error / Offline'
+      });
+
+      try {
+        const syncHeaders = { 'Content-Type': 'application/json' };
+        if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: syncHeaders,
+          body: JSON.stringify({
+            entity: 'notifications',
+            record: newLogRecord
+          })
+        });
+      } catch (syncErr) {
+        console.warn("Error syncing receipt error notification log:", syncErr);
+      }
     }
   }
 

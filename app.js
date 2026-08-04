@@ -3883,12 +3883,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const newBorrower = {
         id: tempBw.id,
         name: tempBw.name,
-        id_number: tempBw.idNumber,
+        identification: tempBw.idNumber,
         phone: tempBw.phone,
-        income: tempBw.income,
+        monthly_income: tempBw.income,
         employment_type: tempBw.employmentType,
-        verified: tempBw.verified,
-        risk_score: scoreObj.totalScore,
+        is_verified: tempBw.verified,
+        score: scoreObj.totalScore,
         risk_level: scoreObj.riskLevel,
         exposure_limit: maxExposure,
         status: 'Activo',
@@ -3900,12 +3900,13 @@ document.addEventListener('DOMContentLoaded', () => {
       state.borrowers.unshift({
         id: newBorrower.id,
         name: newBorrower.name,
-        idNumber: newBorrower.id_number,
+        idNumber: newBorrower.identification,
         phone: newBorrower.phone,
-        income: newBorrower.income,
+        income: newBorrower.monthly_income,
+        employment: newBorrower.employment_type,
         employmentType: newBorrower.employment_type,
-        verified: newBorrower.verified,
-        riskScore: newBorrower.risk_score,
+        verified: newBorrower.is_verified,
+        riskScore: newBorrower.score,
         riskLevel: newBorrower.risk_level,
         maxExposure: newBorrower.exposure_limit,
         status: newBorrower.status
@@ -3936,7 +3937,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.toggleBorrowerForm();
       }
 
-      // Re-render UI
+      // Re-render UI and persist
+      saveState();
       renderBorrowers();
       renderApplications();
       alert(`✓ Prestatario ${name} guardado en Supabase con éxito. Score: ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`);
@@ -3968,11 +3970,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const newApp = {
         id: generateUUID(),
         borrower_id: bw.id,
-        borrower_name: bw.name,
         amount,
         reason,
-        installment_count: count,
-        interest_rate: rate,
+        installments_count: count,
         status: 'En Revisión',
         created_at: new Date().toISOString(),
         organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
@@ -3982,10 +3982,10 @@ document.addEventListener('DOMContentLoaded', () => {
       state.applications.unshift({
         id: newApp.id,
         borrowerId: newApp.borrower_id,
-        borrowerName: newApp.borrower_name,
+        borrowerName: bw.name,
         amount: newApp.amount,
         reason: newApp.reason,
-        count: newApp.installment_count,
+        count: newApp.installments_count,
         rate: rate,
         status: newApp.status,
         createdAt: newApp.created_at

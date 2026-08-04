@@ -695,6 +695,7 @@ function renderAll() {
   renderLoans();
   renderCollections();
   renderNotifications();
+  renderN8nNotifications();
   renderPayments();
   renderAudit();
   if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
@@ -1532,7 +1533,7 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
 // ----------------------------------------------------
 // MÓDULO 6: NOTIFICACIONES N8N & AUTOMATIZACIONES
 // ----------------------------------------------------
-function renderNotifications() {
+function renderN8nNotifications() {
   const tbody = document.getElementById('tbody-n8n-notifications');
   const inputUrl = document.getElementById('n8n-webhook-url');
   const sendModeSelect = document.getElementById('n8n-send-mode');

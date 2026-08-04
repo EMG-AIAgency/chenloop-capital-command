@@ -38,6 +38,23 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Auto-log these automated cron runs to the notifications table so they persist in the UI history
+    if (data && data.length > 0) {
+      const crypto = require('crypto');
+      const logsToInsert = data.map(item => ({
+        id: crypto.randomUUID(),
+        organization_id: '00000000-0000-0000-0000-000000000001',
+        borrower_name: `${item.borrower_name} (${item.phone})`,
+        channel: item.event === 'OVERDUE_PAYMENT_ALERT' ? 'WhatsApp / n8n [MORA]' : 'WhatsApp / n8n [RECORDATORIO]',
+        event: item.event,
+        message: JSON.stringify(item),
+        status: 'Enviado (Automático)',
+        created_at: new Date().toISOString()
+      }));
+
+      await supabase.from('notifications').insert(logsToInsert);
+    }
+
     return res.status(200).json(data || []);
   } catch (err) {
     console.error("Cron check execution failed:", err);

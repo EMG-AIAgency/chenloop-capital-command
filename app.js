@@ -80,6 +80,31 @@ function generateUUID() {
   });
 }
 
+function getNextFortnightDate(dateStr) {
+  const parts = dateStr.split('-');
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parseInt(parts[2]);
+  
+  if (day === 15) {
+    if (month === 2) {
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+      return `${year}-02-${isLeap ? '29' : '28'}`;
+    }
+    const monthStr = month < 10 ? `0${month}` : `${month}`;
+    return `${year}-${monthStr}-30`;
+  } else {
+    let nextMonth = month + 1;
+    let nextYear = year;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    const monthStr = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
+    return `${nextYear}-${monthStr}-15`;
+  }
+}
+
 // CHENLOOP - Core Financial Engine (v4.0 Auth & Multi-Tenant SaaS Engine)
 
 const SUPABASE_URL = "https://sfikeqgzmyhellqxsqbu.supabase.co";
@@ -1201,6 +1226,69 @@ window.approveApplication = async function(appId) {
       })
     });
 
+    // Auto-generate the first payment promise / collection record for the nearest 15th or 30th
+    const today = new Date();
+    const currentDay = today.getDate();
+    let promiseMonth = today.getMonth() + 1;
+    let promiseYear = today.getFullYear();
+    let promiseDay = 15;
+    
+    if (currentDay > 10 && currentDay <= 25) {
+      promiseDay = 30;
+      if (promiseMonth === 2) {
+        const isLeap = (promiseYear % 4 === 0 && promiseYear % 100 !== 0) || (promiseYear % 400 === 0);
+        promiseDay = isLeap ? 29 : 28;
+      }
+    } else if (currentDay > 25) {
+      promiseDay = 15;
+      promiseMonth += 1;
+      if (promiseMonth > 12) {
+        promiseMonth = 1;
+        promiseYear += 1;
+      }
+    }
+    
+    const monthStr = promiseMonth < 10 ? `0${promiseMonth}` : `${promiseMonth}`;
+    const dayStr = promiseDay < 10 ? `0${promiseDay}` : `${promiseDay}`;
+    const firstPromiseDate = `${promiseYear}-${monthStr}-${dayStr}`;
+    
+    const firstColRecord = {
+      id: generateUUID(),
+      loan_id: newLoan.id,
+      borrower_name: newLoan.borrower_name,
+      days_overdue: 0,
+      delinquency_tier: "Monitoreo",
+      channel: "WhatsApp",
+      promise_date: firstPromiseDate,
+      promise_amount: installmentAmount,
+      promise_status: "Pendiente",
+      notes: "Generado automáticamente al aprobar préstamo",
+      organization_id: newLoan.organization_id
+    };
+    
+    if (!state.collections) state.collections = [];
+    state.collections.unshift({
+      id: firstColRecord.id,
+      loanId: firstColRecord.loan_id,
+      borrowerName: firstColRecord.borrower_name,
+      daysOverdue: firstColRecord.days_overdue,
+      delinquencyTier: firstColRecord.delinquency_tier,
+      channel: firstColRecord.channel,
+      promiseDate: firstColRecord.promise_date,
+      promiseAmount: firstColRecord.promise_amount,
+      promiseStatus: firstColRecord.promise_status,
+      notes: firstColRecord.notes
+    });
+    
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        entity: 'collections',
+        record: firstColRecord
+      })
+    }).catch(err => console.warn("Error auto-syncing first collection:", err));
+
     console.log("✓ Solicitud aprobada y Préstamo activo en Supabase Cloud");
     if (typeof window.updateFinancialAccountState === 'function') await window.updateFinancialAccountState();
   } catch (err) {
@@ -2028,7 +2116,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
             entity: 'collections',
             record: {
               id: col.id,
-              organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+              organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
               loan_id: String(col.loanId || loan.id),
               borrower_name: col.borrowerName || loan.borrowerName,
               days_overdue: 0,
@@ -2041,6 +2129,46 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
             }
           })
         });
+
+        // Generate next collection if loan has balance remaining
+        if (loan.remainingAmount > 0.05) {
+          const nextDate = getNextFortnightDate(col.promiseDate);
+          const nextColRecord = {
+            id: generateUUID(),
+            organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+            loan_id: String(col.loanId || loan.id),
+            borrower_name: col.borrowerName || loan.borrowerName,
+            days_overdue: 0,
+            delinquency_tier: "Monitoreo",
+            channel: "WhatsApp",
+            promise_date: nextDate,
+            promise_amount: loan.installmentAmount || col.promiseAmount || 25,
+            promise_status: "Pendiente",
+            notes: `Generado automáticamente tras abono del ${new Date().toLocaleDateString('es-PA')}`
+          };
+          
+          state.collections.unshift({
+            id: nextColRecord.id,
+            loanId: nextColRecord.loan_id,
+            borrowerName: nextColRecord.borrower_name,
+            daysOverdue: 0,
+            delinquencyTier: "Monitoreo",
+            channel: "WhatsApp",
+            promiseDate: nextColRecord.promise_date,
+            promiseAmount: nextColRecord.promise_amount,
+            promiseStatus: "Pendiente",
+            notes: nextColRecord.notes
+          });
+          
+          await fetch('/api/sync', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              entity: 'collections',
+              record: nextColRecord
+            })
+          }).catch(err => console.warn("Error syncing next collection:", err));
+        }
       }
     }
 

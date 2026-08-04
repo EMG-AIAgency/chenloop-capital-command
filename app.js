@@ -3931,6 +3931,17 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Error enviando prestatario a Supabase Cloud:", err);
       }
 
+      // Save audit log
+      try {
+        await window.logAuditEvent(
+          "REGISTRO_PRESTATARIO",
+          "Clientes & Scoring",
+          `Prestatario ${name} (ID: ${idNum}) registrado con score de ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`
+        );
+      } catch (e) {
+        console.warn("Error logging audit event:", e);
+      }
+
       // Reset form and hide form
       formAddBw.reset();
       if (typeof window.toggleBorrowerForm === 'function') {
@@ -4008,6 +4019,17 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("✓ Solicitud de crédito guardada en Supabase Cloud");
       } catch (err) {
         console.warn("Error enviando solicitud a Supabase Cloud:", err);
+      }
+
+      // Save audit log
+      try {
+        await window.logAuditEvent(
+          "SOLICITUD_CREDITO_CREADA",
+          "Solicitudes & Riesgo",
+          `Solicitud ${newApp.id} creada por $${amount.toFixed(2)} USD para ${bw.name}.`
+        );
+      } catch (e) {
+        console.warn("Error logging audit event:", e);
       }
 
       formCreateApp.reset();

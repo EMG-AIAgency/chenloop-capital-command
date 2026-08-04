@@ -93,6 +93,11 @@ DATOS EN VIVO DE SUPABASE EN ESTE MOMENTO:
       }
     }
 
+    let cleanModelName = modelName;
+    if (cleanModelName.startsWith('models/')) {
+      cleanModelName = cleanModelName.replace('models/', '');
+    }
+
     const fullSystemMessage = `${CHENLOOP_SYSTEM_PROMPT}\n${dbContextSummary}`;
 
     // ── PROVEEDOR: GOOGLE GEMINI ────────────────────────────────
@@ -105,7 +110,7 @@ DATOS EN VIVO DE SUPABASE EN ESTE MOMENTO:
         });
       }
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelName}:generateContent?key=${apiKey}`;
       const contents = [];
 
       // Incluir historial si existe

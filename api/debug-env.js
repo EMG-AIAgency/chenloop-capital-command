@@ -1,29 +1,28 @@
 module.exports = async (req, res) => {
-  const provider = process.env.COPILOT_PROVIDER || 'not set';
-  const model = process.env.COPILOT_MODEL || 'not set';
   const apiKey = process.env.GEMINI_API_KEY || process.env.COPILOT_API_KEY || '';
-
-  const apiKeyDetails = apiKey 
-    ? `Set (Length: ${apiKey.length}, Prefix: ${apiKey.substring(0, 6)}...)` 
-    : 'Not set';
-
-  let testResult = '';
-  if (apiKey) {
-    try {
-      // Test direct call to Gemini ListModels API
-      const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-      const response = await fetch(testUrl);
-      const data = await response.json();
-      testResult = JSON.stringify(data).substring(0, 1000);
-    } catch (err) {
-      testResult = `Error fetching: ${err.message}`;
-    }
+  
+  if (!apiKey) {
+    return res.status(200).json({ error: "No API key found in env variables." });
   }
 
-  res.status(200).json({
-    COPILOT_PROVIDER: provider,
-    COPILOT_MODEL: model,
-    API_KEY_STATUS: apiKeyDetails,
-    GEMINI_TEST_RESPONSE: testResult
-  });
+  try {
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const response = await fetch(testUrl);
+    const data = await response.json();
+    
+    if (data.models) {
+      const modelNames = data.models.map(m => m.name);
+      return res.status(200).json({
+        success: true,
+        available_models: modelNames
+      });
+    } else {
+      return res.status(200).json({
+        success: false,
+        error_details: data
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

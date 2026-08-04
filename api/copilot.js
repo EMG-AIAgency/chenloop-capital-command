@@ -97,6 +97,11 @@ DATOS EN VIVO DE SUPABASE EN ESTE MOMENTO:
     if (cleanModelName.startsWith('models/')) {
       cleanModelName = cleanModelName.replace('models/', '');
     }
+    if (cleanModelName === 'gemini-1.5-flash') {
+      cleanModelName = 'gemini-2.5-flash';
+    } else if (cleanModelName === 'gemini-1.5-pro') {
+      cleanModelName = 'gemini-2.5-pro';
+    }
 
     const fullSystemMessage = `${CHENLOOP_SYSTEM_PROMPT}\n${dbContextSummary}`;
 

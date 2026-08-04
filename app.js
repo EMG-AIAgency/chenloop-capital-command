@@ -293,6 +293,7 @@ async function loadState() {
           organizationId: fa.organization_id,
           organizationName: fa.organization_name || state.organization?.name || "Mi Cartera Personal",
           capitalTotal: parseFloat(fa.capital_total !== undefined && fa.capital_total !== null ? fa.capital_total : 800.0),
+          baseCapital: parseFloat(fa.base_capital !== undefined && fa.base_capital !== null ? fa.base_capital : (fa.capital_total || 800.0)),
           capitalDeployed: parseFloat(fa.capital_deployed || 250.0),
           capitalAvailable: parseFloat(fa.capital_available !== undefined && fa.capital_available !== null ? fa.capital_available : 550.0),
           riskReserveBalance: parseFloat(fa.risk_reserve_balance || 0),
@@ -312,6 +313,7 @@ async function loadState() {
           state.organization.par30Limit = parseFloat(fa.par30_limit);
         }
         state.capital.totalCapital = state.financialAccounts.capitalTotal;
+        state.capital.baseCapital = state.financialAccounts.baseCapital;
         state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
         state.capital.capitalAvailable = Math.max(0, state.capital.totalCapital - state.capital.capitalDeployed);
       }
@@ -2852,8 +2854,8 @@ window.calculateFinancialEngine = function() {
   const activeLoans = state.loans.filter(l => l.status === 'Activo');
   const activePortfolio = activeLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
   
-  // Calculate capital total dynamically based on ledger of payments (800 base + reinvested utility)
-  const baseCapital = 800.0;
+  // Calculate capital total dynamically based on ledger of payments (baseCapital config + reinvested utility)
+  const baseCapital = parseFloat(state.financialAccounts?.baseCapital !== undefined && state.financialAccounts?.baseCapital !== null ? state.financialAccounts.baseCapital : 800.0);
   const payments = state.payments || [];
   
   const reinvestedFromPayments = payments.reduce((sum, p) => {
@@ -3469,7 +3471,9 @@ function renderSettingsUI() {
   const elOrg = document.getElementById('set-org-name');
 
   const currentOrgName = state.organization?.name || state.financialAccounts?.organizationName || "Mi Cartera Personal";
-  const currentCapTotal = state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 800.0;
+  const currentCapTotal = state.financialAccounts?.baseCapital !== undefined && state.financialAccounts?.baseCapital !== null
+    ? state.financialAccounts.baseCapital
+    : (state.financialAccounts?.capitalTotal || state.capital?.totalCapital || 800.0);
 
   if (elCapTotal) elCapTotal.value = currentCapTotal;
   if (elPar30) elPar30.value = state.organization?.par30Limit || 10.0;
@@ -3642,9 +3646,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   state.financialAccounts.portfolioTarget = portfolioTarget;
   state.financialAccounts.operationalTargetMonths = opsMonths;
   state.financialAccounts.organizationName = orgName;
-
-  if (!state.capital) state.capital = {};
-  state.capital.totalCapital = capitalTotal;
+  state.financialAccounts.baseCapital = capitalTotal;
 
   const orgBadgeEl = document.getElementById('current-org-badge');
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;
@@ -3653,6 +3655,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
     organization_id: state.financialAccounts.organizationId || '00000000-0000-0000-0000-000000000001',
     capital_total: capitalTotal,
+    base_capital: capitalTotal,
     portfolio_target: portfolioTarget,
     risk_reserve_target_pct: reserveTargetPct,
     operational_target_months: opsMonths,

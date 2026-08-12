@@ -16,15 +16,16 @@ module.exports = async (req, res) => {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || (!supabaseServiceKey && !supabaseAnonKey)) {
     return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
   }
 
-  // We can use the anon key since we call the get_pending_notifications RPC function
-  // which runs as SECURITY DEFINER (bypassing RLS) on the database.
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  // Use service role key if available to bypass RLS and allow inserts, fallback to anon key
+  const supabaseKey = supabaseServiceKey || supabaseAnonKey;
+  const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
@@ -52,7 +53,10 @@ module.exports = async (req, res) => {
         created_at: new Date().toISOString()
       }));
 
-      await supabase.from('notifications').insert(logsToInsert);
+      const { error: insertError } = await supabase.from('notifications').insert(logsToInsert);
+      if (insertError) {
+        console.error("Error inserting notifications log:", insertError.message);
+      }
     }
 
     return res.status(200).json(data || []);

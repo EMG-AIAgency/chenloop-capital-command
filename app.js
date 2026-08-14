@@ -974,17 +974,22 @@ function renderBorrowers() {
 
   state.borrowers.forEach(bw => {
     const scoreData = calculateExplicableScore(bw);
+    const effectiveScore = Math.max(bw.score || 0, scoreData.totalScore);
+    const effectiveRiskLevel = effectiveScore >= 80 ? 'Bajo Riesgo' : (effectiveScore >= 65 ? 'Riesgo Moderado' : (effectiveScore >= 50 ? 'Riesgo Medio' : 'Alto Riesgo'));
+    const effectiveBadge = effectiveScore >= 80 ? 'badge-green' : (effectiveScore >= 65 ? 'badge-amber' : 'badge-red');
+    const effectiveExposure = effectiveScore >= 80 ? 300.0 : (effectiveScore >= 60 ? 150.0 : 50.0);
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 font-bold text-white">${bw.name}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${bw.idNumber || bw.id_number || 'N/A'}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${bw.phone || 'N/A'}</td>
       <td class="p-3">
-        <strong class="text-[#4edea3]">${Math.max(bw.score || 0, scoreData.totalScore)} pts</strong>
+        <strong class="text-[#4edea3]">${effectiveScore} pts</strong>
         <button class="bg-[#162032] hover:bg-[#1f2d47] text-white px-2 py-1 rounded text-[11px] ml-2 cursor-pointer border border-white/10" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
       </td>
-      <td class="p-3"><span class="badge-risk ${scoreData.totalScore >= 80 ? 'badge-green' : (scoreData.totalScore >= 60 ? 'badge-amber' : 'badge-red')}">${scoreData.riskLevel}</span></td>
-      <td class="p-3 font-bold text-white">$${(bw.exposureLimit || bw.maxExposure || 150.0).toFixed(2)}</td>
+      <td class="p-3"><span class="badge-risk ${effectiveBadge}">${effectiveRiskLevel}</span></td>
+      <td class="p-3 font-bold text-white">$${effectiveExposure.toFixed(2)}</td>
       <td class="p-3"><span class="badge-risk badge-green">${bw.status || 'Activo'}</span></td>
     `;
     tbody.appendChild(tr);

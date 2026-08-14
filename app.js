@@ -1721,7 +1721,7 @@ window.testN8nTrigger = async function(triggerType) {
       transaction_id: "PAY-1001",
       organization: orgName,
       mode: sendMode,
-      content_sid: "HX66a5ad02ee4075d67570135d7de0090s",
+      content_sid: "HX66a5ad02ee4075d67570135d7de0090",
       content_variables: JSON.stringify({
         "1": targetBorrowerName,
         "2": "50.00",
@@ -2190,7 +2190,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       remaining_balance: loan.remainingAmount.toFixed(2),
       transaction_id: txId,
       organization: orgName,
-      content_sid: "HX66a5ad02ee4075d67570135d7de0090s",
+      content_sid: "HX66a5ad02ee4075d67570135d7de0090",
       content_variables: JSON.stringify({
         "1": loan.borrowerName,
         "2": amountPaid.toFixed(2),

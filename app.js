@@ -605,7 +605,10 @@ function calculateExplicableScore(borrower) {
   let fulfilledBonus = 0;
 
   const borrowerCollections = (state.collections || []).filter(c => 
-    c.borrowerId === borrower.id || (c.borrowerName && c.borrowerName.toLowerCase() === (borrower.name || '').toLowerCase())
+    c.borrowerId === borrower.id || 
+    c.borrower_id === borrower.id || 
+    (c.borrowerName && c.borrowerName.toLowerCase().trim() === (borrower.name || '').toLowerCase().trim()) ||
+    (c.borrower_name && c.borrower_name.toLowerCase().trim() === (borrower.name || '').toLowerCase().trim())
   );
 
   borrowerCollections.forEach(col => {
@@ -619,20 +622,21 @@ function calculateExplicableScore(borrower) {
   paymentHistory = Math.max(0, paymentHistory - brokenPromisePenalty + fulfilledBonus);
 
   let employmentStability = 5;
-  let tenure = Math.min((borrower.loansCompleted || 0) * 5, 15);
+  let tenure = Math.min((borrower.loansCompleted || borrower.loans_completed || 0) * 5, 15);
   let capacity = 0;
-  let verification = borrower.verified ? 10 : 0;
+  let verification = (borrower.verified || borrower.is_verified || borrower.isVerified) ? 10 : 0;
   
-  const emp = borrower.employment || borrower.employmentType || 'Empleado';
+  const emp = borrower.employment || borrower.employmentType || borrower.employment_type || 'Empleado';
   if (emp === 'Empleado') employmentStability = 20;
   else if (emp === 'Negocio') employmentStability = 15;
   else employmentStability = 5;
   
-  const inc = parseFloat(borrower.income || borrower.monthlyIncome || 0);
+  const inc = parseFloat(borrower.income || borrower.monthlyIncome || borrower.monthly_income || 0);
   if (inc >= 500) capacity = 15;
   else if (inc >= 300) capacity = 10;
   else capacity = 5;
   
+
   const totalScore = Math.max(0, Math.min(100, paymentHistory + employmentStability + tenure + capacity + verification));
                      
   let riskLevel = "Alto Riesgo";
@@ -976,7 +980,7 @@ function renderBorrowers() {
       <td class="p-3 text-xs text-[#bbcabf]">${bw.idNumber || bw.id_number || 'N/A'}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${bw.phone || 'N/A'}</td>
       <td class="p-3">
-        <strong class="text-[#4edea3]">${scoreData.totalScore} pts</strong>
+        <strong class="text-[#4edea3]">${Math.max(bw.score || 0, scoreData.totalScore)} pts</strong>
         <button class="bg-[#162032] hover:bg-[#1f2d47] text-white px-2 py-1 rounded text-[11px] ml-2 cursor-pointer border border-white/10" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
       </td>
       <td class="p-3"><span class="badge-risk ${scoreData.totalScore >= 80 ? 'badge-green' : (scoreData.totalScore >= 60 ? 'badge-amber' : 'badge-red')}">${scoreData.riskLevel}</span></td>
@@ -1073,7 +1077,7 @@ function renderApplications() {
       <td class="p-3 font-bold text-white">${app.borrowerName}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${app.amount.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${app.reason}</td>
-      <td class="p-3"><strong class="text-[#4edea3]">${scoreData.totalScore} pts</strong></td>
+      <td class="p-3"><strong class="text-[#4edea3]">${Math.max(bw.score || 0, scoreData.totalScore)} pts</strong></td>
       <td class="p-3 text-xs text-[#bbcabf]">${scoreData.recommendation}</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${app.status}</span></td>
       <td class="p-3">
@@ -1428,16 +1432,52 @@ function renderCollections() {
   });
 }
 
+async function syncBorrowerScoreForCollection(col) {
+  if (!col) return;
+  const bw = (state.borrowers || []).find(b => 
+    b.id === col.borrowerId || 
+    b.id === col.borrower_id || 
+    (b.name && col.borrowerName && b.name.toLowerCase().trim() === col.borrowerName.toLowerCase().trim()) ||
+    (b.name && col.borrower_name && b.name.toLowerCase().trim() === col.borrower_name.toLowerCase().trim())
+  );
+
+  if (bw) {
+    const updatedScore = calculateExplicableScore(bw);
+    bw.score = updatedScore.totalScore;
+    bw.riskLevel = updatedScore.riskLevel;
+    bw.risk_level = updatedScore.riskLevel;
+    
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          entity: 'borrowers',
+          record: {
+            id: bw.id,
+            score: bw.score,
+            risk_level: bw.riskLevel || bw.risk_level
+          }
+        })
+      });
+    } catch (err) {
+      console.warn('Error enviando actualizacion de score a Supabase:', err);
+    }
+  }
+}
+
 window.markPromiseFulfilled = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
-  col.promiseStatus = "Cumplida";
+  col.promiseStatus = 'Cumplida';
   
   if (typeof window.logAuditEvent === 'function') {
     await window.logAuditEvent(
-      "PROMESA_CUMPLIDA",
-      "Gestión de Cobranzas",
-      `Cliente ${col.borrowerName} cumplió promesa de pago de $${col.promiseAmount || 0} USD.`
+      'PROMESA_CUMPLIDA',
+      'Gestión de Cobranzas',
+      'Cliente ' + col.borrowerName + ' cumplió promesa de pago de $' + (col.promiseAmount || 0) + ' USD.'
     );
   }
 
@@ -1457,7 +1497,7 @@ window.markPromiseFulfilled = async function(colId) {
 
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
     await fetch('/api/sync', {
       method: 'POST',
       headers,
@@ -1467,26 +1507,28 @@ window.markPromiseFulfilled = async function(colId) {
       })
     });
   } catch (err) {
-    console.warn("Error enviando actualización de promesa a Supabase:", err);
+    console.warn('Error enviando actualización de promesa a Supabase:', err);
   }
   
+  await syncBorrowerScoreForCollection(col);
+
   saveState();
   renderAll();
-  alert(`✓ Promesa de pago de ${col.borrowerName} marcada como CUMPLIDA.\n\n📌 NOTA: Marcar como CUMPLIDA actualiza el Score Crediticio del cliente (+5 pts).\nEl cobro real de la cuota debe registrarse por separado en el módulo 💵 Caja & Registrar Pago.`);
+  alert('✅ Promesa de pago de ' + col.borrowerName + ' marcada como CUMPLIDA.\n\n✨ NOTA: Score Crediticio del cliente actualizado automáticamente.\nEl cobro real de la cuota se registra por separado en el módulo 💵 Caja & Registrar Pago.');
 };
 
 window.markPromiseBroken = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
-  col.promiseStatus = "Incumplida";
-  col.daysOverdue = window.calculateDynamicDaysOverdue(col.promiseDate, "Incumplida");
-  col.delinquencyTier = window.calculateDelinquencyTier(col.daysOverdue, "Incumplida");
+  col.promiseStatus = 'Incumplida';
+  col.daysOverdue = window.calculateDynamicDaysOverdue(col.promiseDate, 'Incumplida');
+  col.delinquencyTier = window.calculateDelinquencyTier(col.daysOverdue, 'Incumplida');
   
   if (typeof window.logAuditEvent === 'function') {
     await window.logAuditEvent(
-      "PROMESA_INCUMPLIDA",
-      "Gestión de Cobranzas",
-      `Cliente ${col.borrowerName} INCUMPLIÓ promesa de pago de $${col.promiseAmount || 0} USD (${col.daysOverdue} día(s) de mora).`
+      'PROMESA_INCUMPLIDA',
+      'Gestión de Cobranzas',
+      'Cliente ' + col.borrowerName + ' INCUMPLIÓ promesa de pago de $' + (col.promiseAmount || 0) + ' USD (' + col.daysOverdue + ' día(s) de mora).'
     );
   }
 
@@ -1506,7 +1548,7 @@ window.markPromiseBroken = async function(colId) {
 
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
     await fetch('/api/sync', {
       method: 'POST',
       headers,
@@ -1516,36 +1558,14 @@ window.markPromiseBroken = async function(colId) {
       })
     });
   } catch (err) {
-    console.warn("Error enviando incumplimiento a Supabase:", err);
+    console.warn('Error enviando incumplimiento a Supabase:', err);
   }
   
-  // Sincronizar actualización de Score y Nivel de Riesgo del Prestatario afectado
-  const bw = (state.borrowers || []).find(b => b.id === col.loanId || b.name === col.borrowerName);
-  if (bw) {
-    const updatedScore = calculateExplicableScore(bw);
-    bw.score = updatedScore.totalScore;
-    bw.riskLevel = updatedScore.riskLevel;
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          entity: 'borrowers',
-          record: {
-            id: bw.id,
-            score: bw.score,
-            risk_level: bw.riskLevel
-          }
-        })
-      });
-    } catch(e) {}
-  }
+  await syncBorrowerScoreForCollection(col);
 
   saveState();
   renderAll();
-  alert(`⚠️ Promesa de pago de ${col.borrowerName} marcada como INCUMPLIDA. Score del cliente actualizado y penalizado.`);
+  alert('⚠️ Promesa de pago de ' + col.borrowerName + ' marcada como INCUMPLIDA. Score del cliente actualizado y penalizado.');
 };
 
 // Form collection listener

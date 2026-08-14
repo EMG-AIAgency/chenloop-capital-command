@@ -106,6 +106,14 @@ module.exports = async (req, res) => {
       });
     }
 
+        if (req.method === 'POST' && req.body && req.body.action === 'RESET_TEST_PAYMENTS') {
+      console.log('Executing RESET_TEST_PAYMENTS via server-side client...');
+      const { error: delErr } = await supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: loanErr } = await supabase.from('loans').update({ paid_amount: 0.0, remaining_amount: 175.0, status: 'Activo' }).eq('id', 'cea8820e-6341-47ec-a7a0-f03507db9f75');
+      const { error: faErr } = await supabase.from('financial_accounts').update({ capital_deployed: 200.0, capital_available: 600.0, capital_total: 800.0 }).eq('id', '92700043-3f9d-484c-83d0-5ebbb0f05a7d');
+      return res.status(200).json({ success: true, delErr: delErr ? delErr.message : null, loanErr: loanErr ? loanErr.message : null });
+    }
+
     if (req.method === 'POST') {
       const { entity, record } = req.body || {};
       if (!entity || !record) {

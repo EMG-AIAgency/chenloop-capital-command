@@ -552,33 +552,23 @@
         <div class="flex justify-between items-center border-b border-white/5 pb-4">
           <div>
             <h3 class="font-display text-lg font-bold text-white">Configuración del Servidor & Canales de Notificación n8n</h3>
-            <p class="text-xs text-[#bbcabf]">Control de URL de Webhook, Modo de Envíos (Prueba / Producción) y Número de Pruebas</p>
+            <p class="text-xs text-[#bbcabf]">Control de URL de Webhook y Motor de Notificaciones WhatsApp en Producción</p>
           </div>
-          <span class="badge-risk badge-green">Webhook Engine Active</span>
+          <div class="flex items-center gap-2">
+            <span class="bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] text-xs px-3 py-1 rounded-full font-bold">🚀 Modo Producción Real</span>
+            <span class="badge-risk badge-green">Webhook Engine Active</span>
+          </div>
         </div>
 
         <form id="form-save-n8n-webhook" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
           <div class="md:col-span-2">
             <label class="text-xs text-[#bbcabf] block mb-1">n8n Production Webhook URL (Railway / Twilio WhatsApp)</label>
             <input type="url" id="n8n-webhook-url" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]" value="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" placeholder="https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications" required/>
+            <p class="text-[11px] text-[#8E929E] mt-1">El 100% de los recordatorios, alertas y recibos se envían directamente al número del prestatario en producción.</p>
           </div>
 
           <div>
-            <label class="text-xs text-[#bbcabf] block mb-1">Modo de Envíos del Sistema</label>
-            <select id="n8n-send-mode" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]">
-              <option value="test">🧪 Modo Prueba (Enviar a Celular de Prueba)</option>
-              <option value="production">🚀 Modo Producción Real (Enviar a WhatsApp del Prestatario)</option>
-            </select>
-          </div>
-
-          <div class="md:col-span-2">
-            <label class="text-xs text-[#bbcabf] block mb-1">Celular de Prueba (Formato Internacional con +)</label>
-            <input type="text" id="n8n-test-phone" class="w-full bg-[#162032] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-[#FF6B00]" value="+50761337723" placeholder="+50761337723" required/>
-            <p class="text-[11px] text-[#8E929E] mt-1">En Modo Prueba, todo recordatorio, alerta o recibo se redirige a este número para tu validación.</p>
-          </div>
-
-          <div>
-            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20 cursor-pointer">
+            <button type="submit" class="w-full bg-[#10b981] hover:bg-[#047857] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md shadow-[#10b981]/20 cursor-pointer h-[42px]">
               ✓ Guardar Configuración n8n
             </button>
           </div>

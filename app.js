@@ -1626,20 +1626,14 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
 function renderN8nNotifications() {
   const tbody = document.getElementById('tbody-n8n-notifications');
   const inputUrl = document.getElementById('n8n-webhook-url');
-  const sendModeSelect = document.getElementById('n8n-send-mode');
-  const testPhoneInput = document.getElementById('n8n-test-phone');
   const countEl = document.getElementById('n8n-log-count');
   if (!tbody) return;
 
   if (inputUrl) {
     inputUrl.value = state.notificationsConfig?.webhookUrl || state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
   }
-  if (sendModeSelect) {
-    sendModeSelect.value = state.notificationsConfig?.sendMode || "test";
-  }
-  if (testPhoneInput) {
-    testPhoneInput.value = state.notificationsConfig?.testPhone || "+50761337723";
-  }
+  if (!state.notificationsConfig) state.notificationsConfig = {};
+  state.notificationsConfig.sendMode = 'production';
 
   const logs = state.n8nLogs || [];
   if (countEl) countEl.innerText = `${logs.length} notificaciones registradas`;
@@ -1666,30 +1660,28 @@ function renderN8nNotifications() {
 
 window.testN8nTrigger = async function(triggerType) {
   const webhookUrl = document.getElementById('n8n-webhook-url')?.value || state.notificationsConfig?.webhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
-  const sendMode = document.getElementById('n8n-send-mode')?.value || state.notificationsConfig?.sendMode || 'test';
-  const testPhone = document.getElementById('n8n-test-phone')?.value || state.notificationsConfig?.testPhone || '+50761337723';
+  const sendMode = 'production';
 
   if (!webhookUrl) {
     alert("Por favor ingresa y guarda tu Endpoint URL de n8n primero.");
     return;
   }
 
-  // Determinar destinatario según modo (Filtrando préstamos ACTIVOS únicamente)
-  let targetPhone = testPhone;
-  let targetBorrowerName = "Edgar García (Prueba)";
+  // Determinar destinatario real en Producción (Filtrando préstamos ACTIVOS únicamente)
+  const activeLoans = (state.loans || []).filter(l => l.status === 'Activo');
+  if (activeLoans.length === 0 && triggerType !== 'receipt') {
+    alert("ℹ️ Notificación Omitida: No existen préstamos con estatus 'Activo'. Todos los préstamos están en estatus 'Cancelado' por saldo pagado.");
+    return;
+  }
 
-  if (sendMode === 'production') {
-    const activeLoans = (state.loans || []).filter(l => l.status === 'Activo');
-    if (activeLoans.length === 0 && triggerType !== 'receipt') {
-      alert("ℹ️ Notificación Omitida: No existen préstamos con estatus 'Activo'. Todos los préstamos están en estatus 'Cancelado' por saldo pagado.");
-      return;
-    }
-    if (activeLoans.length > 0) {
-      const activeLoan = activeLoans[0];
-      const borrower = (state.borrowers || []).find(b => b.id === activeLoan.borrowerId) || {};
-      targetPhone = borrower.phone || testPhone;
-      targetBorrowerName = borrower.name || activeLoan.borrowerName || "Prestatario Real";
-    }
+  let targetPhone = "";
+  let targetBorrowerName = "Prestatario Real";
+
+  if (activeLoans.length > 0) {
+    const activeLoan = activeLoans[0];
+    const borrower = (state.borrowers || []).find(b => b.id === activeLoan.borrowerId) || {};
+    targetPhone = borrower.phone || "";
+    targetBorrowerName = borrower.name || activeLoan.borrowerName || "Prestatario Real";
   }
 
   let samplePayload = {};
@@ -1777,7 +1769,7 @@ window.testN8nTrigger = async function(triggerType) {
 
     saveState();
     renderAll();
-    alert(`✓ Notificación disparada (${sendMode === 'test' ? '🧪 Modo Prueba -> ' + targetPhone : '🚀 Modo Producción -> ' + targetPhone}). Estado: ${statusText}`);
+    alert(`✓ Notificación disparada (🚀 Modo Producción -> ${targetPhone}). Estado: ${statusText}`);
   } catch (err) {
     console.warn("Disparo n8n webhook (CORS/Offline):", err);
     const newLogRecord = {
@@ -1825,15 +1817,12 @@ window.testN8nTrigger = async function(triggerType) {
 document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   const url = document.getElementById('n8n-webhook-url')?.value.trim();
-  const sendMode = document.getElementById('n8n-send-mode')?.value;
-  const testPhone = document.getElementById('n8n-test-phone')?.value.trim();
 
   if (!url) return;
 
   if (!state.notificationsConfig) state.notificationsConfig = {};
   state.notificationsConfig.webhookUrl = url;
-  state.notificationsConfig.sendMode = sendMode;
-  state.notificationsConfig.testPhone = testPhone;
+  state.notificationsConfig.sendMode = 'production';
 
   if (!state.financialAccounts) state.financialAccounts = {};
   state.financialAccounts.n8nWebhookUrl = url;
@@ -1859,7 +1848,7 @@ document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', asy
 
   saveState();
   renderAll();
-  alert(`✓ Configuración de n8n guardada: Modo [${sendMode.toUpperCase()}] | Teléfono Prueba: [${testPhone}]`);
+  alert(`✓ Configuración de n8n guardada: Webhook URL en Modo Producción Real Activo`);
 });
 
 // ----------------------------------------------------
@@ -2179,11 +2168,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
   if (sendWhatsApp) {
     const webhookUrl = state.financialAccounts?.n8nWebhookUrl || "https://primary-production-b8f78.up.railway.app/webhook/chenloop-notifications";
-    const sendMode = state.notificationsConfig?.sendMode || 'test';
-    const testPhone = state.notificationsConfig?.testPhone || '+50761337723';
     const borrower = (state.borrowers || []).find(b => b.id === loan.borrowerId) || {};
     const borrowerPhone = borrower.phone;
-    const targetPhone = (sendMode === 'production' && borrowerPhone) ? borrowerPhone : testPhone;
+    const targetPhone = borrowerPhone || "";
 
     const receiptPayload = {
       event: "DIGITAL_RECEIPT",

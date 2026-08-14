@@ -189,7 +189,7 @@ async function loadState() {
         }
       }
       
-      if (cloudData.borrowers && cloudData.borrowers.length > 0) {
+      if (cloudData.borrowers && Array.isArray(cloudData.borrowers)) {
         state.borrowers = cloudData.borrowers.map(b => ({
           id: b.id,
           name: b.name,
@@ -205,7 +205,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.applications && cloudData.applications.length > 0) {
+      if (cloudData.applications && Array.isArray(cloudData.applications)) {
         state.applications = cloudData.applications.map(a => {
           const bw = (state.borrowers || []).find(b => b.id === a.borrower_id);
           return {
@@ -222,7 +222,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.loans && cloudData.loans.length > 0) {
+      if (cloudData.loans && Array.isArray(cloudData.loans)) {
         state.loans = cloudData.loans.map(l => {
           const bw = (state.borrowers || []).find(b => b.id === l.borrower_id);
           const count = parseInt(l.installments_count || l.installment_count || 7);
@@ -248,7 +248,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.collections && cloudData.collections.length > 0) {
+      if (cloudData.collections && Array.isArray(cloudData.collections)) {
         state.collections = cloudData.collections.map(c => {
           const loan = (state.loans || []).find(l => l.id === c.loan_id);
           const pStatus = c.promise_status || 'Pendiente';
@@ -270,7 +270,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.payments && cloudData.payments.length > 0) {
+      if (cloudData.payments && Array.isArray(cloudData.payments)) {
         state.payments = cloudData.payments.map(p => {
           const loan = (state.loans || []).find(l => l.id === p.loan_id);
           return {
@@ -290,7 +290,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.notifications && cloudData.notifications.length > 0) {
+      if (cloudData.notifications && Array.isArray(cloudData.notifications)) {
         state.n8nLogs = cloudData.notifications.map(n => ({
           timestamp: n.created_at ? new Date(n.created_at).toLocaleString() : n.timestamp,
           eventType: n.event,
@@ -301,7 +301,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.auditLogs && cloudData.auditLogs.length > 0) {
+      if (cloudData.auditLogs && Array.isArray(cloudData.auditLogs)) {
         state.auditLogs = cloudData.auditLogs.map(l => ({
           timestamp: l.timestamp || l.created_at,
           user: l.user_name || l.user || 'Propietario / Admin',
@@ -343,7 +343,7 @@ async function loadState() {
         state.capital.capitalAvailable = Math.max(0, state.capital.totalCapital - state.capital.capitalDeployed);
       }
 
-      if (cloudData.operationalExpenses && cloudData.operationalExpenses.length > 0) {
+      if (cloudData.operationalExpenses && Array.isArray(cloudData.operationalExpenses)) {
         state.operationalExpenses = cloudData.operationalExpenses.map(e => ({
           id: e.id,
           name: e.name,
@@ -352,7 +352,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.quincenalCloses && cloudData.quincenalCloses.length > 0) {
+      if (cloudData.quincenalCloses && Array.isArray(cloudData.quincenalCloses)) {
         state.quincenalCloses = cloudData.quincenalCloses.map(c => ({
           id: c.id,
           timestamp: c.closed_at || c.close_date || c.created_at || new Date().toISOString(),
@@ -368,7 +368,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.ownerDebts && cloudData.ownerDebts.length > 0) {
+      if (cloudData.ownerDebts && Array.isArray(cloudData.ownerDebts)) {
         state.ownerDebts = cloudData.ownerDebts.map(d => ({
           id: d.id,
           debtName: d.debt_name,
@@ -379,7 +379,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.financialMovements && cloudData.financialMovements.length > 0) {
+      if (cloudData.financialMovements && Array.isArray(cloudData.financialMovements)) {
         state.financialMovements = cloudData.financialMovements.map(m => ({
           id: m.id,
           movementDate: m.movement_date,
@@ -392,6 +392,7 @@ async function loadState() {
       }
 
       renderAll();
+      saveState();
     }
   } catch (err) {
     console.warn("Modo offline / Supabase Cloud no disponible:", err);

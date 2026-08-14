@@ -1711,15 +1711,24 @@ window.testN8nTrigger = async function(triggerType) {
     };
   } else if (triggerType === 'receipt') {
     eventName = "COMPROBANTE_PAGO_RECIBIDO";
+    const orgName = state.organization?.name || "Lendify";
     samplePayload = {
       event: "DIGITAL_RECEIPT",
       borrower_name: targetBorrowerName,
       phone: targetPhone,
-      payment_amount: 50.00,
-      remaining_balance: 150.00,
-      transaction_id: generateUUID(),
-      organization: state.organization?.name || "Chenloop Capital",
-      mode: sendMode
+      payment_amount: "50.00",
+      remaining_balance: "150.00",
+      transaction_id: "PAY-1001",
+      organization: orgName,
+      mode: sendMode,
+      content_sid: "HX66a5ad02ee4075d67570135d7de0090s",
+      content_variables: JSON.stringify({
+        "1": targetBorrowerName,
+        "2": "50.00",
+        "3": orgName,
+        "4": "150.00",
+        "5": "PAY-1001"
+      })
     };
   }
 
@@ -2172,6 +2181,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     const borrowerPhone = borrower.phone;
     const targetPhone = borrowerPhone || "";
 
+    const orgName = state.organization?.name || "Lendify";
     const receiptPayload = {
       event: "DIGITAL_RECEIPT",
       borrower_name: loan.borrowerName,
@@ -2179,7 +2189,15 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       payment_amount: amountPaid.toFixed(2),
       remaining_balance: loan.remainingAmount.toFixed(2),
       transaction_id: txId,
-      organization: state.organization?.name || "Chenloop Capital"
+      organization: orgName,
+      content_sid: "HX66a5ad02ee4075d67570135d7de0090s",
+      content_variables: JSON.stringify({
+        "1": loan.borrowerName,
+        "2": amountPaid.toFixed(2),
+        "3": orgName,
+        "4": loan.remainingAmount.toFixed(2),
+        "5": txId
+      })
     };
 
     try {

@@ -801,20 +801,20 @@ function renderDashboard() {
   document.getElementById('bar-percentage-text').innerText = 
     `Colocado: ${depPct}% | Disponible: ${availPct}% | Reserva: ${resPct}%`;
 
-  renderCapitalFlows();
-  renderRealtimeAlerts();
+  try { renderCapitalFlows(); } catch (e) { console.error('Error in renderCapitalFlows:', e); }
+  try { renderRealtimeAlerts(); } catch (e) { console.error('Error in renderRealtimeAlerts:', e); }
 
-  if (typeof renderBorrowers === 'function') renderBorrowers();
-  if (typeof renderApplications === 'function') renderApplications();
-  if (typeof renderLoans === 'function') renderLoans();
-  if (typeof renderCollections === 'function') renderCollections();
-  if (typeof renderPayments === 'function') renderPayments();
-  if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI();
-  if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI();
-  if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI();
-  if (typeof renderAudit === 'function') renderAudit();
-  if (typeof renderAnalyticsUI === 'function') renderAnalyticsUI();
-  if (typeof renderSettingsUI === 'function') renderSettingsUI();
+  try { if (typeof renderBorrowers === 'function') renderBorrowers(); } catch (e) { console.error('Error in renderBorrowers:', e); }
+  try { if (typeof renderApplications === 'function') renderApplications(); } catch (e) { console.error('Error in renderApplications:', e); }
+  try { if (typeof renderLoans === 'function') renderLoans(); } catch (e) { console.error('Error in renderLoans:', e); }
+  try { if (typeof renderCollections === 'function') renderCollections(); } catch (e) { console.error('Error in renderCollections:', e); }
+  try { if (typeof renderPayments === 'function') renderPayments(); } catch (e) { console.error('Error in renderPayments:', e); }
+  try { if (typeof renderQuincenalCloseUI === 'function') renderQuincenalCloseUI(); } catch (e) { console.error('Error in renderQuincenalCloseUI:', e); }
+  try { if (typeof renderOperationsExpensesUI === 'function') renderOperationsExpensesUI(); } catch (e) { console.error('Error in renderOperationsExpensesUI:', e); }
+  try { if (typeof renderOwnerDebtsUI === 'function') renderOwnerDebtsUI(); } catch (e) { console.error('Error in renderOwnerDebtsUI:', e); }
+  try { if (typeof renderAudit === 'function') renderAudit(); } catch (e) { console.error('Error in renderAudit:', e); }
+  try { if (typeof renderAnalyticsUI === 'function') renderAnalyticsUI(); } catch (e) { console.error('Error in renderAnalyticsUI:', e); }
+  try { if (typeof renderSettingsUI === 'function') renderSettingsUI(); } catch (e) { console.error('Error in renderSettingsUI:', e); }
 }
 
 function renderCapitalFlows() {
@@ -1082,7 +1082,7 @@ function renderApplications() {
       <td class="p-3 font-bold text-white">${app.borrowerName}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${app.amount.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${app.reason}</td>
-      <td class="p-3"><strong class="text-[#4edea3]">${Math.max(bw.score || 0, scoreData.totalScore)} pts</strong></td>
+      <td class="p-3"><strong class="text-[#4edea3]">${Math.max(borrower.score || 0, scoreData.totalScore)} pts</strong></td>
       <td class="p-3 text-xs text-[#bbcabf]">${scoreData.recommendation}</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${app.status}</span></td>
       <td class="p-3">

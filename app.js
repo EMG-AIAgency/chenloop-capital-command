@@ -1407,6 +1407,11 @@ window.selectLoanForPayment = function(loanId) {
   }
 };
 
+window.setCollectionsSort = function(sortKey) {
+  state.collectionsSort = sortKey;
+  renderCollections();
+};
+
 function renderCollections() {
   const tbody = document.getElementById('tbody-collections');
   if (!tbody) return;
@@ -1466,6 +1471,27 @@ function renderCollections() {
     tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-xs text-[#94A3B8]">No hay registros de gestión de cobranzas o promesas de pago en Supabase. Utiliza el formulario superior para registrar la primera gestión.</td></tr>`;
     return;
   }
+
+  // Sort collections according to selected criteria (default: date-asc)
+  const sortKey = state.collectionsSort || 'date-asc';
+  state.collections.sort((a, b) => {
+    if (sortKey === 'borrower-asc') {
+      const nameComp = (a.borrowerName || '').localeCompare(b.borrowerName || '');
+      if (nameComp !== 0) return nameComp;
+      return (a.promiseDate || '').localeCompare(b.promiseDate || '');
+    } else if (sortKey === 'status-pending') {
+      const isPendingA = a.promiseStatus === 'Pendiente' ? 0 : 1;
+      const isPendingB = b.promiseStatus === 'Pendiente' ? 0 : 1;
+      if (isPendingA !== isPendingB) return isPendingA - isPendingB;
+      return (a.promiseDate || '').localeCompare(b.promiseDate || '');
+    } else {
+      // date-asc: chronological by promiseDate ascending
+      const dateA = a.promiseDate || '9999-99-99';
+      const dateB = b.promiseDate || '9999-99-99';
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return (a.borrowerName || '').localeCompare(b.borrowerName || '');
+    }
+  });
 
   state.collections.forEach(col => {
     const isCumplida = col.promiseStatus === 'Cumplida' || col.promiseStatus === 'Cerrada';

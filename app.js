@@ -1,6 +1,7 @@
 
 window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
   if (!promiseDateStr) return 0;
+  if (status === 'Cumplida' || status === 'Cerrada') return 0;
   try {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -22,6 +23,7 @@ window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
 };
 
 window.calculateDelinquencyTier = function(daysOverdue, promiseStatus) {
+  if (promiseStatus === 'Cumplida' || promiseStatus === 'Cerrada') return 'Al Día';
   if (daysOverdue > 30 || promiseStatus === 'Incumplida') return 'PAR30 (Crítico)';
   if (daysOverdue > 7) return 'PAR7 (Riesgo)';
   if (daysOverdue > 0) return 'Mora Reciente';
@@ -1409,6 +1411,56 @@ function renderCollections() {
   const tbody = document.getElementById('tbody-collections');
   if (!tbody) return;
   tbody.innerHTML = '';
+
+  // Auto-heal missing pending quincena promises for active loans
+  if (state.loans && Array.isArray(state.loans)) {
+    state.loans.filter(l => l.status === 'Activo' && (l.remainingAmount || 0) > 0.05).forEach(loan => {
+      const hasPending = (state.collections || []).some(c => (c.loanId === loan.id || String(c.loanId) === String(loan.id)) && c.promiseStatus === 'Pendiente');
+      if (!hasPending) {
+        const lastFulfilled = (state.collections || []).filter(c => (c.loanId === loan.id || String(c.loanId) === String(loan.id)) && c.promiseStatus === 'Cumplida').sort((a,b) => (b.promiseDate || '').localeCompare(a.promiseDate || ''))[0];
+        const baseDate = lastFulfilled ? lastFulfilled.promiseDate : '2026-08-15';
+        const nextDate = getNextFortnightDate(baseDate);
+        const autoCol = {
+          id: generateUUID(),
+          loanId: String(loan.id),
+          borrowerName: loan.borrowerName || "Cliente",
+          daysOverdue: 0,
+          delinquencyTier: "Monitoreo",
+          channel: "WhatsApp",
+          promiseDate: nextDate,
+          promiseAmount: loan.installmentAmount || 25,
+          promiseStatus: "Pendiente",
+          notes: "Generado automáticamente para próxima quincena"
+        };
+        if (!state.collections) state.collections = [];
+        state.collections.unshift(autoCol);
+        
+        // Sync to cloud in background
+        const headers = { 'Content-Type': 'application/json' };
+        if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+        fetch('/api/sync', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            entity: 'collections',
+            record: {
+              id: autoCol.id,
+              organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+              loan_id: String(loan.id),
+              borrower_name: autoCol.borrowerName,
+              days_overdue: 0,
+              delinquency_tier: 'Monitoreo',
+              channel: 'WhatsApp',
+              promise_date: autoCol.promiseDate,
+              promise_amount: autoCol.promiseAmount,
+              promise_status: 'Pendiente',
+              notes: autoCol.notes
+            }
+          })
+        }).catch(e => console.warn('Auto-sync collection error:', e));
+      }
+    });
+  }
   
   if (!state.collections || state.collections.length === 0) {
     tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-xs text-[#94A3B8]">No hay registros de gestión de cobranzas o promesas de pago en Supabase. Utiliza el formulario superior para registrar la primera gestión.</td></tr>`;
@@ -1416,16 +1468,35 @@ function renderCollections() {
   }
 
   state.collections.forEach(col => {
+    const isCumplida = col.promiseStatus === 'Cumplida' || col.promiseStatus === 'Cerrada';
+    const displayDays = isCumplida ? 0 : (col.daysOverdue || 0);
+    const displayTier = isCumplida ? 'Al Día' : (col.delinquencyTier || 'Monitoreo');
+    
+    let daysClass = "font-bold text-[#4edea3]";
+    if (!isCumplida && displayDays > 0) {
+      daysClass = "font-bold text-[#F43F5E]";
+    }
+
+    let tierBadgeClass = "badge-green";
+    if (!isCumplida) {
+      if (displayTier === 'PAR30 (Crítico)') tierBadgeClass = "badge-red";
+      else if (displayTier === 'PAR7 (Riesgo)' || displayTier === 'Mora Reciente') tierBadgeClass = "badge-amber";
+    }
+
+    let statusBadgeClass = "badge-amber";
+    if (col.promiseStatus === 'Cumplida') statusBadgeClass = "badge-green";
+    else if (col.promiseStatus === 'Incumplida') statusBadgeClass = "badge-red";
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 text-xs text-[#bbcabf] font-bold">${col.id}</td>
       <td class="p-3 font-bold text-white">${col.loanId}</td>
       <td class="p-3 text-white font-bold">${col.borrowerName}</td>
-      <td class="p-3 font-bold text-[#F43F5E]">${col.daysOverdue || 0} días</td>
-      <td class="p-3"><span class="badge-risk ${col.delinquencyTier === 'PAR30 (Crítico)' ? 'badge-red' : (col.delinquencyTier === 'PAR7 (Riesgo)' || col.delinquencyTier === 'Mora Reciente' ? 'badge-amber' : 'badge-green')}">${col.delinquencyTier || 'Monitoreo'}</span></td>
+      <td class="p-3 ${daysClass}">${displayDays} días</td>
+      <td class="p-3"><span class="badge-risk ${tierBadgeClass}">${displayTier}</span></td>
       <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate || 'N/A'} (${col.channel || 'Contacto'})</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(col.promiseAmount || 0).toFixed(2)}</td>
-      <td class="p-3"><span class="badge-risk ${col.promiseStatus === 'Cumplida' ? 'badge-green' : (col.promiseStatus === 'Incumplida' ? 'badge-red' : 'badge-amber')}">${col.promiseStatus || 'Pendiente'}</span></td>
+      <td class="p-3"><span class="badge-risk ${statusBadgeClass}">${col.promiseStatus || 'Pendiente'}</span></td>
       <td class="p-3">
         ${col.promiseStatus === 'Pendiente' ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" onclick="window.markPromiseFulfilled('${col.id}')">Cumplida</button>
@@ -1477,6 +1548,8 @@ window.markPromiseFulfilled = async function(colId) {
   const col = state.collections.find(c => c.id === colId);
   if (!col) return;
   col.promiseStatus = 'Cumplida';
+  col.daysOverdue = 0;
+  col.delinquencyTier = 'Al Día';
   
   if (typeof window.logAuditEvent === 'function') {
     await window.logAuditEvent(
@@ -1491,8 +1564,8 @@ window.markPromiseFulfilled = async function(colId) {
     organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
     loan_id: col.loanId || 'LOAN-001',
     borrower_name: col.borrowerName || 'Edgar Garcia',
-    days_overdue: col.daysOverdue || 0,
-    delinquency_tier: col.delinquencyTier || 'Monitoreo',
+    days_overdue: 0,
+    delinquency_tier: 'Al Día',
     channel: col.channel || 'WhatsApp',
     promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
     promise_amount: col.promiseAmount || 25,
@@ -1517,9 +1590,59 @@ window.markPromiseFulfilled = async function(colId) {
   
   await syncBorrowerScoreForCollection(col);
 
+  // AUTO-GENERATE NEXT FORTNIGHT PROMISE IF LOAN HAS REMAINING BALANCE AND NO PENDING PROMISE
+  const loan = (state.loans || []).find(l => l.id === col.loanId || String(l.id) === String(col.loanId));
+  if (loan && ((loan.remainingAmount || 0) > 0.05 || loan.status === 'Activo')) {
+    const hasPending = (state.collections || []).some(c => (c.loanId === loan.id || String(c.loanId) === String(loan.id)) && c.promiseStatus === 'Pendiente');
+    if (!hasPending) {
+      const nextDate = getNextFortnightDate(col.promiseDate || new Date().toISOString().split('T')[0]);
+      const nextColRecord = {
+        id: generateUUID(),
+        organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        loan_id: String(loan.id),
+        borrower_name: loan.borrowerName || col.borrowerName,
+        days_overdue: 0,
+        delinquency_tier: "Monitoreo",
+        channel: "WhatsApp",
+        promise_date: nextDate,
+        promise_amount: loan.installmentAmount || col.promiseAmount || 25,
+        promise_status: "Pendiente",
+        notes: `Generado automáticamente tras cumplir promesa previa del ${col.promiseDate}`
+      };
+      
+      state.collections.unshift({
+        id: nextColRecord.id,
+        loanId: nextColRecord.loan_id,
+        borrowerName: nextColRecord.borrower_name,
+        daysOverdue: 0,
+        delinquencyTier: "Monitoreo",
+        channel: "WhatsApp",
+        promiseDate: nextColRecord.promise_date,
+        promiseAmount: nextColRecord.promise_amount,
+        promiseStatus: "Pendiente",
+        notes: nextColRecord.notes
+      });
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            entity: 'collections',
+            record: nextColRecord
+          })
+        });
+      } catch (err) {
+        console.warn('Error enviando siguiente promesa a Supabase:', err);
+      }
+    }
+  }
+
   saveState();
   renderAll();
-  alert('✅ Promesa de pago de ' + col.borrowerName + ' marcada como CUMPLIDA.\n\n✨ NOTA: Score Crediticio del cliente actualizado automáticamente.\nEl cobro real de la cuota se registra por separado en el módulo 💵 Caja & Registrar Pago.');
+  alert('✅ Promesa de pago de ' + col.borrowerName + ' marcada como CUMPLIDA.\n\n✨ NOTA: Se actualizó el Score y se programó automáticamente la siguiente promesa de pago para el próximo vencimiento quincenal.');
 };
 
 window.markPromiseBroken = async function(colId) {

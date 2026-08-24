@@ -4191,11 +4191,11 @@ window.handleCopilotSubmit = async function(e) {
   if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
   try {
+    const copilotHeaders = { 'Content-Type': 'application/json' };
+    if (currentSession) copilotHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
     const response = await fetch('/api/copilot', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: copilotHeaders,
       body: JSON.stringify({
         message: messageText,
         history: copilotHistory

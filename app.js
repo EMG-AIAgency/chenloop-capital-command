@@ -52,10 +52,19 @@ async function syncEntity(entity, record) {
   return json;
 }
 
+function getOrganizationId() {
+  const id = state.financialAccounts?.organizationId;
+  if (!id) {
+    console.warn('[organization_id] usando fallback hardcodeado — state.financialAccounts.organizationId no está resuelto. Ubicación:', new Error().stack);
+    return '00000000-0000-0000-0000-000000000001';
+  }
+  return id;
+}
+
 window.logAuditEvent = async function(action, module, details) {
   const timestamp = new Date().toISOString();
   const userName = currentSession?.user?.email || 'Propietario / Admin';
-  const orgId = state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001';
+  const orgId = getOrganizationId();
 
   if (!state.auditLogs) state.auditLogs = [];
   state.auditLogs.unshift({
@@ -1187,7 +1196,7 @@ window.approveApplication = async function(appId) {
     disbursement_date: new Date().toISOString().split('T')[0],
     paid_amount: 0.0,
     remaining_amount: totalScheduled,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    organization_id: getOrganizationId()
   };
 
   if (!state.loans) state.loans = [];
@@ -1218,7 +1227,7 @@ window.approveApplication = async function(appId) {
   try {
     const updateAppRecord = {
       id: app.id,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_id: app.borrowerId,
       amount: app.amount,
       reason: app.reason || 'Capital de Trabajo',
@@ -1228,7 +1237,7 @@ window.approveApplication = async function(appId) {
 
     const newLoanRecord = {
       id: newLoan.id,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_id: app.borrowerId,
       principal: app.amount,
       total_scheduled: totalScheduled,
@@ -1332,7 +1341,7 @@ window.rejectApplication = async function(appId) {
   try {
     await syncEntity('applications', {
       id: app.id,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_id: app.borrowerId,
       amount: app.amount,
       reason: app.reason || 'Capital de Trabajo',
@@ -1444,7 +1453,7 @@ function renderCollections() {
         // Sync to cloud in background
         syncEntity('collections', {
           id: autoCol.id,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          organization_id: getOrganizationId(),
           loan_id: String(loan.id),
           borrower_name: autoCol.borrowerName,
           days_overdue: 0,
@@ -1572,7 +1581,7 @@ window.markPromiseFulfilled = async function(colId) {
 
   const fullRecord = {
     id: col.id,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    organization_id: getOrganizationId(),
     loan_id: col.loanId || 'LOAN-001',
     borrower_name: col.borrowerName || 'Edgar Garcia',
     days_overdue: 0,
@@ -1603,7 +1612,7 @@ window.markPromiseFulfilled = async function(colId) {
       const nextDate = getNextFortnightDate(col.promiseDate || new Date().toISOString().split('T')[0]);
       const nextColRecord = {
         id: generateUUID(),
-        organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        organization_id: col.organizationId || getOrganizationId(),
         loan_id: String(loan.id),
         borrower_name: loan.borrowerName || col.borrowerName,
         days_overdue: 0,
@@ -1663,7 +1672,7 @@ window.markPromiseBroken = async function(colId) {
 
   const fullRecord = {
     id: col.id,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    organization_id: getOrganizationId(),
     loan_id: String(col.loanId || 'LOAN-001'),
     borrower_name: col.borrowerName || 'Edgar Garcia',
     days_overdue: col.daysOverdue,
@@ -1722,7 +1731,7 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
     promise_amount: promiseAmount,
     promise_status: "Pendiente",
     notes,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    organization_id: getOrganizationId()
   };
 
   if (!state.collections) state.collections = [];
@@ -1880,7 +1889,7 @@ window.testN8nTrigger = async function(triggerType) {
     const statusText = response.ok ? 'OK 200' : `HTTP ${response.status}`;
     const newLogRecord = {
       id: generateUUID(),
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_name: `${samplePayload.borrower_name} (${targetPhone})`,
       channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       event: eventName,
@@ -1912,7 +1921,7 @@ window.testN8nTrigger = async function(triggerType) {
     console.warn("Disparo n8n webhook (CORS/Offline):", err);
     const newLogRecord = {
       id: generateUUID(),
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_name: `${samplePayload.borrower_name} (${targetPhone})`,
       channel: `WhatsApp / n8n [${sendMode.toUpperCase()}]`,
       event: eventName,
@@ -2143,7 +2152,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
   const newPaymentRecord = {
     id: generateUUID(),
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    organization_id: getOrganizationId(),
     loan_id: loan.id,
     amount_paid: amountPaid,
     principal_paid: principalShare,
@@ -2189,7 +2198,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
     await syncEntity('loans', {
       id: loan.id,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      organization_id: getOrganizationId(),
       borrower_id: loan.borrowerId,
       principal: loan.principal,
       total_scheduled: loan.totalScheduled,
@@ -2210,7 +2219,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
         col.delinquencyTier = 'Al Día';
         await syncEntity('collections', {
           id: col.id,
-          organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          organization_id: col.organizationId || getOrganizationId(),
           loan_id: String(col.loanId || loan.id),
           borrower_name: col.borrowerName || loan.borrowerName,
           days_overdue: 0,
@@ -2227,7 +2236,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
           const nextDate = getNextFortnightDate(col.promiseDate);
           const nextColRecord = {
             id: generateUUID(),
-            organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+            organization_id: col.organizationId || getOrganizationId(),
             loan_id: String(col.loanId || loan.id),
             borrower_name: col.borrowerName || loan.borrowerName,
             days_overdue: 0,
@@ -2300,7 +2309,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       
       const newLogRecord = {
         id: generateUUID(),
-        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        organization_id: getOrganizationId(),
         borrower_name: `${loan.borrowerName} (${targetPhone})`,
         channel: `WhatsApp / n8n [${txId}]`,
         event: "COMPROBANTE_PAGO_RECIBIDO",
@@ -2328,7 +2337,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       console.warn("Error enviando recibo WhatsApp a n8n:", err);
       const newLogRecord = {
         id: generateUUID(),
-        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+        organization_id: getOrganizationId(),
         borrower_name: `${loan.borrowerName} (${targetPhone})`,
         channel: `WhatsApp / n8n [${txId}]`,
         event: "COMPROBANTE_PAGO_RECIBIDO",
@@ -2541,7 +2550,7 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     notes,
     status: "Completado",
     closed_at: new Date().toISOString(),
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    organization_id: getOrganizationId()
   };
 
   if (!state.quincenalCloses) state.quincenalCloses = [];
@@ -2709,7 +2718,7 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
     name: concept,
     category: category,
     monthly_amount: amount,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    organization_id: getOrganizationId()
   };
 
   if (!state.operationalExpenses) state.operationalExpenses = [];
@@ -3459,7 +3468,7 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
       interest_rate: debt.interestRate,
       min_payment: debt.minPayment,
       priority: debt.priority,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+      organization_id: getOrganizationId()
     });
     console.log('✓ Abono a deuda guardado en Supabase');
   } catch (err) {
@@ -3496,7 +3505,7 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
     interest_rate: interestRate,
     min_payment: minPayment,
     priority: (state.ownerDebts || []).length + 1,
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+    organization_id: getOrganizationId()
   };
 
   if (!state.ownerDebts) state.ownerDebts = [];
@@ -3717,7 +3726,7 @@ window.createTeamMember = async function() {
     return;
   }
 
-  const currentOrgId = state.financialAccounts?.organizationId || currentProfile?.organization_id || '00000000-0000-0000-0000-000000000001';
+  const currentOrgId = state.financialAccounts?.organizationId || currentProfile?.organization_id || getOrganizationId();
   const currentOrgName = state.organization?.name || "Mi Cartera Personal";
 
   if (!supabaseClient) {
@@ -3816,7 +3825,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
 
   const accountRecord = {
     id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
-    organization_id: state.financialAccounts.organizationId || '00000000-0000-0000-0000-000000000001',
+    organization_id: getOrganizationId(),
     capital_total: capitalTotal,
     base_capital: capitalTotal,
     portfolio_target: portfolioTarget,
@@ -3831,7 +3840,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     await syncEntity('financial_accounts', accountRecord);
 
     const orgRecord = {
-      id: state.financialAccounts?.organizationId || currentProfile?.organization_id || '00000000-0000-0000-0000-000000000001',
+      id: state.financialAccounts?.organizationId || currentProfile?.organization_id || getOrganizationId(),
       name: orgName,
       par30_limit: par30Limit,
       reserve_pct: reserveTargetPct
@@ -3915,7 +3924,7 @@ document.addEventListener('DOMContentLoaded', () => {
         risk_level: scoreObj.riskLevel,
         exposure_limit: maxExposure,
         status: 'Activo',
-        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+        organization_id: getOrganizationId()
       };
 
       // Add to local state
@@ -4004,7 +4013,7 @@ document.addEventListener('DOMContentLoaded', () => {
         installments_count: count,
         status: 'En Revisión',
         created_at: new Date().toISOString(),
-        organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
+        organization_id: getOrganizationId()
       };
 
       if (!state.applications) state.applications = [];
@@ -4058,7 +4067,7 @@ window.updateFinancialAccountState = async function() {
   const engine = calculateFinancialEngine();
   const accountRecord = {
     id: state.financialAccounts?.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
-    organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+    organization_id: getOrganizationId(),
     capital_total: engine.totalCapital,
     capital_deployed: engine.capitalDeployed,
     capital_available: engine.capitalAvailable,

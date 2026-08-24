@@ -3000,15 +3000,12 @@ async function loadProfileAndInit() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (supabaseClient) {
-    const { data } = await supabaseClient.auth.getSession();
-    if (data && data.session) {
-      currentSession = data.session;
-      document.getElementById('auth-wall')?.classList.add('hidden');
-      await loadProfileAndInit();
-    } else {
-      document.getElementById('auth-wall')?.classList.remove('hidden');
-    }
-    
+    // No se llama a getSession() aquí: supabase-js v2 ya dispara
+    // onAuthStateChange con la sesión actual (evento INITIAL_SESSION)
+    // apenas nos suscribimos. Tenerlo duplicado hacía que loadProfileAndInit()
+    // (y por lo tanto loadState() + el auto-heal de renderCollections())
+    // corriera dos veces en paralelo en cada carga de página, generando
+    // promesas de cobro duplicadas para el mismo préstamo y fecha.
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         currentSession = session;

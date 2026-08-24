@@ -1,9 +1,25 @@
 const { createClient } = require('@supabase/supabase-js');
 
+const ALLOWED_ORIGINS = [
+  'chenloop.mynvix.co',
+  'chenloop-capital-command.vercel.app',
+  'chenloop-capital-command-emg-aiagencys-projects.vercel.app',
+  'chenloop-capital-command-git-main-emg-aiagencys-projects.vercel.app'
+];
+
+const ALLOWED_ENTITIES = [
+  'organizations', 'borrowers', 'applications', 'loans', 'collections', 'payments',
+  'notifications', 'audit_logs', 'financial_accounts', 'operational_expenses',
+  'quincenal_closes', 'owner_debts', 'financial_movements', 'profiles'
+];
+
 module.exports = async (req, res) => {
   // Habilitar CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const requestOrigin = req.headers.origin || req.headers.Origin;
+  if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin.replace(/^https?:\/\//, ''))) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -19,12 +35,27 @@ module.exports = async (req, res) => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || (!supabaseServiceKey && !supabaseAnonKey)) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
   }
 
   const authHeader = req.headers.authorization || req.headers.Authorization || '';
   const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  const { data: authData, error: authError } = await authClient.auth.getUser(token);
+  if (authError || !authData || !authData.user) {
+    return res.status(401).json({ error: "Sesión inválida o expirada" });
+  }
 
   let supabase;
   if (supabaseServiceKey) {
@@ -113,18 +144,14 @@ module.exports = async (req, res) => {
       });
     }
 
-        if (req.method === 'POST' && req.body && req.body.action === 'RESET_TEST_PAYMENTS') {
-      console.log('Executing RESET_TEST_PAYMENTS via server-side client...');
-      const { error: delErr } = await supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      const { error: loanErr } = await supabase.from('loans').update({ paid_amount: 0.0, remaining_amount: 175.0, status: 'Activo' }).eq('id', 'cea8820e-6341-47ec-a7a0-f03507db9f75');
-      const { error: faErr } = await supabase.from('financial_accounts').update({ capital_deployed: 200.0, capital_available: 600.0, capital_total: 800.0 }).eq('id', '92700043-3f9d-484c-83d0-5ebbb0f05a7d');
-      return res.status(200).json({ success: true, delErr: delErr ? delErr.message : null, loanErr: loanErr ? loanErr.message : null });
-    }
-
     if (req.method === 'POST') {
       const { entity, record } = req.body || {};
       if (!entity || !record) {
         return res.status(400).json({ error: "Invalid payload: entity and record are required" });
+      }
+
+      if (!ALLOWED_ENTITIES.includes(entity)) {
+        return res.status(400).json({ error: "Entidad no permitida" });
       }
 
       // Sanitize: remove undefined values

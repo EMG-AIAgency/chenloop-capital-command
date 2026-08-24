@@ -1,5 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
+const ALLOWED_ORIGINS = [
+  'chenloop.mynvix.co',
+  'chenloop-capital-command.vercel.app',
+  'chenloop-capital-command-emg-aiagencys-projects.vercel.app',
+  'chenloop-capital-command-git-main-emg-aiagencys-projects.vercel.app'
+];
+
 // System Prompt with Chenloop Capital Master Operational Rules
 const CHENLOOP_SYSTEM_PROMPT = `
 Eres "Copiloto Chenloop IA", el asistente inteligente financiero y operativo integrado en el panel de control de Chenloop Capital.
@@ -31,7 +38,10 @@ RESPONDE SIEMPRE DE FORMA PROFESIONAL, AMABLE Y CONCISA EN ESPAÑOL. USA FORMATO
 module.exports = async (req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const requestOrigin = req.headers.origin || req.headers.Origin;
+  if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin.replace(/^https?:\/\//, ''))) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -47,6 +57,31 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed. Use POST." });
   }
 
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return res.status(500).json({ error: "Missing Supabase Environment Variables on Vercel Server" });
+  }
+
+  const authHeader = req.headers.authorization || req.headers.Authorization || '';
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  const { data: authData, error: authError } = await authClient.auth.getUser(token);
+  if (authError || !authData || !authData.user) {
+    return res.status(401).json({ error: "Sesión inválida o expirada" });
+  }
+
   try {
     const { message, history } = req.body || {};
     if (!message) {
@@ -60,8 +95,6 @@ module.exports = async (req, res) => {
 
     // Consultar contexto en vivo desde Supabase para enriquecer la respuesta
     let dbContextSummary = "";
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseAnonKey) {
       try {

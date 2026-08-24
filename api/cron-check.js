@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 module.exports = async (req, res) => {
   // Habilitar CORS
@@ -7,12 +8,34 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, X-Cron-Secret'
   );
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
+  }
+
+  // Modo de gracia: si CRON_SHARED_SECRET no esta configurada en Vercel,
+  // el chequeo no se activa (compatibilidad total con el comportamiento
+  // actual). Una vez configurada, valida el header X-Cron-Secret, pero
+  // TODAVIA acepta requests sin ese header (solo con una advertencia en
+  // los logs) hasta que se confirme que el workflow de n8n en Railway ya
+  // lo esta enviando. Retirar ese caso de gracia es un cambio separado,
+  // posterior a esa confirmacion.
+  const cronSharedSecret = process.env.CRON_SHARED_SECRET;
+  if (cronSharedSecret) {
+    const provided = req.headers['x-cron-secret'] || req.headers['X-Cron-Secret'];
+    if (provided) {
+      const a = Buffer.from(String(provided));
+      const b = Buffer.from(cronSharedSecret);
+      const valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+      if (!valid) {
+        return res.status(401).json({ error: "Secreto de cron invalido" });
+      }
+    } else {
+      console.warn('[cron-check] MODO DE GRACIA: request sin header X-Cron-Secret aceptado temporalmente. Actualizar el workflow de n8n en Railway para incluir el header antes de retirar este modo.');
+    }
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -41,7 +64,6 @@ module.exports = async (req, res) => {
 
     // Auto-log these automated cron runs to the notifications table so they persist in the UI history
     if (data && data.length > 0) {
-      const crypto = require('crypto');
       const logsToInsert = data.map(item => ({
         id: crypto.randomUUID(),
         organization_id: '00000000-0000-0000-0000-000000000001',

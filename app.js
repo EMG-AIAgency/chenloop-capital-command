@@ -31,6 +31,27 @@ window.calculateDelinquencyTier = function(daysOverdue, promiseStatus) {
 };
 
 
+async function syncEntity(entity, record) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+  const res = await fetch('/api/sync', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ entity, record })
+  });
+  let json = null;
+  try {
+    json = await res.json();
+  } catch (parseErr) {
+    json = null;
+  }
+  if (!res.ok || !json || json.error) {
+    const message = (json && json.error) ? json.error : `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return json;
+}
+
 window.logAuditEvent = async function(action, module, details) {
   const timestamp = new Date().toISOString();
   const userName = currentSession?.user?.email || 'Propietario / Admin';
@@ -56,18 +77,9 @@ window.logAuditEvent = async function(action, module, details) {
   };
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'audit_logs',
-        record: record
-      })
-    });
+    await syncEntity('audit_logs', record);
   } catch (err) {
-    console.warn("Error enviando audit log a Supabase:", err);
+    console.error("Error enviando audit log a Supabase (el registro de auditoría NO quedó en la nube):", err);
   }
 };
 
@@ -177,7 +189,19 @@ async function loadState() {
     if (res.ok) {
       const cloudData = await res.json();
 
-      if (cloudData.organizations && cloudData.organizations.length > 0) {
+      const failedEntities = new Set(
+        (cloudData.partialErrors || []).map(e => String(e).split(':')[0].trim())
+      );
+      if (failedEntities.size > 0) {
+        console.error(
+          'ADVERTENCIA: la lectura desde Supabase falló para estas secciones y se conserva el último estado local conocido:',
+          Array.from(failedEntities),
+          cloudData.partialErrors
+        );
+        alert('⚠ No se pudo leer desde la nube: ' + Array.from(failedEntities).join(', ') + '. Se mantienen los datos locales más recientes en esas secciones para evitar pérdida de información.');
+      }
+
+      if (cloudData.organizations && cloudData.organizations.length > 0 && !failedEntities.has('organizations')) {
         const org = cloudData.organizations[0];
         if (org.name) {
           if (!state.organization) state.organization = {};
@@ -191,7 +215,7 @@ async function loadState() {
         }
       }
       
-      if (cloudData.borrowers && Array.isArray(cloudData.borrowers)) {
+      if (cloudData.borrowers && Array.isArray(cloudData.borrowers) && !failedEntities.has('borrowers')) {
         state.borrowers = cloudData.borrowers.map(b => ({
           id: b.id,
           name: b.name,
@@ -207,7 +231,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.applications && Array.isArray(cloudData.applications)) {
+      if (cloudData.applications && Array.isArray(cloudData.applications) && !failedEntities.has('applications')) {
         state.applications = cloudData.applications.map(a => {
           const bw = (state.borrowers || []).find(b => b.id === a.borrower_id);
           return {
@@ -224,7 +248,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.loans && Array.isArray(cloudData.loans)) {
+      if (cloudData.loans && Array.isArray(cloudData.loans) && !failedEntities.has('loans')) {
         state.loans = cloudData.loans.map(l => {
           const bw = (state.borrowers || []).find(b => b.id === l.borrower_id);
           const count = parseInt(l.installments_count || l.installment_count || 7);
@@ -250,7 +274,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.collections && Array.isArray(cloudData.collections)) {
+      if (cloudData.collections && Array.isArray(cloudData.collections) && !failedEntities.has('collections')) {
         state.collections = cloudData.collections.map(c => {
           const loan = (state.loans || []).find(l => l.id === c.loan_id);
           const pStatus = c.promise_status || 'Pendiente';
@@ -272,7 +296,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.payments && Array.isArray(cloudData.payments)) {
+      if (cloudData.payments && Array.isArray(cloudData.payments) && !failedEntities.has('payments')) {
         state.payments = cloudData.payments.map(p => {
           const loan = (state.loans || []).find(l => l.id === p.loan_id);
           return {
@@ -292,7 +316,7 @@ async function loadState() {
         });
       }
 
-      if (cloudData.notifications && Array.isArray(cloudData.notifications)) {
+      if (cloudData.notifications && Array.isArray(cloudData.notifications) && !failedEntities.has('notifications')) {
         state.n8nLogs = cloudData.notifications.map(n => ({
           timestamp: n.created_at ? new Date(n.created_at).toLocaleString() : n.timestamp,
           eventType: n.event,
@@ -303,7 +327,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.auditLogs && Array.isArray(cloudData.auditLogs)) {
+      if (cloudData.auditLogs && Array.isArray(cloudData.auditLogs) && !failedEntities.has('auditLogs')) {
         state.auditLogs = cloudData.auditLogs.map(l => ({
           timestamp: l.timestamp || l.created_at,
           user: l.user_name || l.user || 'Propietario / Admin',
@@ -313,7 +337,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.financialAccounts && cloudData.financialAccounts.length > 0) {
+      if (cloudData.financialAccounts && cloudData.financialAccounts.length > 0 && !failedEntities.has('financialAccounts')) {
         const fa = cloudData.financialAccounts[0];
         state.financialAccounts = {
           id: fa.id,
@@ -345,7 +369,7 @@ async function loadState() {
         state.capital.capitalAvailable = Math.max(0, state.capital.totalCapital - state.capital.capitalDeployed);
       }
 
-      if (cloudData.operationalExpenses && Array.isArray(cloudData.operationalExpenses)) {
+      if (cloudData.operationalExpenses && Array.isArray(cloudData.operationalExpenses) && !failedEntities.has('operationalExpenses')) {
         state.operationalExpenses = cloudData.operationalExpenses.map(e => ({
           id: e.id,
           name: e.name,
@@ -354,7 +378,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.quincenalCloses && Array.isArray(cloudData.quincenalCloses)) {
+      if (cloudData.quincenalCloses && Array.isArray(cloudData.quincenalCloses) && !failedEntities.has('quincenalCloses')) {
         state.quincenalCloses = cloudData.quincenalCloses.map(c => ({
           id: c.id,
           timestamp: c.closed_at || c.close_date || c.created_at || new Date().toISOString(),
@@ -370,7 +394,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.ownerDebts && Array.isArray(cloudData.ownerDebts)) {
+      if (cloudData.ownerDebts && Array.isArray(cloudData.ownerDebts) && !failedEntities.has('ownerDebts')) {
         state.ownerDebts = cloudData.ownerDebts.map(d => ({
           id: d.id,
           debtName: d.debt_name,
@@ -381,7 +405,7 @@ async function loadState() {
         }));
       }
 
-      if (cloudData.financialMovements && Array.isArray(cloudData.financialMovements)) {
+      if (cloudData.financialMovements && Array.isArray(cloudData.financialMovements) && !failedEntities.has('financialMovements')) {
         state.financialMovements = cloudData.financialMovements.map(m => ({
           id: m.id,
           movementDate: m.movement_date,
@@ -1190,12 +1214,8 @@ window.approveApplication = async function(appId) {
     details: `Solicitud ${app.id} aprobada. Préstamo ${newLoan.id} por $${app.amount.toFixed(2)} USD desembolsado a ${app.borrowerName}.`
   });
 
+  let approvalSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) {
-      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    }
-
     const updateAppRecord = {
       id: app.id,
       organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
@@ -1220,23 +1240,8 @@ window.approveApplication = async function(appId) {
       disbursed_at: new Date().toISOString()
     };
 
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'applications',
-        record: updateAppRecord
-      })
-    });
-
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'loans',
-        record: newLoanRecord
-      })
-    });
+    await syncEntity('applications', updateAppRecord);
+    await syncEntity('loans', newLoanRecord);
 
     // Auto-generate the first payment promise / collection record for the nearest 15th or 30th
     const today = new Date();
@@ -1292,24 +1297,25 @@ window.approveApplication = async function(appId) {
       notes: firstColRecord.notes
     });
     
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'collections',
-        record: firstColRecord
-      })
-    }).catch(err => console.warn("Error auto-syncing first collection:", err));
+    await syncEntity('collections', firstColRecord).catch(err => {
+      console.error("Error auto-syncing first collection:", err);
+      approvalSyncError = approvalSyncError || err;
+    });
 
     console.log("✓ Solicitud aprobada y Préstamo activo en Supabase Cloud");
     if (typeof window.updateFinancialAccountState === 'function') await window.updateFinancialAccountState();
   } catch (err) {
-    console.warn("Error enviando aprobación a Supabase Cloud:", err);
+    console.error("Error enviando aprobación a Supabase Cloud:", err);
+    approvalSyncError = err;
   }
 
   saveState();
   renderAll();
-  alert(`✓ Solicitud ${app.id} aprobada con éxito. Préstamo ${newLoan.id} activo en Supabase.`);
+  if (approvalSyncError) {
+    alert(`⚠️ La solicitud ${app.id} se aprobó localmente pero NO se pudo sincronizar completamente con Supabase: ${approvalSyncError.message}\n\nRevisa la conexión y vuelve a intentar; los datos podrían no estar guardados en la nube.`);
+  } else {
+    alert(`✓ Solicitud ${app.id} aprobada con éxito. Préstamo ${newLoan.id} activo en Supabase.`);
+  }
 };
 
 window.rejectApplication = async function(appId) {
@@ -1322,34 +1328,29 @@ window.rejectApplication = async function(appId) {
 
   app.status = 'Rechazado';
 
+  let rejectSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) {
-      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    }
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'applications',
-        record: {
-          id: app.id,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-          borrower_id: app.borrowerId,
-          amount: app.amount,
-          reason: app.reason || 'Capital de Trabajo',
-          installments_count: app.count || 7,
-          status: 'Rechazado'
-        }
-      })
+    await syncEntity('applications', {
+      id: app.id,
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_id: app.borrowerId,
+      amount: app.amount,
+      reason: app.reason || 'Capital de Trabajo',
+      installments_count: app.count || 7,
+      status: 'Rechazado'
     });
   } catch (err) {
-    console.warn("Error enviando rechazo a Supabase Cloud:", err);
+    console.error("Error enviando rechazo a Supabase Cloud:", err);
+    rejectSyncError = err;
   }
 
   saveState();
   renderAll();
-  alert(`Solicitud ${app.id} rechazada.`);
+  if (rejectSyncError) {
+    alert(`⚠️ Solicitud ${app.id} rechazada localmente pero NO se pudo sincronizar con Supabase: ${rejectSyncError.message}`);
+  } else {
+    alert(`Solicitud ${app.id} rechazada.`);
+  }
 };
 
 function renderLoans() {
@@ -1441,28 +1442,19 @@ function renderCollections() {
         state.collections.unshift(autoCol);
         
         // Sync to cloud in background
-        const headers = { 'Content-Type': 'application/json' };
-        if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-        fetch('/api/sync', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            entity: 'collections',
-            record: {
-              id: autoCol.id,
-              organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-              loan_id: String(loan.id),
-              borrower_name: autoCol.borrowerName,
-              days_overdue: 0,
-              delinquency_tier: 'Monitoreo',
-              channel: 'WhatsApp',
-              promise_date: autoCol.promiseDate,
-              promise_amount: autoCol.promiseAmount,
-              promise_status: 'Pendiente',
-              notes: autoCol.notes
-            }
-          })
-        }).catch(e => console.warn('Auto-sync collection error:', e));
+        syncEntity('collections', {
+          id: autoCol.id,
+          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          loan_id: String(loan.id),
+          borrower_name: autoCol.borrowerName,
+          days_overdue: 0,
+          delinquency_tier: 'Monitoreo',
+          channel: 'WhatsApp',
+          promise_date: autoCol.promiseDate,
+          promise_amount: autoCol.promiseAmount,
+          promise_status: 'Pendiente',
+          notes: autoCol.notes
+        }).catch(e => console.error('Auto-sync collection error (la promesa NO quedó guardada en la nube):', e));
       }
     });
   }
@@ -1535,7 +1527,7 @@ function renderCollections() {
 }
 
 async function syncBorrowerScoreForCollection(col) {
-  if (!col) return;
+  if (!col) return true;
   const bw = (state.borrowers || []).find(b => 
     b.id === col.borrowerId || 
     b.id === col.borrower_id || 
@@ -1550,24 +1542,17 @@ async function syncBorrowerScoreForCollection(col) {
     bw.risk_level = updatedScore.riskLevel;
     
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          entity: 'borrowers',
-          record: {
-            id: bw.id,
-            score: bw.score,
-            risk_level: bw.riskLevel || bw.risk_level
-          }
-        })
+      await syncEntity('borrowers', {
+        id: bw.id,
+        score: bw.score,
+        risk_level: bw.riskLevel || bw.risk_level
       });
     } catch (err) {
-      console.warn('Error enviando actualizacion de score a Supabase:', err);
+      console.error('Error enviando actualizacion de score a Supabase (el score NO quedó guardado en la nube):', err);
+      return false;
     }
   }
+  return true;
 }
 
 window.markPromiseFulfilled = async function(colId) {
@@ -1599,22 +1584,16 @@ window.markPromiseFulfilled = async function(colId) {
     notes: col.notes || ''
   };
 
+  let fulfilledSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'collections',
-        record: fullRecord
-      })
-    });
+    await syncEntity('collections', fullRecord);
   } catch (err) {
-    console.warn('Error enviando actualización de promesa a Supabase:', err);
+    console.error('Error enviando actualización de promesa a Supabase:', err);
+    fulfilledSyncError = err;
   }
-  
-  await syncBorrowerScoreForCollection(col);
+
+  const scoreSynced = await syncBorrowerScoreForCollection(col);
+  if (!scoreSynced) fulfilledSyncError = fulfilledSyncError || new Error('No se pudo actualizar el score del cliente en la nube');
 
   // AUTO-GENERATE NEXT FORTNIGHT PROMISE IF LOAN HAS REMAINING BALANCE AND NO PENDING PROMISE
   const loan = (state.loans || []).find(l => l.id === col.loanId || String(l.id) === String(col.loanId));
@@ -1650,25 +1629,21 @@ window.markPromiseFulfilled = async function(colId) {
       });
 
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            entity: 'collections',
-            record: nextColRecord
-          })
-        });
+        await syncEntity('collections', nextColRecord);
       } catch (err) {
-        console.warn('Error enviando siguiente promesa a Supabase:', err);
+        console.error('Error enviando siguiente promesa a Supabase:', err);
+        fulfilledSyncError = fulfilledSyncError || err;
       }
     }
   }
 
   saveState();
   renderAll();
-  alert('✅ Promesa de pago de ' + col.borrowerName + ' marcada como CUMPLIDA.\n\n✨ NOTA: Se actualizó el Score y se programó automáticamente la siguiente promesa de pago para el próximo vencimiento quincenal.');
+  if (fulfilledSyncError) {
+    alert('⚠️ Promesa de ' + col.borrowerName + ' marcada como CUMPLIDA localmente, pero hubo un error sincronizando con Supabase: ' + fulfilledSyncError.message + '\n\nAlgunos cambios podrían no estar guardados en la nube.');
+  } else {
+    alert('✅ Promesa de pago de ' + col.borrowerName + ' marcada como CUMPLIDA.\n\n✨ NOTA: Se actualizó el Score y se programó automáticamente la siguiente promesa de pago para el próximo vencimiento quincenal.');
+  }
 };
 
 window.markPromiseBroken = async function(colId) {
@@ -1700,26 +1675,24 @@ window.markPromiseBroken = async function(colId) {
     notes: col.notes || 'Promesa incumplida por el prestatario'
   };
 
+  let brokenSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = 'Bearer ' + currentSession.access_token;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'collections',
-        record: fullRecord
-      })
-    });
+    await syncEntity('collections', fullRecord);
   } catch (err) {
-    console.warn('Error enviando incumplimiento a Supabase:', err);
+    console.error('Error enviando incumplimiento a Supabase:', err);
+    brokenSyncError = err;
   }
-  
-  await syncBorrowerScoreForCollection(col);
+
+  const scoreSynced = await syncBorrowerScoreForCollection(col);
+  if (!scoreSynced) brokenSyncError = brokenSyncError || new Error('No se pudo actualizar el score del cliente en la nube');
 
   saveState();
   renderAll();
-  alert('⚠️ Promesa de pago de ' + col.borrowerName + ' marcada como INCUMPLIDA. Score del cliente actualizado y penalizado.');
+  if (brokenSyncError) {
+    alert('⚠️ Promesa marcada como INCUMPLIDA localmente, pero hubo un error sincronizando con Supabase: ' + brokenSyncError.message + '\n\nAlgunos cambios podrían no estar guardados en la nube.');
+  } else {
+    alert('⚠️ Promesa de pago de ' + col.borrowerName + ' marcada como INCUMPLIDA. Score del cliente actualizado y penalizado.');
+  }
 };
 
 // Form collection listener
@@ -1766,33 +1739,23 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
     notes: newColRecord.notes
   });
 
+  let collectionSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    const syncRes = await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'collections',
-        record: newColRecord
-      })
-    });
-    const syncJson = await syncRes.json();
-    if (!syncRes.ok || syncJson.error) {
-      console.error("Supabase sync error:", syncJson.error);
-      alert(`⚠️ Error guardando en Supabase: ${syncJson.error}\n\nLa gestión se guardó localmente en memoria pero NO en la nube.`);
-    } else {
-      console.log("✓ Gestión de cobranza guardada en Supabase Cloud", syncJson);
-    }
+    const syncJson = await syncEntity('collections', newColRecord);
+    console.log("✓ Gestión de cobranza guardada en Supabase Cloud", syncJson);
   } catch (err) {
-    console.error("Error de red enviando gestión a Supabase:", err);
-    alert(`⚠️ Error de conexión: ${err.message}`);
+    console.error("Error enviando gestión a Supabase:", err);
+    collectionSyncError = err;
   }
-  
+
   document.getElementById('form-add-collection').reset();
   saveState();
   renderAll();
-  alert(`✓ Gestión para ${loan.borrowerName} guardada. Refresca la página (F5) para confirmar persistencia en Supabase.`);
+  if (collectionSyncError) {
+    alert(`⚠️ Error guardando en Supabase: ${collectionSyncError.message}\n\nLa gestión se guardó localmente en memoria pero NO en la nube.`);
+  } else {
+    alert(`✓ Gestión para ${loan.borrowerName} guardada. Refresca la página (F5) para confirmar persistencia en Supabase.`);
+  }
 });
 
 // ----------------------------------------------------
@@ -1937,18 +1900,9 @@ window.testN8nTrigger = async function(triggerType) {
     });
 
     try {
-      const syncHeaders = { 'Content-Type': 'application/json' };
-      if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers: syncHeaders,
-        body: JSON.stringify({
-          entity: 'notifications',
-          record: newLogRecord
-        })
-      });
+      await syncEntity('notifications', newLogRecord);
     } catch (syncErr) {
-      console.warn("Error syncing manual notification log:", syncErr);
+      console.error("Error syncing manual notification log (el log de notificación NO quedó en la nube):", syncErr);
     }
 
     saveState();
@@ -1978,18 +1932,9 @@ window.testN8nTrigger = async function(triggerType) {
     });
 
     try {
-      const syncHeaders = { 'Content-Type': 'application/json' };
-      if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers: syncHeaders,
-        body: JSON.stringify({
-          entity: 'notifications',
-          record: newLogRecord
-        })
-      });
+      await syncEntity('notifications', newLogRecord);
     } catch (syncErr) {
-      console.warn("Error syncing manual notification log:", syncErr);
+      console.error("Error syncing manual notification log (el log de notificación NO quedó en la nube):", syncErr);
     }
 
     saveState();
@@ -2011,28 +1956,25 @@ document.getElementById('form-save-n8n-webhook')?.addEventListener('submit', asy
   if (!state.financialAccounts) state.financialAccounts = {};
   state.financialAccounts.n8nWebhookUrl = url;
 
+  let webhookConfigSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'financial_accounts',
-        record: {
-          id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
-          n8n_webhook_url: url,
-          updated_at: new Date().toISOString()
-        }
-      })
+    await syncEntity('financial_accounts', {
+      id: state.financialAccounts.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
+      n8n_webhook_url: url,
+      updated_at: new Date().toISOString()
     });
   } catch (err) {
-    console.warn("Error guardando n8n webhook URL en Supabase:", err);
+    console.error("Error guardando n8n webhook URL en Supabase:", err);
+    webhookConfigSyncError = err;
   }
 
   saveState();
   renderAll();
-  alert(`✓ Configuración de n8n guardada: Webhook URL en Modo Producción Real Activo`);
+  if (webhookConfigSyncError) {
+    alert(`⚠️ La URL se guardó localmente pero NO se pudo sincronizar con Supabase: ${webhookConfigSyncError.message}`);
+  } else {
+    alert(`✓ Configuración de n8n guardada: Webhook URL en Modo Producción Real Activo`);
+  }
 });
 
 // ----------------------------------------------------
@@ -2241,37 +2183,21 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     details: `Cobro de $${amountPaid.toFixed(2)} USD registrado [${txId}] para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
   });
 
+  let paymentSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+    await syncEntity('payments', newPaymentRecord);
 
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'payments',
-        record: newPaymentRecord
-      })
-    });
-
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'loans',
-        record: {
-          id: loan.id,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-          borrower_id: loan.borrowerId,
-          principal: loan.principal,
-          total_scheduled: loan.totalScheduled,
-          profit_scheduled: loan.scheduledProfit,
-          installments_count: loan.installmentCount || 7,
-          paid_amount: loan.paidAmount,
-          remaining_amount: loan.remainingAmount,
-          status: loan.status
-        }
-      })
+    await syncEntity('loans', {
+      id: loan.id,
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+      borrower_id: loan.borrowerId,
+      principal: loan.principal,
+      total_scheduled: loan.totalScheduled,
+      profit_scheduled: loan.scheduledProfit,
+      installments_count: loan.installmentCount || 7,
+      paid_amount: loan.paidAmount,
+      remaining_amount: loan.remainingAmount,
+      status: loan.status
     });
 
     // Auto-fulfill matching pending collection for this loan so automated n8n reminders stop
@@ -2282,25 +2208,18 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
         col.promiseStatus = 'Cumplida';
         col.daysOverdue = 0;
         col.delinquencyTier = 'Al Día';
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            entity: 'collections',
-            record: {
-              id: col.id,
-              organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
-              loan_id: String(col.loanId || loan.id),
-              borrower_name: col.borrowerName || loan.borrowerName,
-              days_overdue: 0,
-              delinquency_tier: 'Al Día',
-              channel: col.channel || 'WhatsApp',
-              promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
-              promise_amount: col.promiseAmount || 25,
-              promise_status: 'Cumplida',
-              notes: col.notes || ''
-            }
-          })
+        await syncEntity('collections', {
+          id: col.id,
+          organization_id: col.organizationId || state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001',
+          loan_id: String(col.loanId || loan.id),
+          borrower_name: col.borrowerName || loan.borrowerName,
+          days_overdue: 0,
+          delinquency_tier: 'Al Día',
+          channel: col.channel || 'WhatsApp',
+          promise_date: col.promiseDate || new Date().toISOString().split('T')[0],
+          promise_amount: col.promiseAmount || 25,
+          promise_status: 'Cumplida',
+          notes: col.notes || ''
         });
 
         // Generate next collection if loan has balance remaining
@@ -2319,7 +2238,7 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
             promise_status: "Pendiente",
             notes: `Generado automáticamente tras abono del ${new Date().toLocaleDateString('es-PA')}`
           };
-          
+
           state.collections.unshift({
             id: nextColRecord.id,
             loanId: nextColRecord.loan_id,
@@ -2332,22 +2251,19 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
             promiseStatus: "Pendiente",
             notes: nextColRecord.notes
           });
-          
-          await fetch('/api/sync', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              entity: 'collections',
-              record: nextColRecord
-            })
-          }).catch(err => console.warn("Error syncing next collection:", err));
+
+          await syncEntity('collections', nextColRecord).catch(err => {
+            console.error("Error syncing next collection:", err);
+            paymentSyncError = paymentSyncError || err;
+          });
         }
       }
     }
 
     console.log("✓ Pago, Préstamo y Cobranzas actualizados en Supabase Cloud");
   } catch (err) {
-    console.warn("Error sincronizando pago con Supabase:", err);
+    console.error("Error sincronizando pago con Supabase:", err);
+    paymentSyncError = err;
   }
 
   if (sendWhatsApp) {
@@ -2404,18 +2320,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       });
 
       try {
-        const syncHeaders = { 'Content-Type': 'application/json' };
-        if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers: syncHeaders,
-          body: JSON.stringify({
-            entity: 'notifications',
-            record: newLogRecord
-          })
-        });
+        await syncEntity('notifications', newLogRecord);
       } catch (syncErr) {
-        console.warn("Error syncing receipt notification log:", syncErr);
+        console.error("Error syncing receipt notification log (el log de recibo NO quedó en la nube):", syncErr);
       }
     } catch (err) {
       console.warn("Error enviando recibo WhatsApp a n8n:", err);
@@ -2441,18 +2348,9 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
       });
 
       try {
-        const syncHeaders = { 'Content-Type': 'application/json' };
-        if (currentSession) syncHeaders['Authorization'] = `Bearer ${currentSession.access_token}`;
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers: syncHeaders,
-          body: JSON.stringify({
-            entity: 'notifications',
-            record: newLogRecord
-          })
-        });
+        await syncEntity('notifications', newLogRecord);
       } catch (syncErr) {
-        console.warn("Error syncing receipt error notification log:", syncErr);
+        console.error("Error syncing receipt error notification log (el log de error NO quedó en la nube):", syncErr);
       }
     }
   }
@@ -2468,7 +2366,11 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     window.updateFinancialAccountState();
   }
   const destLabel = profitDestination === 'reinvest' ? '💰 Reinvertida en Capital' : (profitDestination === 'reserve' ? '🛡️ A Reserva' : '📊 Utilidad Personal');
-  alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD (siempre regresa a la cartera)\n   🛡️ A Reserva de Riesgo: $${reserveShare.toFixed(2)} USD (${Math.round(reservePct*100)}% de la ganancia)\n   📊 Utilidad: $${utilidadShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
+  if (paymentSyncError) {
+    alert(`⚠️ Cobro de $${amountPaid.toFixed(2)} USD registrado localmente, pero hubo un error sincronizando con Supabase: ${paymentSyncError.message}\n\nRevisa la conexión; el pago podría no estar guardado en la nube.`);
+  } else {
+    alert(`✓ Cobro de $${amountPaid.toFixed(2)} USD registrado y sincronizado con Supabase.\n\n📋 Desglose del pago:\n   💵 A Capital: $${principalShare.toFixed(2)} USD (siempre regresa a la cartera)\n   🛡️ A Reserva de Riesgo: $${reserveShare.toFixed(2)} USD (${Math.round(reservePct*100)}% de la ganancia)\n   📊 Utilidad: $${utilidadShare.toFixed(2)} USD → ${destLabel}${sendWhatsApp ? '\n📲 Comprobante WhatsApp enviado vía n8n.' : ''}`);
+  }
 });
 
 // ── Live Preview for payment split ────────────────────────────────
@@ -2665,18 +2567,9 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     details: `Cierre '${periodName}' [${startVal || 'todos'} — ${endVal || 'hoy'}]. ${payments.length} pagos procesados. Cobro: $${totalCollected.toFixed(2)}, Ganancia: $${netProfit.toFixed(2)}, Reserva: $${totalRiskContribution.toFixed(2)}, Utilidad: $${utilidad.toFixed(2)}. ${summaryMsg}`
   });
 
+  let closeSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'quincenal_closes',
-        record: newCloseRecord
-      })
-    });
+    await syncEntity('quincenal_closes', newCloseRecord);
 
     if (typeof window.updateFinancialAccountState === 'function') {
       await window.updateFinancialAccountState();
@@ -2684,13 +2577,18 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
 
     console.log("✓ Cierre Quincenal y Cuentas Financieras guardados en Supabase Cloud");
   } catch (err) {
-    console.warn("Error sincronizando Cierre Quincenal con Supabase:", err);
+    console.error("Error sincronizando Cierre Quincenal con Supabase:", err);
+    closeSyncError = err;
   }
 
   document.getElementById('form-quincenal-close').reset();
   saveState();
   renderAll();
-  alert(`✓ Cierre Quincenal '${periodName}' procesado.\n\n📋 ${payments.length} pagos del período ${startVal ? `(${startVal} — ${endVal || 'hoy'})` : '(todos)'}:\n   💵 Cobro Total: $${totalCollected.toFixed(2)}\n   💡 Ganancia Neta: $${netProfit.toFixed(2)}\n   🛡️ Aporte Manual Reserva: $${manualReserveContrib.toFixed(2)} (${reserveSource})\n   🛡️ Reserva desde Pagos: $${paymentsReserve.toFixed(2)}\n   🛡️ Total Reserva: $${totalRiskContribution.toFixed(2)}\n   📊 Utilidad Neta del Período: $${utilidad.toFixed(2)}\n   ${summaryMsg}`);
+  if (closeSyncError) {
+    alert(`⚠️ El Cierre Quincenal '${periodName}' se procesó localmente pero NO se pudo sincronizar con Supabase: ${closeSyncError.message}\n\nRevisa la conexión; el cierre podría no estar guardado en la nube.`);
+  } else {
+    alert(`✓ Cierre Quincenal '${periodName}' procesado.\n\n📋 ${payments.length} pagos del período ${startVal ? `(${startVal} — ${endVal || 'hoy'})` : '(todos)'}:\n   💵 Cobro Total: $${totalCollected.toFixed(2)}\n   💡 Ganancia Neta: $${netProfit.toFixed(2)}\n   🛡️ Aporte Manual Reserva: $${manualReserveContrib.toFixed(2)} (${reserveSource})\n   🛡️ Reserva desde Pagos: $${paymentsReserve.toFixed(2)}\n   🛡️ Total Reserva: $${totalRiskContribution.toFixed(2)}\n   📊 Utilidad Neta del Período: $${utilidad.toFixed(2)}\n   ${summaryMsg}`);
+  }
 });
 
 
@@ -2784,18 +2682,10 @@ window.deleteExpense = async function(expId) {
   state.operationalExpenses.splice(idx, 1);
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'operational_expenses',
-        record: { id: expId, deleted: true }
-      })
-    });
+    await syncEntity('operational_expenses', { id: expId, deleted: true });
   } catch (err) {
-    console.warn("Error eliminando gasto en Supabase:", err);
+    console.error("Error eliminando gasto en Supabase:", err);
+    alert(`⚠️ El gasto se eliminó localmente pero NO se pudo sincronizar la eliminación con Supabase: ${err.message}`);
   }
 
   saveState();
@@ -2842,26 +2732,23 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
     details: `Gasto de $${amount.toFixed(2)} USD registrado para '${concept}' (${category}).`
   });
 
+  let expenseSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'operational_expenses',
-        record: newExpRecord
-      })
-    });
+    await syncEntity('operational_expenses', newExpRecord);
     console.log("✓ Gasto operativo guardado en Supabase Cloud");
   } catch (err) {
-    console.warn("Error sincronizando gasto con Supabase:", err);
+    console.error("Error sincronizando gasto con Supabase:", err);
+    expenseSyncError = err;
   }
 
   document.getElementById('form-add-expense').reset();
   saveState();
   renderAll();
-  alert(`✓ Gasto de $${amount.toFixed(2)} USD para '${concept}' guardado y sincronizado con Supabase.`);
+  if (expenseSyncError) {
+    alert(`⚠️ Gasto de $${amount.toFixed(2)} USD para '${concept}' guardado localmente pero NO se pudo sincronizar con Supabase: ${expenseSyncError.message}`);
+  } else {
+    alert(`✓ Gasto de $${amount.toFixed(2)} USD para '${concept}' guardado y sincronizado con Supabase.`);
+  }
 });
   
 // ----------------------------------------------------
@@ -2876,7 +2763,11 @@ async function syncState() {
       body: JSON.stringify(state)
     });
     const result = await response.json();
-    console.log("Cloud sync result:", result);
+    if (!response.ok || result.error) {
+      console.error("Cloud sync error:", result.error || `HTTP ${response.status}`);
+    } else {
+      console.log("Cloud sync result:", result);
+    }
   } catch (err) {
     console.warn("Offline/local mode active:", err);
   }
@@ -3375,42 +3266,38 @@ window.runQuincenalCloseProcess = async function() {
 
   state.quincenalCloses.unshift(newClose);
 
+  let closeProcessSyncError = null;
   try {
     if (currentSession) {
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentSession.access_token}`
-        },
-        body: JSON.stringify({
-          entity: 'quincenal_closes',
-          record: {
-            close_date: newClose.closeDate,
-            expected_amount: newClose.expectedAmount,
-            collected_amount: newClose.collectedAmount,
-            collection_rate: newClose.collectionRate,
-            capital_recovered: newClose.capitalRecovered,
-            gross_profit: newClose.grossProfit,
-            active_portfolio: newClose.activePortfolio,
-            portfolio_target: newClose.portfolioTarget,
-            reserve_balance: newClose.reserveBalance,
-            operational_balance: newClose.operationalBalance,
-            distributable_amount: newClose.distributableAmount,
-            business_stage: newClose.businessStage,
-            defensive_mode: newClose.defensiveMode,
-            recommended_actions: newClose.recommendedActions
-          }
-        })
+      await syncEntity('quincenal_closes', {
+        close_date: newClose.closeDate,
+        expected_amount: newClose.expectedAmount,
+        collected_amount: newClose.collectedAmount,
+        collection_rate: newClose.collectionRate,
+        capital_recovered: newClose.capitalRecovered,
+        gross_profit: newClose.grossProfit,
+        active_portfolio: newClose.activePortfolio,
+        portfolio_target: newClose.portfolioTarget,
+        reserve_balance: newClose.reserveBalance,
+        operational_balance: newClose.operationalBalance,
+        distributable_amount: newClose.distributableAmount,
+        business_stage: newClose.businessStage,
+        defensive_mode: newClose.defensiveMode,
+        recommended_actions: newClose.recommendedActions
       });
     }
   } catch (err) {
-    console.warn("Error guardando cierre en Supabase:", err);
+    console.error("Error guardando cierre en Supabase:", err);
+    closeProcessSyncError = err;
   }
 
   saveState();
   renderAll();
-  alert(`✓ Cierre Quincenal procesado con éxito. Se han guardado las recomendaciones financieras.`);
+  if (closeProcessSyncError) {
+    alert(`⚠️ El Cierre Quincenal se procesó localmente pero NO se pudo sincronizar con Supabase: ${closeProcessSyncError.message}`);
+  } else {
+    alert(`✓ Cierre Quincenal procesado con éxito. Se han guardado las recomendaciones financieras.`);
+  }
 };
 
 window.switchDebtStrategy = function(strategy) {
@@ -3444,18 +3331,10 @@ window.deleteDebt = async function(debtId) {
   state.ownerDebts.splice(idx, 1);
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'owner_debts',
-        record: { id: debtId, deleted: true }
-      })
-    });
+    await syncEntity('owner_debts', { id: debtId, deleted: true });
   } catch (err) {
-    console.warn("Error eliminando deuda en Supabase:", err);
+    console.error("Error eliminando deuda en Supabase:", err);
+    alert(`⚠️ La deuda se eliminó localmente pero NO se pudo sincronizar la eliminación con Supabase: ${err.message}`);
   }
 
   saveState();
@@ -3571,40 +3450,31 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
     );
   }
 
+  let debtPaySyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    const res = await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'owner_debts',
-        record: {
-          id: debt.id,
-          debt_name: debt.debtName,
-          balance: debt.balance,
-          interest_rate: debt.interestRate,
-          min_payment: debt.minPayment,
-          priority: debt.priority,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
-        }
-      })
+    await syncEntity('owner_debts', {
+      id: debt.id,
+      debt_name: debt.debtName,
+      balance: debt.balance,
+      interest_rate: debt.interestRate,
+      min_payment: debt.minPayment,
+      priority: debt.priority,
+      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
     });
-    const json = await res.json();
-    if (!res.ok || json.error) {
-      console.error('Error guardando abono en Supabase:', json.error);
-      alert(`⚠️ Error sincronizando con Supabase: ${json.error}`);
-    } else {
-      console.log('✓ Abono a deuda guardado en Supabase');
-    }
+    console.log('✓ Abono a deuda guardado en Supabase');
   } catch (err) {
-    console.error('Error de red en abono:', err);
+    console.error('Error guardando abono en Supabase:', err);
+    debtPaySyncError = err;
   }
 
   document.getElementById('form-pay-debt').reset();
   saveState();
   renderAll();
-  alert(`✓ Abono de $${amount.toFixed(2)} USD aplicado a '${debt.debtName}'.\nNuevo saldo: $${debt.balance.toFixed(2)} USD.`);
+  if (debtPaySyncError) {
+    alert(`⚠️ Error sincronizando con Supabase: ${debtPaySyncError.message}\n\nEl abono se guardó localmente pero NO en la nube.`);
+  } else {
+    alert(`✓ Abono de $${amount.toFixed(2)} USD aplicado a '${debt.debtName}'.\nNuevo saldo: $${debt.balance.toFixed(2)} USD.`);
+  }
 });
 
 document.getElementById('form-add-debt')?.addEventListener('submit', async function(e) {
@@ -3647,26 +3517,23 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
     details: `Deuda de $${balance.toFixed(2)} USD registrada para '${debtName}' (${interestRate}% interés).`
   });
 
+  let addDebtSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'owner_debts',
-        record: newDebtRecord
-      })
-    });
+    await syncEntity('owner_debts', newDebtRecord);
     console.log("✓ Deuda guardada en Supabase Cloud");
   } catch (err) {
-    console.warn("Error sincronizando deuda con Supabase:", err);
+    console.error("Error sincronizando deuda con Supabase:", err);
+    addDebtSyncError = err;
   }
 
   document.getElementById('form-add-debt').reset();
   saveState();
   renderAll();
-  alert(`✓ Deuda '${debtName}' de $${balance.toFixed(2)} USD registrada y sincronizada con Supabase.`);
+  if (addDebtSyncError) {
+    alert(`⚠️ Deuda '${debtName}' guardada localmente pero NO se pudo sincronizar con Supabase: ${addDebtSyncError.message}`);
+  } else {
+    alert(`✓ Deuda '${debtName}' de $${balance.toFixed(2)} USD registrada y sincronizada con Supabase.`);
+  }
 });
 
 // ----------------------------------------------------
@@ -3887,19 +3754,7 @@ window.createTeamMember = async function() {
       created_at: new Date().toISOString()
     };
 
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) {
-      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    }
-
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'profiles',
-        record: newProfile
-      })
-    });
+    await syncEntity('profiles', newProfile);
 
     if (!state.teamMembers) state.teamMembers = [];
     state.teamMembers.push({
@@ -3971,19 +3826,9 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     updated_at: new Date().toISOString()
   };
 
+  let settingsSyncError = null;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) {
-      headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    }
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'financial_accounts',
-        record: accountRecord
-      })
-    });
+    await syncEntity('financial_accounts', accountRecord);
 
     const orgRecord = {
       id: state.financialAccounts?.organizationId || currentProfile?.organization_id || '00000000-0000-0000-0000-000000000001',
@@ -3992,14 +3837,7 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
       reserve_pct: reserveTargetPct
     };
 
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'organizations',
-        record: orgRecord
-      })
-    });
+    await syncEntity('organizations', orgRecord);
 
     if (supabaseClient && currentSession) {
       await supabaseClient.auth.updateUser({
@@ -4009,7 +3847,8 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
 
     console.log("✓ Configuración y Nombre de Cartera persistidos con éxito en Supabase public.organizations & Auth");
   } catch (err) {
-    console.warn("Error enviando configuración a Supabase Cloud:", err);
+    console.error("Error enviando configuración a Supabase Cloud:", err);
+    settingsSyncError = err;
   }
 
   state.auditLogs.unshift({
@@ -4022,7 +3861,11 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
 
   saveState();
   renderAll();
-  alert(`✓ Configuración y Nombre de Cartera '${orgName}' guardados con éxito.`);
+  if (settingsSyncError) {
+    alert(`⚠️ La configuración se guardó localmente pero NO se pudo sincronizar con Supabase: ${settingsSyncError.message}`);
+  } else {
+    alert(`✓ Configuración y Nombre de Cartera '${orgName}' guardados con éxito.`);
+  }
 });
 
 // ----------------------------------------------------
@@ -4093,22 +3936,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // Save to Supabase Cloud
+      let borrowerSyncError = null;
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (currentSession) {
-          headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-        }
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            entity: 'borrowers',
-            record: newBorrower
-          })
-        });
+        await syncEntity('borrowers', newBorrower);
         console.log("✓ Prestatario guardado y sincronizado en Supabase Cloud");
       } catch (err) {
-        console.warn("Error enviando prestatario a Supabase Cloud:", err);
+        console.error("Error enviando prestatario a Supabase Cloud:", err);
+        borrowerSyncError = err;
       }
 
       // Save audit log
@@ -4132,7 +3966,11 @@ document.addEventListener('DOMContentLoaded', () => {
       saveState();
       renderBorrowers();
       renderApplications();
-      alert(`✓ Prestatario ${name} guardado en Supabase con éxito. Score: ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`);
+      if (borrowerSyncError) {
+        alert(`⚠️ Prestatario ${name} guardado localmente pero NO se pudo sincronizar con Supabase: ${borrowerSyncError.message}`);
+      } else {
+        alert(`✓ Prestatario ${name} guardado en Supabase con éxito. Score: ${scoreObj.totalScore} pts (${scoreObj.riskLevel}).`);
+      }
     });
   }
 
@@ -4183,22 +4021,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // Save to Supabase Cloud
+      let applicationSyncError = null;
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (currentSession) {
-          headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-        }
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            entity: 'applications',
-            record: newApp
-          })
-        });
+        await syncEntity('applications', newApp);
         console.log("✓ Solicitud de crédito guardada en Supabase Cloud");
       } catch (err) {
-        console.warn("Error enviando solicitud a Supabase Cloud:", err);
+        console.error("Error enviando solicitud a Supabase Cloud:", err);
+        applicationSyncError = err;
       }
 
       // Save audit log
@@ -4215,7 +4044,11 @@ document.addEventListener('DOMContentLoaded', () => {
       formCreateApp.reset();
       saveState();
       renderAll();
-      alert(`✓ Solicitud de crédito ${newApp.id} por $${amount.toFixed(2)} guardada en Supabase en revisión.`);
+      if (applicationSyncError) {
+        alert(`⚠️ Solicitud ${newApp.id} guardada localmente pero NO se pudo sincronizar con Supabase: ${applicationSyncError.message}`);
+      } else {
+        alert(`✓ Solicitud de crédito ${newApp.id} por $${amount.toFixed(2)} guardada en Supabase en revisión.`);
+      }
     });
   }
 });
@@ -4242,19 +4075,10 @@ window.updateFinancialAccountState = async function() {
   };
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'financial_accounts',
-        record: accountRecord
-      })
-    });
+    await syncEntity('financial_accounts', accountRecord);
     console.log("✓ Command Center KPIs sincronizados en Supabase Cloud");
   } catch (err) {
-    console.warn("Error actualizando cuentas financieras en Supabase:", err);
+    console.error("Error actualizando cuentas financieras en Supabase (los KPIs del Command Center pueden quedar desactualizados en la nube):", err);
   }
 };
 
@@ -4292,61 +4116,6 @@ document.getElementById('form-deposit-reserve')?.addEventListener('submit', asyn
 
   alert(`✓ ¡Aporte de $${amount.toFixed(2)} USD registrado con éxito en la Reserva de Riesgo!
 El saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`);
-});
-
-
-document.getElementById('form-pay-debt')?.addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const debtId = document.getElementById('pay-debt-select')?.value;
-  const amount = parseFloat(document.getElementById('pay-debt-amount')?.value || 0);
-  const source = document.getElementById('pay-debt-source')?.value || 'Excedente de Caja';
-
-  if (!debtId || amount <= 0) {
-    alert("Por favor selecciona una deuda e ingresa un monto mayor a $0 USD.");
-    return;
-  }
-
-  const debt = (state.ownerDebts || []).find(d => d.id === debtId);
-  if (!debt) return;
-
-  const currentBalance = parseFloat(debt.balance || 0);
-  const newBalance = Math.max(0, currentBalance - amount);
-  debt.balance = newBalance;
-
-  if (typeof window.logAuditEvent === 'function') {
-    await window.logAuditEvent(
-      "ABONO_DEUDA_REGISTRADO",
-      "Deudas Propietario",
-      `Abono de $${amount.toFixed(2)} USD realizado a '${debt.debtName}' desde '${source}'. Saldo Restante: $${newBalance.toFixed(2)} USD.`
-    );
-  }
-
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        entity: 'owner_debts',
-        record: {
-          id: debt.id,
-          debt_name: debt.debtName,
-          balance: newBalance,
-          interest_rate: debt.interestRate,
-          min_payment: debt.minPayment,
-          priority: debt.priority,
-          organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
-        }
-      })
-    });
-  } catch (err) {
-    console.warn("Error guardando abono en Supabase:", err);
-  }
-
-  saveState();
-  renderAll();
-  alert(`✓ ¡Abono de $${amount.toFixed(2)} USD registrado con éxito!\nNuevo Saldo Pendiente de '${debt.debtName}': $${newBalance.toFixed(2)} USD.`);
 });
 
 

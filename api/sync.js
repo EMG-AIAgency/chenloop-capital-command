@@ -86,8 +86,14 @@ module.exports = async (req, res) => {
       ]);
 
       // Log any fetch errors (non-fatal) but still return what we have
-      const errs = [e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13].filter(Boolean);
-      if (errs.length) console.warn('Supabase GET partial errors:', errs.map(e => e.message));
+      const errorSources = [
+        ['organizations', e1], ['borrowers', e2], ['applications', e3], ['loans', e4],
+        ['collections', e5], ['payments', e6], ['notifications', e7], ['auditLogs', e8],
+        ['financialAccounts', e9], ['operationalExpenses', e10], ['quincenalCloses', e11],
+        ['ownerDebts', e12], ['financialMovements', e13]
+      ].filter(([, e]) => Boolean(e));
+      const partialErrors = errorSources.map(([table, e]) => `${table}: ${e.message}`);
+      if (partialErrors.length) console.warn('Supabase GET partial errors:', partialErrors);
 
       return res.status(200).json({
         organizations: organizations || [],
@@ -102,7 +108,8 @@ module.exports = async (req, res) => {
         operationalExpenses: operationalExpenses || [],
         quincenalCloses: quincenalCloses || [],
         ownerDebts: ownerDebts || [],
-        financialMovements: financialMovements || []
+        financialMovements: financialMovements || [],
+        partialErrors
       });
     }
 

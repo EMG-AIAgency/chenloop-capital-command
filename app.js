@@ -2764,24 +2764,6 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
 // CHENLOOP CAPITAL COMMAND - CORE APPLICATION LOGIC
 // ----------------------------------------------------
 
-async function syncState() {
-  try {
-    const response = await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
-    });
-    const result = await response.json();
-    if (!response.ok || result.error) {
-      console.error("Cloud sync error:", result.error || `HTTP ${response.status}`);
-    } else {
-      console.log("Cloud sync result:", result);
-    }
-  } catch (err) {
-    console.warn("Offline/local mode active:", err);
-  }
-}
-
 if (!state.notifications) {
   state.notifications = [
     {

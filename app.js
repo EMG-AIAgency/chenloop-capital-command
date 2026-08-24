@@ -4119,58 +4119,6 @@ El saldo actual de Reserva es de $${state.financialAccounts.riskReserveBalance.t
 });
 
 
-document.getElementById('form-pay-debt')?.addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const debtId = document.getElementById('pay-debt-select')?.value;
-  const amount = parseFloat(document.getElementById('pay-debt-amount')?.value || 0);
-  const source = document.getElementById('pay-debt-source')?.value || 'Excedente de Caja';
-
-  if (!debtId || amount <= 0) {
-    alert("Por favor selecciona una deuda e ingresa un monto mayor a $0 USD.");
-    return;
-  }
-
-  const debt = (state.ownerDebts || []).find(d => d.id === debtId);
-  if (!debt) return;
-
-  const currentBalance = parseFloat(debt.balance || 0);
-  const newBalance = Math.max(0, currentBalance - amount);
-  debt.balance = newBalance;
-
-  if (typeof window.logAuditEvent === 'function') {
-    await window.logAuditEvent(
-      "ABONO_DEUDA_REGISTRADO",
-      "Deudas Propietario",
-      `Abono de $${amount.toFixed(2)} USD realizado a '${debt.debtName}' desde '${source}'. Saldo Restante: $${newBalance.toFixed(2)} USD.`
-    );
-  }
-
-  let debtPaySyncError2 = null;
-  try {
-    await syncEntity('owner_debts', {
-      id: debt.id,
-      debt_name: debt.debtName,
-      balance: newBalance,
-      interest_rate: debt.interestRate,
-      min_payment: debt.minPayment,
-      priority: debt.priority,
-      organization_id: state.financialAccounts?.organizationId || '00000000-0000-0000-0000-000000000001'
-    });
-  } catch (err) {
-    console.error("Error guardando abono en Supabase:", err);
-    debtPaySyncError2 = err;
-  }
-
-  saveState();
-  renderAll();
-  if (debtPaySyncError2) {
-    alert(`⚠️ El abono se guardó localmente pero NO se pudo sincronizar con Supabase: ${debtPaySyncError2.message}`);
-  } else {
-    alert(`✓ ¡Abono de $${amount.toFixed(2)} USD registrado con éxito!\nNuevo Saldo Pendiente de '${debt.debtName}': $${newBalance.toFixed(2)} USD.`);
-  }
-});
-
-
 document.getElementById('form-deposit-reserve-qc')?.addEventListener('submit', async function(e) {
   e.preventDefault();
   const amount = parseFloat(document.getElementById('reserve-deposit-amount-qc')?.value || 0);

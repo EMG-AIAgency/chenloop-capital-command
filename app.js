@@ -2565,7 +2565,8 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     periodStart: newCloseRecord.period_start,
     periodEnd: newCloseRecord.period_end,
     notes: newCloseRecord.notes,
-    status: newCloseRecord.status
+    status: newCloseRecord.status,
+    strategy: strategy
   });
 
   state.auditLogs.unshift({

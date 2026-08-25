@@ -4102,7 +4102,12 @@ function appendCopilotMessage(role, text) {
   const bubbleDiv = document.createElement('div');
   bubbleDiv.className = 'flex gap-2 items-start';
 
-  let formattedText = String(text)
+  // Se escapa el texto crudo ANTES de aplicar el formato tipo markdown, para que
+  // HTML embebido en el mensaje (propio del usuario o en la respuesta del modelo)
+  // nunca se interprete como markup real. Los caracteres usados por el markdown
+  // (*, `, salto de línea) no forman parte de las entidades que escapeHtml() toca,
+  // así que las reglas siguen funcionando igual sobre el texto ya escapado.
+  let formattedText = escapeHtml(text)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code class="bg-black/40 px-1.5 py-0.5 rounded text-[#818CF8] font-mono text-[10px]">$1</code>')

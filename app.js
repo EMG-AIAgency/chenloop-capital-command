@@ -455,58 +455,6 @@ window.toggleBorrowerForm = function() {
   }
 };
 
-window.showScoreModal = function(borrowerId) {
-  let bw = state.borrowers.find(b => b.id === borrowerId);
-  if (!bw) bw = state.borrowers[0];
-  
-  const scoreData = calculateExplicableScore(bw);
-  const content = document.getElementById('modal-score-content');
-  const modal = document.getElementById('modal-score-breakdown');
-  
-  if (content && modal) {
-    content.innerHTML = `
-      <div style="text-align: center; margin-bottom: 1rem;">
-        <h2 style="font-family: var(--font-display); font-size: 2.2rem; color: var(--emerald-glow); margin-bottom: 0.25rem;">${scoreData.totalScore} / 100 Pts</h2>
-        <span class="badge-risk badge-green" style="font-size: 0.85rem;">${scoreData.riskLevel} - ${bw.name}</span>
-      </div>
-      
-      <div style="font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; background: #162032; padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-color);">
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-          <span>• Historial de Pagos (40 max):</span>
-          <strong style="color: var(--emerald-glow);">${scoreData.breakdown.paymentHistory} pts</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-          <span>• Estabilidad Laboral (20 max):</span>
-          <strong style="color: var(--emerald-glow);">${scoreData.breakdown.employmentStability} pts</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-          <span>• Antigüedad del Cliente (15 max):</span>
-          <strong style="color: var(--emerald-glow);">${scoreData.breakdown.tenure} pts</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-          <span>• Nivel de Ingreso (15 max):</span>
-          <strong style="color: var(--emerald-glow);">${scoreData.breakdown.capacity} pts</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span>• Datos Verificados (10 max):</span>
-          <strong style="color: var(--emerald-glow);">${scoreData.breakdown.verification} pts</strong>
-        </div>
-      </div>
-      
-      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem; background: rgba(16, 185, 129, 0.08); padding: 0.85rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
-        <strong style="color: var(--emerald-glow);">Recomendación del Motor:</strong> ${scoreData.recommendation}
-      </div>
-    `;
-    
-    modal.style.display = 'flex';
-  }
-};
-
-window.closeScoreModal = function() {
-  const modal = document.getElementById('modal-score-breakdown');
-  if (modal) modal.style.display = 'none';
-};
-
 window.switchTab = function(tabName) {
   const tabs = ['dashboard', 'borrowers', 'applications', 'loans', 'collections', 'analytics', 'notifications', 'payments', 'audit', 'settings', 'quincenal-close', 'operations-expenses', 'owner-debts'];
   tabs.forEach(t => {
@@ -558,78 +506,6 @@ window.switchTab = function(tabName) {
   } catch (err) {
     console.warn('Advertencia en renderAll:', err);
   }
-};
-
-window.approveApplication = function(appId) {
-  const app = state.applications.find(a => a.id === appId);
-  if (!app) return;
-  
-  const metrics = computeRiskMetrics();
-  
-  if (parseFloat(metrics.par30Pct) >= state.organization.par30Limit) {
-    alert(`POLÍTICA DE RIESGO: PAR30 (${metrics.par30Pct}%) superó el límite permitido (${state.organization.par30Limit}%). Aprobación bloqueada.`);
-    return;
-  }
-  
-  if (state.capital.capitalAvailable < app.amount) {
-    alert(`FONDOS INSUFICIENTES: Capital disponible ($${state.capital.capitalAvailable}) menor al monto solicitado ($${app.amount}).`);
-    return;
-  }
-  
-  const installmentAmount = 25.0;
-  const totalScheduled = installmentAmount * app.count;
-  
-  const newLoan = {
-    id: `LN-${1000 + state.loans.length + 1}`,
-    borrowerId: app.borrowerId,
-    borrowerName: app.borrowerName,
-    principal: app.amount,
-    installmentAmount: installmentAmount,
-    installmentCount: app.count,
-    totalScheduled: totalScheduled,
-    scheduledProfit: totalScheduled - app.amount,
-    status: "Activo",
-    disbursementDate: new Date().toISOString().split('T')[0],
-    paidAmount: 0.0,
-    remainingAmount: totalScheduled
-  };
-  
-  app.status = "Aprobado";
-  app.approvedBy = "Analista Riesgo";
-  
-  state.capital.capitalAvailable -= app.amount;
-  state.capital.capitalDeployed += app.amount;
-  
-  state.loans.push(newLoan);
-  
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Analista Riesgo",
-    action: "SOLICITUD_APROBADA",
-    module: "Riesgo",
-    details: `Aprobada y desembolsada solicitud ${app.id} por $${app.amount} a ${app.borrowerName}`
-  });
-  
-  saveState();
-  renderAll();
-};
-
-window.rejectApplication = function(appId) {
-  const app = state.applications.find(a => a.id === appId);
-  if (!app) return;
-  
-  app.status = "Rechazado";
-  
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Analista Riesgo",
-    action: "SOLICITUD_RECHAZADA",
-    module: "Riesgo",
-    details: `Solicitud ${app.id} de ${app.borrowerName} fue RECHAZADA por políticas de riesgo`
-  });
-  
-  saveState();
-  renderAll();
 };
 
 function calculateExplicableScore(borrower) {
@@ -2831,24 +2707,6 @@ window.triggerAutomatedReminders = function() {
 };
 
 
-
-function renderAudit() {
-  const tbody = document.getElementById('tbody-audit');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  
-  state.auditLogs.forEach(log => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="font-size: 0.8rem; color: var(--text-muted);">${log.timestamp}</td>
-      <td>${log.user}</td>
-      <td><strong style="color: var(--emerald-glow);">${log.action}</strong></td>
-      <td>${log.module}</td>
-      <td style="font-size: 0.85rem;">${log.details}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
 
 // Listeners
 

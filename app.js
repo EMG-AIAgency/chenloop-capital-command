@@ -146,6 +146,23 @@ const SUPABASE_ANON_KEY = "sb_publishable_fQ4DJf5q8IssJOKuBKrWOA_K1qMwgkY";
 let supabaseClient = null;
 let currentSession = null;
 let currentProfile = null;
+let landingTabApplied = false;
+
+function currentRole() {
+  return currentProfile?.role || null;
+}
+function canManageSettings() {
+  return currentRole() === 'Tier 1 Admin';
+}
+function canManageTeam() {
+  return currentRole() === 'Tier 1 Admin';
+}
+function canApproveApplications() {
+  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+}
+function canViewFinancialReports() {
+  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+}
 
 if (window.supabase) {
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -2776,6 +2793,7 @@ window.logoutUser = async function() {
   }
   currentSession = null;
   currentProfile = null;
+  landingTabApplied = false;
   state = JSON.parse(JSON.stringify(initialState));
   
   const authWall = document.getElementById('auth-wall');
@@ -2847,24 +2865,65 @@ document.getElementById('form-register')?.addEventListener('submit', async funct
 
 async function loadProfileAndInit() {
   if (!currentSession) return;
-  
+
+  try {
+    const { data: profileData, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', currentSession.user.id)
+      .single();
+    if (profileError) throw profileError;
+    currentProfile = profileData || null;
+  } catch (err) {
+    currentProfile = null;
+    console.error('No se pudo cargar el perfil del usuario desde Supabase (currentProfile queda en null, sin permisos asumidos):', err);
+  }
+
   await loadState();
 
   const user = currentSession.user;
   const userDispEl = document.getElementById('user-display-name');
   const avatarEl = document.getElementById('user-avatar-initials');
   const orgBadgeEl = document.getElementById('current-org-badge');
-  
+  const roleBadgeEl = document.getElementById('user-role-badge');
+
   const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
   const orgName = state.organization?.name || state.financialAccounts?.organizationName || user.user_metadata?.org_name || "Mi Cartera Personal";
-  
+
   if (userDispEl) userDispEl.innerText = fullName;
   if (avatarEl) avatarEl.innerText = fullName.substring(0, 2).toUpperCase();
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;
+  if (roleBadgeEl) roleBadgeEl.innerText = currentProfile?.role || 'Sin rol asignado';
+
+  applyRoleBasedUI();
+
+  if (!landingTabApplied) {
+    landingTabApplied = true;
+    if (currentRole() === 'Cobrador' && typeof window.switchTab === 'function') {
+      window.switchTab('collections');
+    }
+  }
 
   if (typeof renderAll === 'function') {
     renderAll();
   }
+}
+
+function applyRoleBasedUI() {
+  const settingsAllowed = canManageSettings();
+  const reportsAllowed = canViewFinancialReports();
+
+  const settingsGatedIds = ['nav-btn-settings'];
+  const reportsGatedIds = ['nav-btn-dashboard', 'nav-btn-audit', 'nav-btn-quincenal-close', 'nav-btn-operations-expenses', 'nav-btn-owner-debts'];
+
+  settingsGatedIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = settingsAllowed ? '' : 'none';
+  });
+  reportsGatedIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = reportsAllowed ? '' : 'none';
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

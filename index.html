@@ -151,7 +151,7 @@
 
     <nav class="flex-1 space-y-1 overflow-y-auto min-h-0 pr-1 custom-scrollbar">
       <p class="text-[10px] uppercase font-bold text-[#8E929E] px-4 pt-2 pb-1 tracking-wider">PRINCIPAL</p>
-      <button onclick="window.switchTab('dashboard')" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 text-[#FF6B00] font-bold border-r-2 border-[#FF6B00] bg-[#FF6B00]/10 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-dashboard" onclick="window.switchTab('dashboard')" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 text-[#FF6B00] font-bold border-r-2 border-[#FF6B00] bg-[#FF6B00]/10 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">dashboard</span>
         <span class="text-sm">Command Center</span>
       </button>
@@ -183,15 +183,15 @@
       </button>
 
       <p class="text-[10px] uppercase font-bold text-[#8E929E] px-4 pt-4 pb-1 tracking-wider">MOTOR FINANCIERO</p>
-      <button onclick="window.switchTab('quincenal-close')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-quincenal-close" onclick="window.switchTab('quincenal-close')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">fact_check</span>
         <span class="text-sm">Cierre Quincenal</span>
       </button>
-      <button onclick="window.switchTab('operations-expenses')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-operations-expenses" onclick="window.switchTab('operations-expenses')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">account_balance</span>
         <span class="text-sm">Gastos & Cuentas</span>
       </button>
-      <button onclick="window.switchTab('owner-debts')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-owner-debts" onclick="window.switchTab('owner-debts')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">price_change</span>
         <span class="text-sm">Deudas Propietario</span>
       </button>
@@ -201,11 +201,11 @@
         <span class="material-symbols-outlined text-[20px]">trending_up</span>
         <span class="text-sm">Analytics & Simulador</span>
       </button>
-      <button onclick="window.switchTab('audit')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-audit" onclick="window.switchTab('audit')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">shield</span>
         <span class="text-sm">Auditoría Log</span>
       </button>
-      <button onclick="window.switchTab('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
+      <button id="nav-btn-settings" onclick="window.switchTab('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-[#94A3B8] font-medium hover:bg-white/5 rounded-l-lg transition-all text-left">
         <span class="material-symbols-outlined text-[20px]">settings</span>
         <span class="text-sm">Configuración</span>
       </button>
@@ -1265,9 +1265,8 @@ Te recordamos amablemente que tu cuota de 💵 ${{2}} vence el próximo 📅 {{3
                 <input type="email" id="usr-email" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]" placeholder="Correo (ej: maria@tu-cartera.com)"/>
                 <input type="password" id="usr-pass" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]" placeholder="Contraseña (mín. 6 chars)"/>
                 <select id="usr-role" class="bg-[#16181D] border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#818CF8]">
-                  <option value="Cajero / Operador">Cajero / Operador de Pagos</option>
-                  <option value="Analista de Crédito">Analista de Crédito</option>
-                  <option value="Tier 1 Admin">Administrador (Tier 1)</option>
+                  <option value="Analista de Riesgo">Analista de Riesgo</option>
+                  <option value="Cobrador">Cobrador</option>
                 </select>
               </div>
               <div class="flex justify-end pt-1">

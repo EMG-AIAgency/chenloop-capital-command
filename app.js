@@ -146,6 +146,23 @@ const SUPABASE_ANON_KEY = "sb_publishable_fQ4DJf5q8IssJOKuBKrWOA_K1qMwgkY";
 let supabaseClient = null;
 let currentSession = null;
 let currentProfile = null;
+let landingTabApplied = false;
+
+function currentRole() {
+  return currentProfile?.role || null;
+}
+function canManageSettings() {
+  return currentRole() === 'Tier 1 Admin';
+}
+function canManageTeam() {
+  return currentRole() === 'Tier 1 Admin';
+}
+function canApproveApplications() {
+  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+}
+function canViewFinancialReports() {
+  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+}
 
 if (window.supabase) {
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1007,7 +1024,7 @@ function renderApplications() {
       <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(scoreData.recommendation)}</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(app.status)}</span></td>
       <td class="p-3">
-        ${app.status === 'En Revisión' ? `
+        ${app.status === 'En Revisión' && canApproveApplications() ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold mr-1 cursor-pointer" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
           <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
         ` : `<span class="text-xs text-[#94A3B8] font-bold">${escapeHtml(app.status)}</span>`}
@@ -1018,6 +1035,11 @@ function renderApplications() {
 }
 
 window.approveApplication = async function(appId) {
+  if (!canApproveApplications()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const app = state.applications.find(a => a.id === appId);
   if (!app) return;
 
@@ -1214,6 +1236,11 @@ window.approveApplication = async function(appId) {
 };
 
 window.rejectApplication = async function(appId) {
+  if (!canApproveApplications()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const app = state.applications.find(a => a.id === appId);
   if (!app) return;
 
@@ -2776,6 +2803,7 @@ window.logoutUser = async function() {
   }
   currentSession = null;
   currentProfile = null;
+  landingTabApplied = false;
   state = JSON.parse(JSON.stringify(initialState));
   
   const authWall = document.getElementById('auth-wall');
@@ -2847,24 +2875,65 @@ document.getElementById('form-register')?.addEventListener('submit', async funct
 
 async function loadProfileAndInit() {
   if (!currentSession) return;
-  
+
+  try {
+    const { data: profileData, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', currentSession.user.id)
+      .single();
+    if (profileError) throw profileError;
+    currentProfile = profileData || null;
+  } catch (err) {
+    currentProfile = null;
+    console.error('No se pudo cargar el perfil del usuario desde Supabase (currentProfile queda en null, sin permisos asumidos):', err);
+  }
+
   await loadState();
 
   const user = currentSession.user;
   const userDispEl = document.getElementById('user-display-name');
   const avatarEl = document.getElementById('user-avatar-initials');
   const orgBadgeEl = document.getElementById('current-org-badge');
-  
+  const roleBadgeEl = document.getElementById('user-role-badge');
+
   const fullName = user.user_metadata?.full_name || user.email.split('@')[0];
   const orgName = state.organization?.name || state.financialAccounts?.organizationName || user.user_metadata?.org_name || "Mi Cartera Personal";
-  
+
   if (userDispEl) userDispEl.innerText = fullName;
   if (avatarEl) avatarEl.innerText = fullName.substring(0, 2).toUpperCase();
   if (orgBadgeEl) orgBadgeEl.innerText = orgName;
+  if (roleBadgeEl) roleBadgeEl.innerText = currentProfile?.role || 'Sin rol asignado';
+
+  applyRoleBasedUI();
+
+  if (!landingTabApplied) {
+    landingTabApplied = true;
+    if (currentRole() === 'Cobrador' && typeof window.switchTab === 'function') {
+      window.switchTab('collections');
+    }
+  }
 
   if (typeof renderAll === 'function') {
     renderAll();
   }
+}
+
+function applyRoleBasedUI() {
+  const settingsAllowed = canManageSettings();
+  const reportsAllowed = canViewFinancialReports();
+
+  const settingsGatedIds = ['nav-btn-settings'];
+  const reportsGatedIds = ['nav-btn-dashboard', 'nav-btn-audit', 'nav-btn-quincenal-close', 'nav-btn-operations-expenses', 'nav-btn-owner-debts'];
+
+  settingsGatedIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = settingsAllowed ? '' : 'none';
+  });
+  reportsGatedIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = reportsAllowed ? '' : 'none';
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -3565,10 +3634,15 @@ window.renderTeamMembers = function() {
 };
 
 window.createTeamMember = async function() {
+  if (!canManageTeam()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const name = document.getElementById('usr-name')?.value.trim();
   const email = document.getElementById('usr-email')?.value.trim();
   const pass = document.getElementById('usr-pass')?.value;
-  const role = document.getElementById('usr-role')?.value || 'Cajero / Operador';
+  const role = document.getElementById('usr-role')?.value || 'Analista de Riesgo';
 
   if (!name || !email || !pass || pass.length < 6) {
     alert("Por favor ingresa un nombre completo, correo válido y contraseña de al menos 6 caracteres.");
@@ -3653,6 +3727,12 @@ window.createTeamMember = async function() {
 
 document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();
+
+  if (!canManageSettings()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const capitalTotal = parseFloat(document.getElementById('set-capital-total')?.value || 1000);
   const par30Limit = parseFloat(document.getElementById('set-par30-limit')?.value || 10);
   const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target')?.value || 20);

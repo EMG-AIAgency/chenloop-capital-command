@@ -1270,13 +1270,13 @@ function renderLoans() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${ln.id}</td>
-      <td class="p-3 font-bold text-white">${ln.borrowerName}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(ln.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(ln.borrowerName)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${ln.principal.toFixed(2)}</td>
       <td class="p-3 text-white">$${ln.totalScheduled.toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${ln.scheduledProfit.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${ln.installmentCount} quincenas ($${(ln.installmentAmount || 0).toFixed(2)})</td>
-      <td class="p-3"><span class="badge-risk ${badgeClass}">${ln.status}</span></td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(ln.status)}</span></td>
       <td class="p-3">
         <button class="bg-[#FF6B00] hover:bg-[#FF5500] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer shadow-md shadow-[#FF6B00]/20" onclick="window.selectLoanForPayment('${ln.id}')">Cobrar</button>
       </td>
@@ -1402,14 +1402,14 @@ function renderCollections() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-bold">${col.id}</td>
-      <td class="p-3 font-bold text-white">${col.loanId}</td>
-      <td class="p-3 text-white font-bold">${col.borrowerName}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-bold">${escapeHtml(col.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(col.loanId)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(col.borrowerName)}</td>
       <td class="p-3 ${daysClass}">${displayDays} días</td>
-      <td class="p-3"><span class="badge-risk ${tierBadgeClass}">${displayTier}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate || 'N/A'} (${col.channel || 'Contacto'})</td>
+      <td class="p-3"><span class="badge-risk ${tierBadgeClass}">${escapeHtml(displayTier)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(col.promiseDate || 'N/A')} (${escapeHtml(col.channel || 'Contacto')})</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(col.promiseAmount || 0).toFixed(2)}</td>
-      <td class="p-3"><span class="badge-risk ${statusBadgeClass}">${col.promiseStatus || 'Pendiente'}</span></td>
+      <td class="p-3"><span class="badge-risk ${statusBadgeClass}">${escapeHtml(col.promiseStatus || 'Pendiente')}</span></td>
       <td class="p-3">
         ${col.promiseStatus === 'Pendiente' ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" onclick="window.markPromiseFulfilled('${col.id}')">Cumplida</button>

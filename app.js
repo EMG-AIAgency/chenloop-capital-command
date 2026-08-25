@@ -3420,11 +3420,11 @@ function renderAudit() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
-      <td class="p-3 font-bold text-white text-xs">${log.user || 'Propietario / Admin'}</td>
-      <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${log.action}</span></td>
-      <td class="p-3 text-xs text-[#818CF8] font-bold">${log.module}</td>
-      <td class="p-3 text-xs text-white max-w-md">${log.details}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(formattedDate)}</td>
+      <td class="p-3 font-bold text-white text-xs">${escapeHtml(log.user || 'Propietario / Admin')}</td>
+      <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${escapeHtml(log.action)}</span></td>
+      <td class="p-3 text-xs text-[#818CF8] font-bold">${escapeHtml(log.module)}</td>
+      <td class="p-3 text-xs text-white max-w-md">${escapeHtml(log.details)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -3551,14 +3551,14 @@ window.renderTeamMembers = function() {
     tr.innerHTML = `
       <td class="p-2.5 font-bold text-white flex items-center gap-2">
         <span class="w-6 h-6 rounded-full bg-[#818CF8]/20 text-[#818CF8] text-[10px] flex items-center justify-center font-bold">
-          ${(m.name || 'US').substring(0, 2).toUpperCase()}
+          ${escapeHtml((m.name || 'US').substring(0, 2).toUpperCase())}
         </span>
-        ${m.name}
+        ${escapeHtml(m.name)}
       </td>
-      <td class="p-2.5 text-[#bbcabf] font-mono text-[11px]">${m.email}</td>
-      <td class="p-2.5"><span class="bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${m.role}</span></td>
-      <td class="p-2.5 text-[#bbcabf]">${m.orgName || state.organization?.name || 'Mi Cartera Personal'}</td>
-      <td class="p-2.5"><span class="badge-risk badge-green">${m.status || 'Activo'}</span></td>
+      <td class="p-2.5 text-[#bbcabf] font-mono text-[11px]">${escapeHtml(m.email)}</td>
+      <td class="p-2.5"><span class="bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${escapeHtml(m.role)}</span></td>
+      <td class="p-2.5 text-[#bbcabf]">${escapeHtml(m.orgName || state.organization?.name || 'Mi Cartera Personal')}</td>
+      <td class="p-2.5"><span class="badge-risk badge-green">${escapeHtml(m.status || 'Activo')}</span></td>
     `;
     tbody.appendChild(tr);
   });

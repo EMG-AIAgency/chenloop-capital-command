@@ -1,4 +1,14 @@
 
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
   if (!promiseDateStr) return 0;
   if (status === 'Cumplida' || status === 'Cerrada') return 0;
@@ -758,7 +768,7 @@ function renderCapitalFlows() {
     tr.innerHTML = `
       <td class="p-3 font-bold text-white flex items-center gap-2">
         <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold border border-white/10 text-[#FF6B00]">${initials}</span>
-        ${loan.borrowerName}
+        ${escapeHtml(loan.borrowerName)}
       </td>
       <td class="p-3 text-white">$${(bw.exposureLimit || bw.maxExposure || loan.principal || 300).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${(loan.principal || 0).toFixed(2)}</td>
@@ -861,10 +871,10 @@ function renderRealtimeAlerts() {
     card.innerHTML = `
       <div class="flex items-center gap-2 text-xs font-bold ${textCol}">
         <span class="material-symbols-outlined text-[16px]">${icon}</span>
-        <span>${a.title}</span>
+        <span>${escapeHtml(a.title)}</span>
       </div>
-      <p class="text-xs text-[#bbcabf]">${a.message}</p>
-      <span class="text-[10px] uppercase font-bold ${textCol}">${a.tag}</span>
+      <p class="text-xs text-[#bbcabf]">${escapeHtml(a.message)}</p>
+      <span class="text-[10px] uppercase font-bold ${textCol}">${escapeHtml(a.tag)}</span>
     `;
     container.appendChild(card);
   });
@@ -892,9 +902,9 @@ function renderBorrowers() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${bw.name}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${bw.idNumber || bw.id_number || 'N/A'}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${bw.phone || 'N/A'}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(bw.name)}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(bw.idNumber || bw.id_number || 'N/A')}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(bw.phone || 'N/A')}</td>
       <td class="p-3">
         <strong class="text-[#4edea3]">${effectiveScore} pts</strong>
         <button class="bg-[#162032] hover:bg-[#1f2d47] text-white px-2 py-1 rounded text-[11px] ml-2 cursor-pointer border border-white/10" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
@@ -927,7 +937,7 @@ window.showScoreModal = function(borrowerId) {
   content.innerHTML = `
     <div class="p-3 rounded-lg bg-[#080C14] border border-white/5 space-y-2">
       <div class="flex justify-between items-center">
-        <span class="font-bold text-white text-sm">${bw.name}</span>
+        <span class="font-bold text-white text-sm">${escapeHtml(bw.name)}</span>
         <span class="text-xs px-2 py-0.5 rounded font-bold ${scoreData.totalScore >= 80 ? 'bg-emerald-500/20 text-[#4edea3]' : 'bg-amber-500/20 text-[#F59E0B]'}">${scoreData.riskLevel}</span>
       </div>
       <div class="text-2xl font-bold text-[#4edea3]">${scoreData.totalScore} <span class="text-xs text-[#bbcabf] font-normal">/ 100 Puntos Totales</span></div>
@@ -989,18 +999,18 @@ function renderApplications() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${app.id}</td>
-      <td class="p-3 font-bold text-white">${app.borrowerName}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(app.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(app.borrowerName)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${app.amount.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${app.reason}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(app.reason)}</td>
       <td class="p-3"><strong class="text-[#4edea3]">${Math.max(borrower.score || 0, scoreData.totalScore)} pts</strong></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${scoreData.recommendation}</td>
-      <td class="p-3"><span class="badge-risk ${badgeClass}">${app.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(scoreData.recommendation)}</td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(app.status)}</span></td>
       <td class="p-3">
         ${app.status === 'En Revisión' ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold mr-1 cursor-pointer" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
           <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
-        ` : `<span class="text-xs text-[#94A3B8] font-bold">${app.status}</span>`}
+        ` : `<span class="text-xs text-[#94A3B8] font-bold">${escapeHtml(app.status)}</span>`}
       </td>
     `;
     tbody.appendChild(tr);
@@ -1260,13 +1270,13 @@ function renderLoans() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${ln.id}</td>
-      <td class="p-3 font-bold text-white">${ln.borrowerName}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(ln.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(ln.borrowerName)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${ln.principal.toFixed(2)}</td>
       <td class="p-3 text-white">$${ln.totalScheduled.toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${ln.scheduledProfit.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${ln.installmentCount} quincenas ($${(ln.installmentAmount || 0).toFixed(2)})</td>
-      <td class="p-3"><span class="badge-risk ${badgeClass}">${ln.status}</span></td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(ln.status)}</span></td>
       <td class="p-3">
         <button class="bg-[#FF6B00] hover:bg-[#FF5500] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer shadow-md shadow-[#FF6B00]/20" onclick="window.selectLoanForPayment('${ln.id}')">Cobrar</button>
       </td>
@@ -1392,14 +1402,14 @@ function renderCollections() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-bold">${col.id}</td>
-      <td class="p-3 font-bold text-white">${col.loanId}</td>
-      <td class="p-3 text-white font-bold">${col.borrowerName}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-bold">${escapeHtml(col.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(col.loanId)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(col.borrowerName)}</td>
       <td class="p-3 ${daysClass}">${displayDays} días</td>
-      <td class="p-3"><span class="badge-risk ${tierBadgeClass}">${displayTier}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${col.promiseDate || 'N/A'} (${col.channel || 'Contacto'})</td>
+      <td class="p-3"><span class="badge-risk ${tierBadgeClass}">${escapeHtml(displayTier)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(col.promiseDate || 'N/A')} (${escapeHtml(col.channel || 'Contacto')})</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(col.promiseAmount || 0).toFixed(2)}</td>
-      <td class="p-3"><span class="badge-risk ${statusBadgeClass}">${col.promiseStatus || 'Pendiente'}</span></td>
+      <td class="p-3"><span class="badge-risk ${statusBadgeClass}">${escapeHtml(col.promiseStatus || 'Pendiente')}</span></td>
       <td class="p-3">
         ${col.promiseStatus === 'Pendiente' ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" onclick="window.markPromiseFulfilled('${col.id}')">Cumplida</button>
@@ -1670,12 +1680,12 @@ function renderN8nNotifications() {
   logs.forEach(item => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${item.timestamp}</td>
-      <td class="p-3 font-bold text-white">${item.eventType}</td>
-      <td class="p-3 text-white font-bold">${item.recipient}</td>
-      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${item.channel}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf] max-w-[250px] truncate" title="${item.payload}">${item.payload}</td>
-      <td class="p-3"><span class="badge-risk ${item.status === 'OK 200' ? 'badge-green' : 'badge-amber'}">${item.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(item.timestamp)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(item.eventType)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(item.recipient)}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${escapeHtml(item.channel)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] max-w-[250px] truncate" title="${escapeHtml(item.payload)}">${escapeHtml(item.payload)}</td>
+      <td class="p-3"><span class="badge-risk ${item.status === 'OK 200' ? 'badge-green' : 'badge-amber'}">${escapeHtml(item.status)}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1936,10 +1946,10 @@ function renderPayments() {
       <td class="p-3 text-xs text-[#bbcabf] font-mono">
         ${formattedDate}
         <br>
-        <span class="inline-block mt-1 text-[10px] text-[#818CF8] bg-[#818CF8]/10 px-1.5 py-0.5 rounded border border-[#818CF8]/20 font-bold">${p.transactionId || 'PAY-N/A'}</span>
+        <span class="inline-block mt-1 text-[10px] text-[#818CF8] bg-[#818CF8]/10 px-1.5 py-0.5 rounded border border-[#818CF8]/20 font-bold">${escapeHtml(p.transactionId || 'PAY-N/A')}</span>
       </td>
-      <td class="p-3 font-bold text-white text-xs font-mono">${loanDisplayId}</td>
-      <td class="p-3 text-white font-bold">${borrowerName}</td>
+      <td class="p-3 font-bold text-white text-xs font-mono">${escapeHtml(loanDisplayId)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(borrowerName)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#818CF8] font-bold">$${principalPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#FBBF24] font-bold">$${reservePaid.toFixed(2)}</td>
@@ -2344,13 +2354,13 @@ function renderQuincenalCloseUI() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 text-xs text-[#bbcabf] font-mono">${c.timestamp || c.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white">${c.periodName}${c.periodStart ? `<br><span class='text-[10px] text-[#4edea3] font-normal'>${c.periodStart} — ${c.periodEnd || 'hoy'}</span>` : ''}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(c.periodName)}${c.periodStart ? `<br><span class='text-[10px] text-[#4edea3] font-normal'>${escapeHtml(c.periodStart)} — ${escapeHtml(c.periodEnd || 'hoy')}</span>` : ''}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(c.totalCollected || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${(c.netProfit || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#FBBF24]">$${(c.riskContribution || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${utilidad.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${c.notes}">${c.notes}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${c.status === 'Completado' ? 'Completado' : (c.status || 'Procesado')}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${escapeHtml(c.notes)}">${escapeHtml(c.notes)}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${escapeHtml(c.status === 'Completado' ? 'Completado' : (c.status || 'Procesado'))}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -2546,11 +2556,11 @@ function renderOperationsExpensesUI() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${dateFormatted}</td>
-      <td class="p-3 font-bold text-white">${concept}</td>
-      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${category}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(dateFormatted)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(concept)}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${escapeHtml(category)}</span></td>
       <td class="p-3 font-bold text-[#F43F5E]">$${amount.toFixed(2)} USD</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${exp.user || 'Propietario'}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(exp.user || 'Propietario')}</td>
       <td class="p-3">
         <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteExpense('${exp.id}')">Eliminar</button>
       </td>
@@ -2662,12 +2672,12 @@ function renderNotifications() {
   state.notifications.forEach(n => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf]">${n.timestamp}</td>
-      <td class="p-3 font-bold text-white">${n.borrowerName}</td>
-      <td class="p-3 text-xs"><span class="bg-emerald-500/10 text-[#4edea3] px-2 py-0.5 rounded font-bold">${n.channel}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${n.event}</td>
-      <td class="p-3 text-xs text-white max-w-xs truncate">${n.message}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${n.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.timestamp)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(n.borrowerName)}</td>
+      <td class="p-3 text-xs"><span class="bg-emerald-500/10 text-[#4edea3] px-2 py-0.5 rounded font-bold">${escapeHtml(n.channel)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.event)}</td>
+      <td class="p-3 text-xs text-white max-w-xs truncate">${escapeHtml(n.message)}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${escapeHtml(n.status)}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3208,7 +3218,7 @@ function renderOwnerDebtsUI() {
       const target = sortedDebts[0];
       descEl.innerHTML = `
         <strong>${strategy === 'avalanche' ? 'MÉTODO AVALANCHA (Mayor Tasa de Interés)' : 'MÉTODO BOLA DE NIEVE (Menor Saldo)'}:</strong> 
-        Atacar primero <strong>${target.debtName || target.debt_name}</strong> (Saldo: $${(target.balance || 0).toFixed(2)} | Tasa: ${target.interestRate || target.interest_rate}%). 
+        Atacar primero <strong>${escapeHtml(target.debtName || target.debt_name)}</strong> (Saldo: $${(target.balance || 0).toFixed(2)} | Tasa: ${escapeHtml(target.interestRate || target.interest_rate)}%).
         Se asignan $${engine.distributableBalance.toFixed(2)} USD de Dinero Distribuible libre como abono extraordinario.
       `;
     } else {
@@ -3241,9 +3251,9 @@ function renderOwnerDebtsUI() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30' : 'bg-white/5 text-[#94A3B8]'}">#${idx + 1} ${idx === 0 ? 'PRIORITARIA' : ''}</span></td>
-      <td class="p-3 font-bold text-white">${d.debtName || d.debt_name}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(d.debtName || d.debt_name)}</td>
       <td class="p-3 text-white font-bold">$${(d.balance || 0).toFixed(2)}</td>
-      <td class="p-3 font-bold text-amber-300">${d.interestRate || d.interest_rate}%</td>
+      <td class="p-3 font-bold text-amber-300">${escapeHtml(d.interestRate || d.interest_rate)}%</td>
       <td class="p-3 text-white">$${(d.minPayment || d.min_payment || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${extraPay.toFixed(2)}</td>
       <td class="p-3 flex items-center gap-2">
@@ -3410,11 +3420,11 @@ function renderAudit() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${formattedDate}</td>
-      <td class="p-3 font-bold text-white text-xs">${log.user || 'Propietario / Admin'}</td>
-      <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${log.action}</span></td>
-      <td class="p-3 text-xs text-[#818CF8] font-bold">${log.module}</td>
-      <td class="p-3 text-xs text-white max-w-md">${log.details}</td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(formattedDate)}</td>
+      <td class="p-3 font-bold text-white text-xs">${escapeHtml(log.user || 'Propietario / Admin')}</td>
+      <td class="p-3 text-xs"><span class="badge-risk ${badgeClass}">${escapeHtml(log.action)}</span></td>
+      <td class="p-3 text-xs text-[#818CF8] font-bold">${escapeHtml(log.module)}</td>
+      <td class="p-3 text-xs text-white max-w-md">${escapeHtml(log.details)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -3541,14 +3551,14 @@ window.renderTeamMembers = function() {
     tr.innerHTML = `
       <td class="p-2.5 font-bold text-white flex items-center gap-2">
         <span class="w-6 h-6 rounded-full bg-[#818CF8]/20 text-[#818CF8] text-[10px] flex items-center justify-center font-bold">
-          ${(m.name || 'US').substring(0, 2).toUpperCase()}
+          ${escapeHtml((m.name || 'US').substring(0, 2).toUpperCase())}
         </span>
-        ${m.name}
+        ${escapeHtml(m.name)}
       </td>
-      <td class="p-2.5 text-[#bbcabf] font-mono text-[11px]">${m.email}</td>
-      <td class="p-2.5"><span class="bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${m.role}</span></td>
-      <td class="p-2.5 text-[#bbcabf]">${m.orgName || state.organization?.name || 'Mi Cartera Personal'}</td>
-      <td class="p-2.5"><span class="badge-risk badge-green">${m.status || 'Activo'}</span></td>
+      <td class="p-2.5 text-[#bbcabf] font-mono text-[11px]">${escapeHtml(m.email)}</td>
+      <td class="p-2.5"><span class="bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${escapeHtml(m.role)}</span></td>
+      <td class="p-2.5 text-[#bbcabf]">${escapeHtml(m.orgName || state.organization?.name || 'Mi Cartera Personal')}</td>
+      <td class="p-2.5"><span class="badge-risk badge-green">${escapeHtml(m.status || 'Activo')}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -4092,7 +4102,12 @@ function appendCopilotMessage(role, text) {
   const bubbleDiv = document.createElement('div');
   bubbleDiv.className = 'flex gap-2 items-start';
 
-  let formattedText = String(text)
+  // Se escapa el texto crudo ANTES de aplicar el formato tipo markdown, para que
+  // HTML embebido en el mensaje (propio del usuario o en la respuesta del modelo)
+  // nunca se interprete como markup real. Los caracteres usados por el markdown
+  // (*, `, salto de línea) no forman parte de las entidades que escapeHtml() toca,
+  // así que las reglas siguen funcionando igual sobre el texto ya escapado.
+  let formattedText = escapeHtml(text)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code class="bg-black/40 px-1.5 py-0.5 rounded text-[#818CF8] font-mono text-[10px]">$1</code>')

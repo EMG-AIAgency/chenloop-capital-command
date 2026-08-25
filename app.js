@@ -3155,6 +3155,7 @@ window.calculateFinancialEngine = function() {
     currentStage,
     defensiveMode,
     par30Rate,
+    par30Limit,
     portfolioTarget
   };
 };
@@ -4047,13 +4048,13 @@ window.updateFinancialAccountState = async function() {
   const accountRecord = {
     id: state.financialAccounts?.id || '92700043-3f9d-484c-83d0-5ebbb0f05a7d',
     organization_id: getOrganizationId(),
-    capital_total: engine.totalCapital,
+    capital_total: engine.capitalTotal,
     capital_deployed: engine.capitalDeployed,
     capital_available: engine.capitalAvailable,
     risk_reserve_balance: engine.riskReserveBalance,
     risk_reserve_target_pct: engine.riskReserveTargetPct || 20.0,
     operational_balance: engine.operationalBalance,
-    operational_target_months: engine.operationalTargetMonths || 6,
+    operational_target_months: engine.opsMonthsTarget || 6,
     distributable_balance: engine.distributableBalance,
     current_stage: engine.currentStage,
     defensive_mode: engine.defensiveMode,

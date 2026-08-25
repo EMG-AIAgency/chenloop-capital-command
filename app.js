@@ -3218,7 +3218,7 @@ function renderOwnerDebtsUI() {
       const target = sortedDebts[0];
       descEl.innerHTML = `
         <strong>${strategy === 'avalanche' ? 'MÉTODO AVALANCHA (Mayor Tasa de Interés)' : 'MÉTODO BOLA DE NIEVE (Menor Saldo)'}:</strong> 
-        Atacar primero <strong>${target.debtName || target.debt_name}</strong> (Saldo: $${(target.balance || 0).toFixed(2)} | Tasa: ${target.interestRate || target.interest_rate}%). 
+        Atacar primero <strong>${escapeHtml(target.debtName || target.debt_name)}</strong> (Saldo: $${(target.balance || 0).toFixed(2)} | Tasa: ${escapeHtml(target.interestRate || target.interest_rate)}%).
         Se asignan $${engine.distributableBalance.toFixed(2)} USD de Dinero Distribuible libre como abono extraordinario.
       `;
     } else {
@@ -3251,9 +3251,9 @@ function renderOwnerDebtsUI() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30' : 'bg-white/5 text-[#94A3B8]'}">#${idx + 1} ${idx === 0 ? 'PRIORITARIA' : ''}</span></td>
-      <td class="p-3 font-bold text-white">${d.debtName || d.debt_name}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(d.debtName || d.debt_name)}</td>
       <td class="p-3 text-white font-bold">$${(d.balance || 0).toFixed(2)}</td>
-      <td class="p-3 font-bold text-amber-300">${d.interestRate || d.interest_rate}%</td>
+      <td class="p-3 font-bold text-amber-300">${escapeHtml(d.interestRate || d.interest_rate)}%</td>
       <td class="p-3 text-white">$${(d.minPayment || d.min_payment || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${extraPay.toFixed(2)}</td>
       <td class="p-3 flex items-center gap-2">

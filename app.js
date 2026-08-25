@@ -2354,13 +2354,13 @@ function renderQuincenalCloseUI() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="p-3 text-xs text-[#bbcabf] font-mono">${c.timestamp || c.date || 'Hoy'}</td>
-      <td class="p-3 font-bold text-white">${c.periodName}${c.periodStart ? `<br><span class='text-[10px] text-[#4edea3] font-normal'>${c.periodStart} — ${c.periodEnd || 'hoy'}</span>` : ''}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(c.periodName)}${c.periodStart ? `<br><span class='text-[10px] text-[#4edea3] font-normal'>${escapeHtml(c.periodStart)} — ${escapeHtml(c.periodEnd || 'hoy')}</span>` : ''}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${(c.totalCollected || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${(c.netProfit || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#FBBF24]">$${(c.riskContribution || 0).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${utilidad.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${c.notes}">${c.notes}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${c.status === 'Completado' ? 'Completado' : (c.status || 'Procesado')}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] max-w-[200px] truncate" title="${escapeHtml(c.notes)}">${escapeHtml(c.notes)}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${escapeHtml(c.status === 'Completado' ? 'Completado' : (c.status || 'Procesado'))}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -2556,11 +2556,11 @@ function renderOperationsExpensesUI() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${dateFormatted}</td>
-      <td class="p-3 font-bold text-white">${concept}</td>
-      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${category}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(dateFormatted)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(concept)}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded font-bold">${escapeHtml(category)}</span></td>
       <td class="p-3 font-bold text-[#F43F5E]">$${amount.toFixed(2)} USD</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${exp.user || 'Propietario'}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(exp.user || 'Propietario')}</td>
       <td class="p-3">
         <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteExpense('${exp.id}')">Eliminar</button>
       </td>
@@ -2672,12 +2672,12 @@ function renderNotifications() {
   state.notifications.forEach(n => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf]">${n.timestamp}</td>
-      <td class="p-3 font-bold text-white">${n.borrowerName}</td>
-      <td class="p-3 text-xs"><span class="bg-emerald-500/10 text-[#4edea3] px-2 py-0.5 rounded font-bold">${n.channel}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${n.event}</td>
-      <td class="p-3 text-xs text-white max-w-xs truncate">${n.message}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${n.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.timestamp)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(n.borrowerName)}</td>
+      <td class="p-3 text-xs"><span class="bg-emerald-500/10 text-[#4edea3] px-2 py-0.5 rounded font-bold">${escapeHtml(n.channel)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.event)}</td>
+      <td class="p-3 text-xs text-white max-w-xs truncate">${escapeHtml(n.message)}</td>
+      <td class="p-3"><span class="badge-risk badge-green">${escapeHtml(n.status)}</span></td>
     `;
     tbody.appendChild(tr);
   });

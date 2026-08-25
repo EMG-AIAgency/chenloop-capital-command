@@ -1,4 +1,14 @@
 
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
   if (!promiseDateStr) return 0;
   if (status === 'Cumplida' || status === 'Cerrada') return 0;
@@ -758,7 +768,7 @@ function renderCapitalFlows() {
     tr.innerHTML = `
       <td class="p-3 font-bold text-white flex items-center gap-2">
         <span class="w-7 h-7 rounded bg-[#1c2028] text-xs flex items-center justify-center font-bold border border-white/10 text-[#FF6B00]">${initials}</span>
-        ${loan.borrowerName}
+        ${escapeHtml(loan.borrowerName)}
       </td>
       <td class="p-3 text-white">$${(bw.exposureLimit || bw.maxExposure || loan.principal || 300).toFixed(2)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${(loan.principal || 0).toFixed(2)}</td>
@@ -861,10 +871,10 @@ function renderRealtimeAlerts() {
     card.innerHTML = `
       <div class="flex items-center gap-2 text-xs font-bold ${textCol}">
         <span class="material-symbols-outlined text-[16px]">${icon}</span>
-        <span>${a.title}</span>
+        <span>${escapeHtml(a.title)}</span>
       </div>
-      <p class="text-xs text-[#bbcabf]">${a.message}</p>
-      <span class="text-[10px] uppercase font-bold ${textCol}">${a.tag}</span>
+      <p class="text-xs text-[#bbcabf]">${escapeHtml(a.message)}</p>
+      <span class="text-[10px] uppercase font-bold ${textCol}">${escapeHtml(a.tag)}</span>
     `;
     container.appendChild(card);
   });
@@ -892,9 +902,9 @@ function renderBorrowers() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${bw.name}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${bw.idNumber || bw.id_number || 'N/A'}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${bw.phone || 'N/A'}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(bw.name)}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(bw.idNumber || bw.id_number || 'N/A')}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(bw.phone || 'N/A')}</td>
       <td class="p-3">
         <strong class="text-[#4edea3]">${effectiveScore} pts</strong>
         <button class="bg-[#162032] hover:bg-[#1f2d47] text-white px-2 py-1 rounded text-[11px] ml-2 cursor-pointer border border-white/10" onclick="window.showScoreModal('${bw.id}')">Ver Desglose</button>
@@ -927,7 +937,7 @@ window.showScoreModal = function(borrowerId) {
   content.innerHTML = `
     <div class="p-3 rounded-lg bg-[#080C14] border border-white/5 space-y-2">
       <div class="flex justify-between items-center">
-        <span class="font-bold text-white text-sm">${bw.name}</span>
+        <span class="font-bold text-white text-sm">${escapeHtml(bw.name)}</span>
         <span class="text-xs px-2 py-0.5 rounded font-bold ${scoreData.totalScore >= 80 ? 'bg-emerald-500/20 text-[#4edea3]' : 'bg-amber-500/20 text-[#F59E0B]'}">${scoreData.riskLevel}</span>
       </div>
       <div class="text-2xl font-bold text-[#4edea3]">${scoreData.totalScore} <span class="text-xs text-[#bbcabf] font-normal">/ 100 Puntos Totales</span></div>

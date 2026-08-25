@@ -1024,7 +1024,7 @@ function renderApplications() {
       <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(scoreData.recommendation)}</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(app.status)}</span></td>
       <td class="p-3">
-        ${app.status === 'En Revisión' ? `
+        ${app.status === 'En Revisión' && canApproveApplications() ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold mr-1 cursor-pointer" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
           <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
         ` : `<span class="text-xs text-[#94A3B8] font-bold">${escapeHtml(app.status)}</span>`}
@@ -1035,6 +1035,11 @@ function renderApplications() {
 }
 
 window.approveApplication = async function(appId) {
+  if (!canApproveApplications()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const app = state.applications.find(a => a.id === appId);
   if (!app) return;
 
@@ -1231,6 +1236,11 @@ window.approveApplication = async function(appId) {
 };
 
 window.rejectApplication = async function(appId) {
+  if (!canApproveApplications()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const app = state.applications.find(a => a.id === appId);
   if (!app) return;
 
@@ -3717,6 +3727,12 @@ window.createTeamMember = async function() {
 
 document.getElementById('form-settings')?.addEventListener('submit', async function(e) {
   e.preventDefault();
+
+  if (!canManageSettings()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const capitalTotal = parseFloat(document.getElementById('set-capital-total')?.value || 1000);
   const par30Limit = parseFloat(document.getElementById('set-par30-limit')?.value || 10);
   const reserveTargetPct = parseFloat(document.getElementById('set-reserve-target')?.value || 20);

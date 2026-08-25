@@ -3624,10 +3624,15 @@ window.renderTeamMembers = function() {
 };
 
 window.createTeamMember = async function() {
+  if (!canManageTeam()) {
+    alert('No tienes permiso para esta acción.');
+    return;
+  }
+
   const name = document.getElementById('usr-name')?.value.trim();
   const email = document.getElementById('usr-email')?.value.trim();
   const pass = document.getElementById('usr-pass')?.value;
-  const role = document.getElementById('usr-role')?.value || 'Cajero / Operador';
+  const role = document.getElementById('usr-role')?.value || 'Analista de Riesgo';
 
   if (!name || !email || !pass || pass.length < 6) {
     alert("Por favor ingresa un nombre completo, correo válido y contraseña de al menos 6 caracteres.");

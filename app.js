@@ -999,18 +999,18 @@ function renderApplications() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 font-bold text-white">${app.id}</td>
-      <td class="p-3 font-bold text-white">${app.borrowerName}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(app.id)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(app.borrowerName)}</td>
       <td class="p-3 font-bold text-[#818CF8]">$${app.amount.toFixed(2)}</td>
-      <td class="p-3 text-xs text-[#bbcabf]">${app.reason}</td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(app.reason)}</td>
       <td class="p-3"><strong class="text-[#4edea3]">${Math.max(borrower.score || 0, scoreData.totalScore)} pts</strong></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${scoreData.recommendation}</td>
-      <td class="p-3"><span class="badge-risk ${badgeClass}">${app.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(scoreData.recommendation)}</td>
+      <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(app.status)}</span></td>
       <td class="p-3">
         ${app.status === 'En Revisión' ? `
           <button class="bg-[#10b981] hover:bg-[#047857] text-white px-2.5 py-1 rounded text-xs font-bold mr-1 cursor-pointer" onclick="window.approveApplication('${app.id}')">Aprobar & Desembolsar</button>
           <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.rejectApplication('${app.id}')">Rechazar</button>
-        ` : `<span class="text-xs text-[#94A3B8] font-bold">${app.status}</span>`}
+        ` : `<span class="text-xs text-[#94A3B8] font-bold">${escapeHtml(app.status)}</span>`}
       </td>
     `;
     tbody.appendChild(tr);

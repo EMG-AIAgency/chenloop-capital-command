@@ -1680,12 +1680,12 @@ function renderN8nNotifications() {
   logs.forEach(item => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf] font-mono">${item.timestamp}</td>
-      <td class="p-3 font-bold text-white">${item.eventType}</td>
-      <td class="p-3 text-white font-bold">${item.recipient}</td>
-      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${item.channel}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf] max-w-[250px] truncate" title="${item.payload}">${item.payload}</td>
-      <td class="p-3"><span class="badge-risk ${item.status === 'OK 200' ? 'badge-green' : 'badge-amber'}">${item.status}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] font-mono">${escapeHtml(item.timestamp)}</td>
+      <td class="p-3 font-bold text-white">${escapeHtml(item.eventType)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(item.recipient)}</td>
+      <td class="p-3 text-xs text-[#818CF8]"><span class="bg-[#818CF8]/10 border border-[#818CF8]/30 px-2 py-0.5 rounded">${escapeHtml(item.channel)}</span></td>
+      <td class="p-3 text-xs text-[#bbcabf] max-w-[250px] truncate" title="${escapeHtml(item.payload)}">${escapeHtml(item.payload)}</td>
+      <td class="p-3"><span class="badge-risk ${item.status === 'OK 200' ? 'badge-green' : 'badge-amber'}">${escapeHtml(item.status)}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1946,10 +1946,10 @@ function renderPayments() {
       <td class="p-3 text-xs text-[#bbcabf] font-mono">
         ${formattedDate}
         <br>
-        <span class="inline-block mt-1 text-[10px] text-[#818CF8] bg-[#818CF8]/10 px-1.5 py-0.5 rounded border border-[#818CF8]/20 font-bold">${p.transactionId || 'PAY-N/A'}</span>
+        <span class="inline-block mt-1 text-[10px] text-[#818CF8] bg-[#818CF8]/10 px-1.5 py-0.5 rounded border border-[#818CF8]/20 font-bold">${escapeHtml(p.transactionId || 'PAY-N/A')}</span>
       </td>
-      <td class="p-3 font-bold text-white text-xs font-mono">${loanDisplayId}</td>
-      <td class="p-3 text-white font-bold">${borrowerName}</td>
+      <td class="p-3 font-bold text-white text-xs font-mono">${escapeHtml(loanDisplayId)}</td>
+      <td class="p-3 text-white font-bold">${escapeHtml(borrowerName)}</td>
       <td class="p-3 font-bold text-[#4edea3]">$${amountPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#818CF8] font-bold">$${principalPaid.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#FBBF24] font-bold">$${reservePaid.toFixed(2)}</td>

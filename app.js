@@ -3568,13 +3568,17 @@ window.createTeamMember = async function() {
   const currentOrgId = state.financialAccounts?.organizationId || currentProfile?.organization_id || getOrganizationId();
   const currentOrgName = state.organization?.name || "Mi Cartera Personal";
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !window.supabase) {
     alert("Supabase Client no está disponible en este momento.");
     return;
   }
 
   try {
-    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+    const isolatedAuthClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+
+    const { data: authData, error: authError } = await isolatedAuthClient.auth.signUp({
       email,
       password: pass,
       options: {

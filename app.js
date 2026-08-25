@@ -2834,6 +2834,8 @@ document.getElementById('form-login')?.addEventListener('submit', async function
 
 document.getElementById('form-register')?.addEventListener('submit', async function(e) {
   e.preventDefault();
+  showAuthError("El registro público está desactivado temporalmente. Contacta al administrador para obtener acceso.");
+  return;
   const fullName = document.getElementById('reg-fullname').value;
   const orgName = document.getElementById('reg-orgname').value;
   const email = document.getElementById('reg-email').value;

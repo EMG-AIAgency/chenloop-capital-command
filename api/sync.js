@@ -84,6 +84,17 @@ module.exports = async (req, res) => {
     supabase = createClient(supabaseUrl, supabaseAnonKey, clientOptions);
   }
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', authData.user.id)
+    .single();
+
+  const callerOrgId = profile && profile.organization_id;
+  if (profileError || !callerOrgId) {
+    return res.status(403).json({ error: "No se pudo determinar la organización del usuario" });
+  }
+
   try {
     if (req.method === 'GET') {
       const [
@@ -101,19 +112,19 @@ module.exports = async (req, res) => {
         { data: ownerDebts, error: e12 },
         { data: financialMovements, error: e13 }
       ] = await Promise.all([
-        supabase.from('organizations').select('*'),
-        supabase.from('borrowers').select('*'),
-        supabase.from('applications').select('*'),
-        supabase.from('loans').select('*'),
-        supabase.from('collections').select('*'),
-        supabase.from('payments').select('*').order('payment_date', { ascending: false }),
-        supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('financial_accounts').select('*'),
-        supabase.from('operational_expenses').select('*').order('created_at', { ascending: false }),
-        supabase.from('quincenal_closes').select('*').order('created_at', { ascending: false }),
-        supabase.from('owner_debts').select('*').order('created_at', { ascending: false }),
-        supabase.from('financial_movements').select('*').order('created_at', { ascending: false })
+        supabase.from('organizations').select('*').eq('id', callerOrgId),
+        supabase.from('borrowers').select('*').eq('organization_id', callerOrgId),
+        supabase.from('applications').select('*').eq('organization_id', callerOrgId),
+        supabase.from('loans').select('*').eq('organization_id', callerOrgId),
+        supabase.from('collections').select('*').eq('organization_id', callerOrgId),
+        supabase.from('payments').select('*').eq('organization_id', callerOrgId).order('payment_date', { ascending: false }),
+        supabase.from('notifications').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false }).limit(100),
+        supabase.from('audit_logs').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false }).limit(100),
+        supabase.from('financial_accounts').select('*').eq('organization_id', callerOrgId),
+        supabase.from('operational_expenses').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false }),
+        supabase.from('quincenal_closes').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false }),
+        supabase.from('owner_debts').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false }),
+        supabase.from('financial_movements').select('*').eq('organization_id', callerOrgId).order('created_at', { ascending: false })
       ]);
 
       // Log any fetch errors (non-fatal) but still return what we have
@@ -159,8 +170,21 @@ module.exports = async (req, res) => {
         Object.entries(record).filter(([_, v]) => v !== undefined && v !== null || v === 0 || v === '')
       );
 
+      if (entity === 'organizations') {
+        if (cleanRecord.id !== callerOrgId) {
+          return res.status(403).json({ error: "No puedes modificar una organización distinta a la tuya" });
+        }
+      } else {
+        // Nunca confiar en el organization_id que manda el cliente
+        cleanRecord.organization_id = callerOrgId;
+      }
+
       if (cleanRecord.deleted && cleanRecord.id) {
-        const { error } = await supabase.from(entity).delete().eq('id', cleanRecord.id);
+        let deleteQuery = supabase.from(entity).delete().eq('id', cleanRecord.id);
+        if (entity !== 'organizations') {
+          deleteQuery = deleteQuery.eq('organization_id', callerOrgId);
+        }
+        const { error } = await deleteQuery;
         if (error) {
           console.error(`Supabase DELETE error on ${entity}:`, error);
           return res.status(500).json({ error: error.message });

@@ -16,26 +16,23 @@ module.exports = async (req, res) => {
     return;
   }
 
-  // Modo de gracia: si CRON_SHARED_SECRET no esta configurada en Vercel,
-  // el chequeo no se activa (compatibilidad total con el comportamiento
-  // actual). Una vez configurada, valida el header X-Cron-Secret, pero
-  // TODAVIA acepta requests sin ese header (solo con una advertencia en
-  // los logs) hasta que se confirme que el workflow de n8n en Railway ya
-  // lo esta enviando. Retirar ese caso de gracia es un cambio separado,
-  // posterior a esa confirmacion.
+  // Confirmado en produccion (2 corridas diarias consecutivas exitosas del
+  // workflow de n8n con el header presente) que CRON_SHARED_SECRET esta
+  // configurada en Vercel y n8n ya envia X-Cron-Secret correctamente.
+  // Se retira el modo de gracia: el secreto ahora es obligatorio.
   const cronSharedSecret = process.env.CRON_SHARED_SECRET;
-  if (cronSharedSecret) {
-    const provided = req.headers['x-cron-secret'] || req.headers['X-Cron-Secret'];
-    if (provided) {
-      const a = Buffer.from(String(provided));
-      const b = Buffer.from(cronSharedSecret);
-      const valid = a.length === b.length && crypto.timingSafeEqual(a, b);
-      if (!valid) {
-        return res.status(401).json({ error: "Secreto de cron invalido" });
-      }
-    } else {
-      console.warn('[cron-check] MODO DE GRACIA: request sin header X-Cron-Secret aceptado temporalmente. Actualizar el workflow de n8n en Railway para incluir el header antes de retirar este modo.');
-    }
+  if (!cronSharedSecret) {
+    return res.status(500).json({ error: "CRON_SHARED_SECRET no configurada en el servidor" });
+  }
+  const provided = req.headers['x-cron-secret'] || req.headers['X-Cron-Secret'];
+  if (!provided) {
+    return res.status(401).json({ error: "Falta header X-Cron-Secret" });
+  }
+  const a = Buffer.from(String(provided));
+  const b = Buffer.from(cronSharedSecret);
+  const valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!valid) {
+    return res.status(401).json({ error: "Secreto de cron invalido" });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;

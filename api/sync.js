@@ -84,6 +84,17 @@ module.exports = async (req, res) => {
     supabase = createClient(supabaseUrl, supabaseAnonKey, clientOptions);
   }
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', authData.user.id)
+    .single();
+
+  const callerOrgId = profile && profile.organization_id;
+  if (profileError || !callerOrgId) {
+    return res.status(403).json({ error: "No se pudo determinar la organización del usuario" });
+  }
+
   try {
     if (req.method === 'GET') {
       const [

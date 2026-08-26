@@ -170,8 +170,21 @@ module.exports = async (req, res) => {
         Object.entries(record).filter(([_, v]) => v !== undefined && v !== null || v === 0 || v === '')
       );
 
+      if (entity === 'organizations') {
+        if (cleanRecord.id !== callerOrgId) {
+          return res.status(403).json({ error: "No puedes modificar una organización distinta a la tuya" });
+        }
+      } else {
+        // Nunca confiar en el organization_id que manda el cliente
+        cleanRecord.organization_id = callerOrgId;
+      }
+
       if (cleanRecord.deleted && cleanRecord.id) {
-        const { error } = await supabase.from(entity).delete().eq('id', cleanRecord.id);
+        let deleteQuery = supabase.from(entity).delete().eq('id', cleanRecord.id);
+        if (entity !== 'organizations') {
+          deleteQuery = deleteQuery.eq('organization_id', callerOrgId);
+        }
+        const { error } = await deleteQuery;
         if (error) {
           console.error(`Supabase DELETE error on ${entity}:`, error);
           return res.status(500).json({ error: error.message });

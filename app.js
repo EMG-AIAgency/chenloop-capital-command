@@ -152,16 +152,16 @@ function currentRole() {
   return currentProfile?.role || null;
 }
 function canManageSettings() {
-  return currentRole() === 'Tier 1 Admin';
+  return currentRole() === 'Admin';
 }
 function canManageTeam() {
-  return currentRole() === 'Tier 1 Admin';
+  return currentRole() === 'Admin';
 }
 function canApproveApplications() {
-  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+  return currentRole() === 'Admin' || currentRole() === 'Analista de Riesgo';
 }
 function canViewFinancialReports() {
-  return currentRole() === 'Tier 1 Admin' || currentRole() === 'Analista de Riesgo';
+  return currentRole() === 'Admin' || currentRole() === 'Analista de Riesgo';
 }
 
 if (window.supabase) {
@@ -3611,7 +3611,7 @@ window.renderTeamMembers = function() {
       id: currentProfile?.id || 'admin-01',
       name: currentProfile?.full_name || 'Edgar Garcia (Admin)',
       email: currentSession?.user?.email || 'admin@tu-cartera.com',
-      role: currentProfile?.role || 'Tier 1 Admin',
+      role: currentProfile?.role || 'Admin',
       orgName: state.organization?.name || 'Mi Cartera Personal',
       status: 'Activo'
     }

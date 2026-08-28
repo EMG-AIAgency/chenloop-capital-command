@@ -2347,6 +2347,7 @@ function renderQuincenalCloseUI() {
   const elRiskContrib = document.getElementById('qc-risk-contribution');
   const elReinvest = document.getElementById('qc-reinvestment-available');
   const lblRiskContrib = document.getElementById('lbl-qc-risk-contribution');
+  const elDistributable = document.getElementById('qc-distributable-balance');
 
   const allPayments = state.payments || [];
   const closes = state.quincenalCloses || [];
@@ -2380,6 +2381,29 @@ function renderQuincenalCloseUI() {
   const activePortfolioRealtime = (state.loans || []).filter(l => l.status === 'Activo').reduce((s,l)=>s+(l.principal||0),0);
   const reinvestAvail = Math.max(0, actualCapitalTotal - activePortfolioRealtime);
 
+  // Utilidad Distribuible: lo que el dueño podría sacar del negocio (gastos,
+  // deudas personales, retiros) sin tocar el Capital Disponible para prestar.
+  // = ganancia bruta acumulada de TODA la historia (no solo este período)
+  //   - reserva de riesgo real ya apartada
+  //   - gastos operativos ya registrados
+  //   - utilidad ya reinvertida en capital (cierres marcados 'reinvest';
+  //     esto vive solo en la sesión hasta que la Fase E persista el campo
+  //     en Supabase, así que tras un refresh completo puede no reflejar
+  //     reinversiones de sesiones anteriores)
+  // Los abonos a Deudas del Propietario todavía no se restan aquí -- se
+  // conectan en una fase aparte, una vez que haya forma de registrar cada
+  // abono como movimiento (hoy solo se guarda el saldo actual de la deuda).
+  const grossProfitAllTime = allPayments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
+  const realReserveBalance = state.financialAccounts?.riskReserveBalance || 0;
+  const totalOperationalExpenses = (state.operationalExpenses || []).reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
+  const totalReinvestedInCapital = (state.quincenalCloses || []).reduce((sum, c) => {
+    if (c.strategy === 'reinvest' || c.profitStrategy === 'reinvest') {
+      return sum + parseFloat(c.utilidad || 0);
+    }
+    return sum;
+  }, 0);
+  const distributableBalance = Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital);
+
   if (lblRiskContrib) {
     lblRiskContrib.innerText = `Aporte Sugerido a Reserva (${targetReservePct}%)`;
   }
@@ -2387,6 +2411,7 @@ function renderQuincenalCloseUI() {
   if (elProfit) elProfit.innerText = `$${netProfit.toFixed(2)}`;
   if (elRiskContrib) elRiskContrib.innerText = `$${riskContrib.toFixed(2)}`;
   if (elReinvest) elReinvest.innerText = `$${reinvestAvail.toFixed(2)}`;
+  if (elDistributable) elDistributable.innerText = `$${distributableBalance.toFixed(2)}`;
 
   if (!tbody) return;
   tbody.innerHTML = '';

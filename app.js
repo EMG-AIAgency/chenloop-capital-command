@@ -2352,21 +2352,26 @@ document.getElementById('pay-reserve-pct')?.addEventListener('input', updatePaym
 //       esto vive solo en la sesión hasta que se persista el campo en
 //       Supabase, así que tras un refresh completo puede no reflejar
 //       reinversiones de sesiones anteriores)
-// Los abonos a Deudas del Propietario todavía no se restan aquí -- se
-// conectan en una fase aparte, una vez que haya forma de registrar cada
-// abono como movimiento (hoy solo se guarda el saldo actual de la deuda).
+//   - abonos ya hechos a Deudas del Propietario (registrados como
+//     movimientos en financial_movements, tipo ABONO_DEUDA_PROPIETARIO)
 function calculateDistributableBalance() {
   const allPayments = state.payments || [];
   const grossProfitAllTime = allPayments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
   const realReserveBalance = state.financialAccounts?.riskReserveBalance || 0;
   const totalOperationalExpenses = (state.operationalExpenses || []).reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
+  const totalDebtPayments = (state.financialMovements || []).reduce((sum, m) => {
+    if (m.type === 'ABONO_DEUDA_PROPIETARIO') {
+      return sum + parseFloat(m.amount || 0);
+    }
+    return sum;
+  }, 0);
   const totalReinvestedInCapital = (state.quincenalCloses || []).reduce((sum, c) => {
     if (c.strategy === 'reinvest' || c.profitStrategy === 'reinvest') {
       return sum + parseFloat(c.utilidad || 0);
     }
     return sum;
   }, 0);
-  return Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital);
+  return Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital - totalDebtPayments);
 }
 
 function renderQuincenalCloseUI() {
@@ -3424,6 +3429,12 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
   const debt = (state.ownerDebts || []).find(d => d.id === debtId);
   if (!debt) { alert('Deuda no encontrada.'); return; }
 
+  const availableToDistribute = calculateDistributableBalance();
+  if (amount > availableToDistribute) {
+    alert(`⚠️ No puedes abonar $${amount.toFixed(2)} — solo hay $${availableToDistribute.toFixed(2)} disponibles en Utilidad Distribuible sin afectar el capital de préstamo del negocio.`);
+    return;
+  }
+
   const prevBalance = debt.balance || 0;
   debt.balance = Math.max(0, prevBalance - amount);
 
@@ -3447,6 +3458,29 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
       organization_id: getOrganizationId()
     });
     console.log('✓ Abono a deuda guardado en Supabase');
+
+    const movementId = generateUUID();
+    const movementRecord = {
+      id: movementId,
+      organization_id: getOrganizationId(),
+      movement_date: new Date().toISOString(),
+      type: 'ABONO_DEUDA_PROPIETARIO',
+      amount: amount,
+      source_account: 'Utilidad Distribuible',
+      target_account: debt.debtName,
+      reason: `Abono a '${debt.debtName}' desde ${source}`
+    };
+    await syncEntity('financial_movements', movementRecord);
+    if (!state.financialMovements) state.financialMovements = [];
+    state.financialMovements.unshift({
+      id: movementId,
+      movementDate: movementRecord.movement_date,
+      type: movementRecord.type,
+      amount: movementRecord.amount,
+      sourceAccount: movementRecord.source_account,
+      targetAccount: movementRecord.target_account,
+      reason: movementRecord.reason
+    });
   } catch (err) {
     console.error('Error guardando abono en Supabase:', err);
     debtPaySyncError = err;

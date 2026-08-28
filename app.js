@@ -2348,9 +2348,30 @@ function renderQuincenalCloseUI() {
   const elReinvest = document.getElementById('qc-reinvestment-available');
   const lblRiskContrib = document.getElementById('lbl-qc-risk-contribution');
 
-  const payments = state.payments || [];
+  const allPayments = state.payments || [];
+  const closes = state.quincenalCloses || [];
+  // El corte usa closed_at/timestamp (el momento real en que se procesó el
+  // cierre), no periodEnd — periodEnd es solo una etiqueta del rango elegido
+  // y puede ser una fecha futura al momento de procesar, por lo que un pago
+  // hecho después de cerrar pero antes de periodEnd nunca quedó incluido en
+  // ningún cierre y debe seguir contando como pendiente.
+  const lastClose = closes.length > 0
+    ? closes.reduce((latest, c) => {
+        const cDate = new Date(c.closed_at || c.timestamp || 0);
+        const latestDate = new Date(latest.closed_at || latest.timestamp || 0);
+        return cDate > latestDate ? c : latest;
+      })
+    : null;
+  const lastCloseCutoff = lastClose ? new Date(lastClose.closed_at || lastClose.timestamp) : null;
+  const payments = lastCloseCutoff && !isNaN(lastCloseCutoff.getTime())
+    ? allPayments.filter(p => {
+        const pd = new Date(p.timestamp || p.date || p.payment_date);
+        return isNaN(pd.getTime()) || pd > lastCloseCutoff;
+      })
+    : allPayments;
+
   const totalCollected = payments.reduce((sum, p) => sum + (p.amountPaid || p.amount || 0), 0);
-  const netProfit = payments.reduce((sum, p) => sum + (p.profitShare || 0), 0);
+  const netProfit = payments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
   const targetReservePct = state.financialAccounts?.riskReserveTargetPct || state.organization?.riskReservePct || 20.0;
   const riskContrib = netProfit * (targetReservePct / 100.0);
   const engine = typeof calculateFinancialEngine === 'function' ? calculateFinancialEngine() : null;
@@ -2370,7 +2391,6 @@ function renderQuincenalCloseUI() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const closes = state.quincenalCloses || [];
   if (closes.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-xs text-[#94A3B8]">No hay cierres quincenales ejecutados aún en Supabase. Utiliza el formulario superior para procesar el primer cierre oficial.</td></tr>`;
     return;

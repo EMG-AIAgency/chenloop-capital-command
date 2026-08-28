@@ -2381,7 +2381,7 @@ function renderQuincenalCloseUI() {
   const reinvestAvail = Math.max(0, actualCapitalTotal - activePortfolioRealtime);
 
   if (lblRiskContrib) {
-    lblRiskContrib.innerText = `Aporte a Reserva de Riesgo (${targetReservePct}%)`;
+    lblRiskContrib.innerText = `Aporte Sugerido a Reserva (${targetReservePct}%)`;
   }
   if (elCollected) elCollected.innerText = `$${totalCollected.toFixed(2)}`;
   if (elProfit) elProfit.innerText = `$${netProfit.toFixed(2)}`;

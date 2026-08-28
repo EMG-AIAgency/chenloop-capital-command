@@ -2348,10 +2348,9 @@ document.getElementById('pay-reserve-pct')?.addEventListener('input', updatePaym
 //   = ganancia bruta acumulada de TODA la historia
 //     - reserva de riesgo real ya apartada
 //     - gastos operativos ya registrados
-//     - utilidad ya reinvertida en capital (cierres marcados 'reinvest';
-//       esto vive solo en la sesión hasta que se persista el campo en
-//       Supabase, así que tras un refresh completo puede no reflejar
-//       reinversiones de sesiones anteriores)
+//     - utilidad ya reinvertida en capital (registrada como movimiento en
+//       financial_movements, tipo REINVERSION_CIERRE_QUINCENAL -- persiste
+//       correctamente entre sesiones)
 //   - abonos ya hechos a Deudas del Propietario (registrados como
 //     movimientos en financial_movements, tipo ABONO_DEUDA_PROPIETARIO)
 function calculateDistributableBalance() {
@@ -2365,9 +2364,9 @@ function calculateDistributableBalance() {
     }
     return sum;
   }, 0);
-  const totalReinvestedInCapital = (state.quincenalCloses || []).reduce((sum, c) => {
-    if (c.strategy === 'reinvest' || c.profitStrategy === 'reinvest') {
-      return sum + parseFloat(c.utilidad || 0);
+  const totalReinvestedInCapital = (state.financialMovements || []).reduce((sum, m) => {
+    if (m.type === 'REINVERSION_CIERRE_QUINCENAL') {
+      return sum + parseFloat(m.amount || 0);
     }
     return sum;
   }, 0);
@@ -2501,10 +2500,27 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   }
 
   let summaryMsg = '';
+  let reinvestMovementRecord = null;
   if (strategy === 'reinvest' && utilidad > 0) {
     state.financialAccounts.capitalTotal = (state.financialAccounts.capitalTotal || 800.0) + utilidad;
     state.capital.totalCapital = state.financialAccounts.capitalTotal;
     summaryMsg = `Utilidad de $${utilidad.toFixed(2)} USD reinvertida en Capital. Nuevo capital total: $${state.financialAccounts.capitalTotal.toFixed(2)}.`;
+    // Se registra como movimiento real (financial_movements) en vez de solo
+    // marcar el cierre localmente, porque quincenal_closes no tiene columna
+    // para guardar la estrategia elegida -- sin esto, la reinversión se
+    // perdía al recargar la página, ya que calculateFinancialEngine()
+    // recalcula el capital total desde cero y no tenía forma de saber que
+    // este cierre fue reinvertido.
+    reinvestMovementRecord = {
+      id: generateUUID(),
+      organization_id: getOrganizationId(),
+      movement_date: new Date().toISOString(),
+      type: 'REINVERSION_CIERRE_QUINCENAL',
+      amount: utilidad,
+      source_account: 'Utilidad del Período',
+      target_account: 'Capital de Trabajo',
+      reason: `Reinversión de utilidad del cierre '${periodName}'`
+    };
   } else {
     summaryMsg = `Utilidad de $${utilidad.toFixed(2)} USD registrada como ganancia (sin reinversión).`;
   }
@@ -2551,6 +2567,20 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   let closeSyncError = null;
   try {
     await syncEntity('quincenal_closes', newCloseRecord);
+
+    if (reinvestMovementRecord) {
+      await syncEntity('financial_movements', reinvestMovementRecord);
+      if (!state.financialMovements) state.financialMovements = [];
+      state.financialMovements.unshift({
+        id: reinvestMovementRecord.id,
+        movementDate: reinvestMovementRecord.movement_date,
+        type: reinvestMovementRecord.type,
+        amount: reinvestMovementRecord.amount,
+        sourceAccount: reinvestMovementRecord.source_account,
+        targetAccount: reinvestMovementRecord.target_account,
+        reason: reinvestMovementRecord.reason
+      });
+    }
 
     if (typeof window.updateFinancialAccountState === 'function') {
       await window.updateFinancialAccountState();
@@ -3060,11 +3090,14 @@ window.calculateFinancialEngine = function() {
     return sum;
   }, 0);
   
-  // Add any reinvestments from quincenal closes
-  const closes = state.quincenalCloses || [];
-  const reinvestedFromCloses = closes.reduce((sum, c) => {
-    if (c.profitStrategy === 'reinvest' || c.strategy === 'reinvest') {
-      return sum + parseFloat(c.utilidad || 0);
+  // Reinversiones de cierres quincenales: se leen de financial_movements
+  // (tipo REINVERSION_CIERRE_QUINCENAL) en vez del campo 'strategy' de
+  // quincenal_closes, porque esa tabla no tiene columna para guardar la
+  // estrategia elegida y por lo tanto no sobrevive un recargue de página.
+  // financial_movements sí persiste correctamente.
+  const reinvestedFromCloses = (state.financialMovements || []).reduce((sum, m) => {
+    if (m.type === 'REINVERSION_CIERRE_QUINCENAL') {
+      return sum + parseFloat(m.amount || 0);
     }
     return sum;
   }, 0);

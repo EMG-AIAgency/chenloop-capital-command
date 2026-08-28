@@ -1034,6 +1034,11 @@ function renderApplications() {
 
 window.approveApplication = async function(appId) {
   if (!canApproveApplications()) {
+    await window.logAuditEvent(
+      "ACCESO_DENEGADO",
+      "Seguridad / Permisos",
+      `Intento de aprobar la solicitud ${appId} bloqueado. Rol actual: ${currentRole() || 'sin rol'}.`
+    );
     alert('No tienes permiso para esta acción.');
     return;
   }
@@ -1233,6 +1238,11 @@ window.approveApplication = async function(appId) {
 
 window.rejectApplication = async function(appId) {
   if (!canApproveApplications()) {
+    await window.logAuditEvent(
+      "ACCESO_DENEGADO",
+      "Seguridad / Permisos",
+      `Intento de rechazar la solicitud ${appId} bloqueado. Rol actual: ${currentRole() || 'sin rol'}.`
+    );
     alert('No tienes permiso para esta acción.');
     return;
   }
@@ -1656,6 +1666,12 @@ document.getElementById('form-add-collection')?.addEventListener('submit', async
     promiseStatus: newColRecord.promise_status,
     notes: newColRecord.notes
   });
+
+  await window.logAuditEvent(
+    "GESTION_COBRANZA_REGISTRADA",
+    "Gestión de Cobranzas",
+    `Gestión registrada para ${loan.borrowerName} (${loan.id}) vía ${channel}. Promesa de pago: $${promiseAmount.toFixed(2)} para ${promiseDate || 'sin fecha'}.`
+  );
 
   let collectionSyncError = null;
   try {
@@ -2683,6 +2699,7 @@ window.deleteExpense = async function(expId) {
 
   if (!confirm("¿Estás seguro de eliminar este gasto operativo?")) return;
 
+  const deletedExpense = state.operationalExpenses[idx];
   state.operationalExpenses.splice(idx, 1);
 
   try {
@@ -2691,6 +2708,12 @@ window.deleteExpense = async function(expId) {
     console.error("Error eliminando gasto en Supabase:", err);
     alert(`⚠️ El gasto se eliminó localmente pero NO se pudo sincronizar la eliminación con Supabase: ${err.message}`);
   }
+
+  await window.logAuditEvent(
+    "GASTO_OPERATIVO_ELIMINADO",
+    "Gastos & Cuentas",
+    `Gasto '${deletedExpense.concept || deletedExpense.name}' de $${(deletedExpense.amount || deletedExpense.monthlyAmount || 0).toFixed(2)} USD eliminado.`
+  );
 
   saveState();
   renderAll();
@@ -2810,6 +2833,14 @@ function showAuthSuccess(msg) {
 }
 
 window.logoutUser = async function() {
+  if (currentSession) {
+    await window.logAuditEvent(
+      "CIERRE_SESION",
+      "Autenticación",
+      `Sesión cerrada por ${currentSession.user?.email || 'usuario desconocido'}.`
+    );
+  }
+
   if (supabaseClient) {
     await supabaseClient.auth.signOut();
   }
@@ -2817,7 +2848,7 @@ window.logoutUser = async function() {
   currentProfile = null;
   landingTabApplied = false;
   state = JSON.parse(JSON.stringify(initialState));
-  
+
   const authWall = document.getElementById('auth-wall');
   if (authWall) authWall.classList.remove('hidden');
 };
@@ -2837,6 +2868,11 @@ document.getElementById('form-login')?.addEventListener('submit', async function
     currentSession = data.session;
     document.getElementById('auth-wall')?.classList.add('hidden');
     await loadProfileAndInit();
+    await window.logAuditEvent(
+      "INICIO_SESION",
+      "Autenticación",
+      `Inicio de sesión exitoso de ${currentSession.user?.email || email}.`
+    );
   } catch (err) {
     showAuthError("Error de Inicio de Sesión: " + (err.message || "Credenciales inválidas"));
   } finally {
@@ -3272,6 +3308,7 @@ window.deleteDebt = async function(debtId) {
 
   if (!confirm("¿Estás seguro de eliminar este registro de deuda?")) return;
 
+  const deletedDebt = state.ownerDebts[idx];
   state.ownerDebts.splice(idx, 1);
 
   try {
@@ -3280,6 +3317,12 @@ window.deleteDebt = async function(debtId) {
     console.error("Error eliminando deuda en Supabase:", err);
     alert(`⚠️ La deuda se eliminó localmente pero NO se pudo sincronizar la eliminación con Supabase: ${err.message}`);
   }
+
+  await window.logAuditEvent(
+    "DEUDA_PERSONAL_ELIMINADA",
+    "Deudas Propietario",
+    `Deuda '${deletedDebt.debtName}' de $${(deletedDebt.balance || 0).toFixed(2)} USD eliminada.`
+  );
 
   saveState();
   renderAll();
@@ -3679,6 +3722,11 @@ window.renderTeamMembers = function() {
 
 window.createTeamMember = async function() {
   if (!canManageTeam()) {
+    await window.logAuditEvent(
+      "ACCESO_DENEGADO",
+      "Seguridad / Permisos",
+      `Intento de crear un nuevo miembro de equipo bloqueado. Rol actual: ${currentRole() || 'sin rol'}.`
+    );
     alert('No tienes permiso para esta acción.');
     return;
   }
@@ -3771,6 +3819,11 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
   e.preventDefault();
 
   if (!canManageSettings()) {
+    await window.logAuditEvent(
+      "ACCESO_DENEGADO",
+      "Seguridad / Permisos",
+      `Intento de guardar Configuración bloqueado. Rol actual: ${currentRole() || 'sin rol'}.`
+    );
     alert('No tienes permiso para esta acción.');
     return;
   }

@@ -2340,6 +2340,35 @@ document.getElementById('pay-reserve-pct')?.addEventListener('input', updatePaym
 // ----------------------------------------------------
 // MÓDULO 8: CIERRE QUINCENAL & MOTOR DE RENTABILIDAD
 // ----------------------------------------------------
+// Utilidad Distribuible: lo que el dueño podría sacar del negocio (gastos,
+// deudas personales, retiros) sin tocar el Capital Disponible para prestar.
+// Única fuente de verdad para este cálculo -- usada tanto en Cierre
+// Quincenal como en Gastos & Cuentas, para que nunca muestren números
+// distintos para el mismo concepto.
+//   = ganancia bruta acumulada de TODA la historia
+//     - reserva de riesgo real ya apartada
+//     - gastos operativos ya registrados
+//     - utilidad ya reinvertida en capital (cierres marcados 'reinvest';
+//       esto vive solo en la sesión hasta que se persista el campo en
+//       Supabase, así que tras un refresh completo puede no reflejar
+//       reinversiones de sesiones anteriores)
+// Los abonos a Deudas del Propietario todavía no se restan aquí -- se
+// conectan en una fase aparte, una vez que haya forma de registrar cada
+// abono como movimiento (hoy solo se guarda el saldo actual de la deuda).
+function calculateDistributableBalance() {
+  const allPayments = state.payments || [];
+  const grossProfitAllTime = allPayments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
+  const realReserveBalance = state.financialAccounts?.riskReserveBalance || 0;
+  const totalOperationalExpenses = (state.operationalExpenses || []).reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
+  const totalReinvestedInCapital = (state.quincenalCloses || []).reduce((sum, c) => {
+    if (c.strategy === 'reinvest' || c.profitStrategy === 'reinvest') {
+      return sum + parseFloat(c.utilidad || 0);
+    }
+    return sum;
+  }, 0);
+  return Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital);
+}
+
 function renderQuincenalCloseUI() {
   const tbody = document.getElementById('tbody-quincenal-closes');
   const elCollected = document.getElementById('qc-total-collected');
@@ -2381,28 +2410,7 @@ function renderQuincenalCloseUI() {
   const activePortfolioRealtime = (state.loans || []).filter(l => l.status === 'Activo').reduce((s,l)=>s+(l.principal||0),0);
   const reinvestAvail = Math.max(0, actualCapitalTotal - activePortfolioRealtime);
 
-  // Utilidad Distribuible: lo que el dueño podría sacar del negocio (gastos,
-  // deudas personales, retiros) sin tocar el Capital Disponible para prestar.
-  // = ganancia bruta acumulada de TODA la historia (no solo este período)
-  //   - reserva de riesgo real ya apartada
-  //   - gastos operativos ya registrados
-  //   - utilidad ya reinvertida en capital (cierres marcados 'reinvest';
-  //     esto vive solo en la sesión hasta que la Fase E persista el campo
-  //     en Supabase, así que tras un refresh completo puede no reflejar
-  //     reinversiones de sesiones anteriores)
-  // Los abonos a Deudas del Propietario todavía no se restan aquí -- se
-  // conectan en una fase aparte, una vez que haya forma de registrar cada
-  // abono como movimiento (hoy solo se guarda el saldo actual de la deuda).
-  const grossProfitAllTime = allPayments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
-  const realReserveBalance = state.financialAccounts?.riskReserveBalance || 0;
-  const totalOperationalExpenses = (state.operationalExpenses || []).reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
-  const totalReinvestedInCapital = (state.quincenalCloses || []).reduce((sum, c) => {
-    if (c.strategy === 'reinvest' || c.profitStrategy === 'reinvest') {
-      return sum + parseFloat(c.utilidad || 0);
-    }
-    return sum;
-  }, 0);
-  const distributableBalance = Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital);
+  const distributableBalance = calculateDistributableBalance();
 
   if (lblRiskContrib) {
     lblRiskContrib.innerText = `Aporte Sugerido a Reserva (${targetReservePct}%)`;
@@ -2605,8 +2613,11 @@ function renderOperationsExpensesUI() {
     }
   });
 
-  const accumProfits = state.capital?.accumulatedProfits || 0;
-  const netAfterExpenses = Math.max(0, accumProfits - totalExpenses);
+  // Mismo cálculo que "Utilidad Distribuible" en Cierre Quincenal (ya resta
+  // gastos, reserva y reinversión) -- antes este tile usaba una fórmula
+  // distinta e incompleta (solo ganancia - gastos) que mostraba un número
+  // diferente para el mismo concepto.
+  const netAfterExpenses = calculateDistributableBalance();
 
   if (elTotal) elTotal.innerText = `$${totalExpenses.toFixed(2)} USD`;
   if (elCategory) elCategory.innerText = topCat;

@@ -9,6 +9,13 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function matchesSearchTerm(term, values) {
+  if (!term) return true;
+  const needle = term.trim().toLowerCase();
+  if (!needle) return true;
+  return values.some(v => String(v || '').toLowerCase().includes(needle));
+}
+
 window.calculateDynamicDaysOverdue = function(promiseDateStr, status) {
   if (!promiseDateStr) return 0;
   if (status === 'Cumplida' || status === 'Cerrada') return 0;
@@ -147,6 +154,7 @@ let supabaseClient = null;
 let currentSession = null;
 let currentProfile = null;
 let landingTabApplied = false;
+let auditN8nSearchTerm = '';
 
 function currentRole() {
   return currentProfile?.role || null;
@@ -1707,12 +1715,21 @@ function renderN8nNotifications() {
   if (!state.notificationsConfig) state.notificationsConfig = {};
   state.notificationsConfig.sendMode = 'production';
 
-  const logs = state.n8nLogs || [];
-  if (countEl) countEl.innerText = `${logs.length} notificaciones registradas`;
+  const searchInput = document.getElementById('n8n-search-input');
+  if (searchInput && searchInput.value !== auditN8nSearchTerm) searchInput.value = auditN8nSearchTerm;
+
+  const allLogs = state.n8nLogs || [];
+  if (countEl) countEl.innerText = `${allLogs.length} notificaciones registradas`;
 
   tbody.innerHTML = '';
-  if (logs.length === 0) {
+  if (allLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-xs text-[#94A3B8]">No hay notificaciones enviadas aún. Configura tu Webhook URL arriba o presiona un botón de prueba para disparar la primera automatización.</td></tr>`;
+    return;
+  }
+
+  const logs = allLogs.filter(item => matchesSearchTerm(auditN8nSearchTerm, [item.eventType, item.recipient, item.channel, item.payload, item.status]));
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-xs text-[#94A3B8]">Ninguna notificación coincide con "${escapeHtml(auditN8nSearchTerm)}".</td></tr>`;
     return;
   }
 
@@ -3558,9 +3575,18 @@ function renderAudit() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const logs = state.auditLogs || [];
-  if (logs.length === 0) {
+  const searchInput = document.getElementById('audit-search-input');
+  if (searchInput && searchInput.value !== auditN8nSearchTerm) searchInput.value = auditN8nSearchTerm;
+
+  const allLogs = state.auditLogs || [];
+  if (allLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-xs text-[#94A3B8]">No hay acciones registradas en la bitácora de auditoría aún.</td></tr>`;
+    return;
+  }
+
+  const logs = allLogs.filter(log => matchesSearchTerm(auditN8nSearchTerm, [log.user, log.action, log.module, log.details]));
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-xs text-[#94A3B8]">Ningún registro de auditoría coincide con "${escapeHtml(auditN8nSearchTerm)}".</td></tr>`;
     return;
   }
 
@@ -3585,6 +3611,27 @@ function renderAudit() {
     tbody.appendChild(tr);
   });
 }
+
+// Búsqueda compartida entre Auditoría Log y Notificaciones n8n: el mismo
+// término se aplica en ambas pestañas para poder cruzar rápidamente el
+// historial de un prestatario sin fusionar las dos tablas.
+window.filterAuditLog = function(term) {
+  auditN8nSearchTerm = term || '';
+  renderAudit();
+};
+
+window.filterN8nLog = function(term) {
+  auditN8nSearchTerm = term || '';
+  renderN8nNotifications();
+};
+
+window.crossLinkToNotifications = function() {
+  window.switchTab('notifications');
+};
+
+window.crossLinkToAudit = function() {
+  window.switchTab('audit');
+};
 
 // ----------------------------------------------------
 // MÓDULO 11: ANALYTICS & SIMULADOR FINANCIERO

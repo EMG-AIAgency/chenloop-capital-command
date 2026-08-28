@@ -1129,60 +1129,6 @@ Te recordamos amablemente que tu cuota de 💵 ${{2}} vence el próximo 📅 {{3
       </div>
     </section>
 
-    <!-- TAB: NOTIFICACIONES & REMINDERS (FASE 5) -->
-    <section id="tab-notifications" class="hidden space-y-6">
-      <div class="glass-card p-6 space-y-6">
-        <div class="flex justify-between items-center border-b border-white/5 pb-4">
-          <div>
-            <h3 class="font-display text-lg font-bold text-white">Motor de Notificaciones & Recordatorios Automáticos</h3>
-            <p class="text-xs text-[#bbcabf]">EnvÃ­o multi-canal por WhatsApp, Email y SMS con prevención de duplicados</p>
-          </div>
-          <button class="bg-[#10b981] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2" onclick="window.triggerAutomatedReminders()">
-            <span class="material-symbols-outlined text-[18px]">send</span> Ejecutar Motor de Reminders
-          </button>
-        </div>
-
-        <!-- Simulation & Template Config -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-2">
-            <p class="text-xs font-bold text-white uppercase tracking-wider">Plantilla WhatsApp (Pre-vencimiento)</p>
-            <p class="text-xs text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5">
-              "Hola {nombre}, te recordamos que tu cuota de ${monto} vence el {fecha}. Â¡Gracias por mantener tu buen historial!"
-            </p>
-          </div>
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-2">
-            <p class="text-xs font-bold text-white uppercase tracking-wider">Plantilla WhatsApp (Mora Temprana)</p>
-            <p class="text-xs text-[#bbcabf] bg-[#080C14] p-3 rounded border border-white/5">
-              "Estimado {nombre}, tu cuota de ${monto} tiene {dias_mora} dÃ­as de mora. Por favor contáctanos para regularizar."
-            </p>
-          </div>
-          <div class="bg-[#162032] p-4 rounded-xl border border-white/5 space-y-2">
-            <p class="text-xs font-bold text-white uppercase tracking-wider">Configuración Webhook (n8n)</p>
-            <input type="text" class="w-full bg-[#080C14] border border-white/10 rounded p-2 text-xs text-white outline-none" value="https://n8n.chenloop.com/webhook/reminders" readonly/>
-            <span class="text-[10px] text-[#4edea3]">âœ“ Webhook Activo</span>
-          </div>
-        </div>
-
-        <!-- Notification History Table -->
-        <h4 class="font-display font-bold text-white text-base pt-2">Bitácora de Notificaciones Enviadas</h4>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[11px]">
-              <tr>
-                <th class="p-3">Fecha / Hora</th>
-                <th class="p-3">Prestatario</th>
-                <th class="p-3">Canal</th>
-                <th class="p-3">Evento</th>
-                <th class="p-3">Mensaje Enviado</th>
-                <th class="p-3">Resultado</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-notifications" class="divide-y divide-white/5"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
     <!-- TAB: CONFIGURACIÓN & REGLAS -->
     <section id="tab-settings" class="hidden space-y-6">
       <div class="glass-card p-6 space-y-6">

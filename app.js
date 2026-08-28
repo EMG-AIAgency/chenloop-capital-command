@@ -204,7 +204,6 @@ const initialState = {
   installments: [],
   collections: [],
   payments: [],
-  notifications: [],
   auditLogs: []
 };
 
@@ -664,7 +663,6 @@ function renderAll() {
   renderApplications();
   renderLoans();
   renderCollections();
-  renderNotifications();
   renderN8nNotifications();
   renderPayments();
   renderAudit();
@@ -1123,13 +1121,11 @@ window.approveApplication = async function(appId) {
     remainingAmount: totalScheduled
   });
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Administrador",
-    action: "APROBACION_CREDITO",
-    module: "Solicitudes & Riesgo",
-    details: `Solicitud ${app.id} aprobada. Préstamo ${newLoan.id} por $${app.amount.toFixed(2)} USD desembolsado a ${app.borrowerName}.`
-  });
+  await window.logAuditEvent(
+    "APROBACION_CREDITO",
+    "Solicitudes & Riesgo",
+    `Solicitud ${app.id} aprobada. Préstamo ${newLoan.id} por $${app.amount.toFixed(2)} USD desembolsado a ${app.borrowerName}.`
+  );
 
   let approvalSyncError = null;
   try {
@@ -2048,13 +2044,11 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
 
   if (loan.remainingAmount <= 0.01) {
     loan.status = 'Cancelado';
-    state.auditLogs.unshift({
-      timestamp: new Date().toLocaleString(),
-      user: "Sistema de Caja",
-      action: "PRESTAMO_CANCELADO",
-      module: "Préstamos",
-      details: `✓ Préstamo ${loan.id} de ${loan.borrowerName} cancelado por completo. Notificaciones automáticas de cobranza deshabilitadas para este crédito.`
-    });
+    await window.logAuditEvent(
+      "PRESTAMO_CANCELADO",
+      "Préstamos",
+      `✓ Préstamo ${loan.id} de ${loan.borrowerName} cancelado por completo. Notificaciones automáticas de cobranza deshabilitadas para este crédito.`
+    );
   }
 
   const seqCount = (state.payments || []).length + 1001;
@@ -2097,13 +2091,11 @@ document.getElementById('form-record-payment')?.addEventListener('submit', async
     profitDestination
   });
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Cajero Admin",
-    action: "PAGO_REGISTRADO",
-    module: "Caja & Pagos",
-    details: `Cobro de $${amountPaid.toFixed(2)} USD registrado [${txId}] para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
-  });
+  await window.logAuditEvent(
+    "PAGO_REGISTRADO",
+    "Caja & Pagos",
+    `Cobro de $${amountPaid.toFixed(2)} USD registrado [${txId}] para ${loan.borrowerName} (${loan.id}). Principal: $${principalShare.toFixed(2)}, Ganancia: $${profitShare.toFixed(2)}.`
+  );
 
   let paymentSyncError = null;
   try {
@@ -2556,13 +2548,11 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
     strategy: strategy
   });
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Ejecutivo Financiero",
-    action: "CIERRE_QUINCENAL_PROCESADO",
-    module: "Cierre Quincenal",
-    details: `Cierre '${periodName}' [${startVal || 'todos'} — ${endVal || 'hoy'}]. ${payments.length} pagos procesados. Cobro: $${totalCollected.toFixed(2)}, Ganancia: $${netProfit.toFixed(2)}, Reserva: $${totalRiskContribution.toFixed(2)}, Utilidad: $${utilidad.toFixed(2)}. ${summaryMsg}`
-  });
+  await window.logAuditEvent(
+    "CIERRE_QUINCENAL_PROCESADO",
+    "Cierre Quincenal",
+    `Cierre '${periodName}' [${startVal || 'todos'} — ${endVal || 'hoy'}]. ${payments.length} pagos procesados. Cobro: $${totalCollected.toFixed(2)}, Ganancia: $${netProfit.toFixed(2)}, Reserva: $${totalRiskContribution.toFixed(2)}, Utilidad: $${utilidad.toFixed(2)}. ${summaryMsg}`
+  );
 
   let closeSyncError = null;
   try {
@@ -2738,13 +2728,11 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
     date: new Date().toISOString()
   });
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Administrador",
-    action: "GASTO_OPERATIVO_REGISTRADO",
-    module: "Gastos & Cuentas",
-    details: `Gasto de $${amount.toFixed(2)} USD registrado para '${concept}' (${category}).`
-  });
+  await window.logAuditEvent(
+    "GASTO_OPERATIVO_REGISTRADO",
+    "Gastos & Cuentas",
+    `Gasto de $${amount.toFixed(2)} USD registrado para '${concept}' (${category}).`
+  );
 
   let expenseSyncError = null;
   try {
@@ -2768,73 +2756,6 @@ document.getElementById('form-add-expense')?.addEventListener('submit', async fu
 // ----------------------------------------------------
 // CHENLOOP CAPITAL COMMAND - CORE APPLICATION LOGIC
 // ----------------------------------------------------
-
-if (!state.notifications) {
-  state.notifications = [
-    {
-      timestamp: "2026-07-23 09:30:00",
-      borrowerName: "Juan Pérez",
-      channel: "WhatsApp",
-      event: "Recordatorio Pre-Vencimiento",
-      message: "Hola Juan Pérez, te recordamos que tu cuota de $25.00 vence el 2026-07-28.",
-      status: "Entregado"
-    }
-  ];
-}
-
-function renderNotifications() {
-  const tbody = document.getElementById('tbody-notifications');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  
-  state.notifications.forEach(n => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.timestamp)}</td>
-      <td class="p-3 font-bold text-white">${escapeHtml(n.borrowerName)}</td>
-      <td class="p-3 text-xs"><span class="bg-emerald-500/10 text-[#4edea3] px-2 py-0.5 rounded font-bold">${escapeHtml(n.channel)}</span></td>
-      <td class="p-3 text-xs text-[#bbcabf]">${escapeHtml(n.event)}</td>
-      <td class="p-3 text-xs text-white max-w-xs truncate">${escapeHtml(n.message)}</td>
-      <td class="p-3"><span class="badge-risk badge-green">${escapeHtml(n.status)}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-window.triggerAutomatedReminders = function() {
-  let count = 0;
-  
-  // Recorrer préstamos activos para generar notificaciones simuladas
-  state.loans.forEach(loan => {
-    if (loan.status === 'Activo') {
-      count++;
-      const todayStr = new Date().toISOString().split('T')[0];
-      const newNotif = {
-        timestamp: new Date().toLocaleString(),
-        borrowerName: loan.borrowerName,
-        channel: "WhatsApp",
-        event: "Recordatorio Automático Programado",
-        message: `Hola ${loan.borrowerName}, recordatorio automático de tu cuota de $25.00 en el préstamo ${loan.id}.`,
-        status: "Entregado"
-      };
-      state.notifications.unshift(newNotif);
-    }
-  });
-  
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Sistema AutoReminders",
-    action: "EJECUCION_MOTOR_NOTIFICACIONES",
-    module: "Notificaciones",
-    details: `Se procesaron ${count} recordatorios automáticos multi-canal`
-  });
-  
-  saveState();
-  renderAll();
-  alert(`Motor de Notificaciones ejecutado con éxito. Se enviaron ${count} recordatorios por WhatsApp/Webhook.`);
-};
-
-
 
 // Listeners
 
@@ -3561,13 +3482,11 @@ document.getElementById('form-add-debt')?.addEventListener('submit', async funct
     priority: newDebtRecord.priority
   });
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Propietario",
-    action: "DEUDA_PERSONAL_REGISTRADA",
-    module: "Deudas Propietario",
-    details: `Deuda de $${balance.toFixed(2)} USD registrada para '${debtName}' (${interestRate}% interés).`
-  });
+  await window.logAuditEvent(
+    "DEUDA_PERSONAL_REGISTRADA",
+    "Deudas Propietario",
+    `Deuda de $${balance.toFixed(2)} USD registrada para '${debtName}' (${interestRate}% interés).`
+  );
 
   let addDebtSyncError = null;
   try {
@@ -3827,13 +3746,11 @@ window.createTeamMember = async function() {
       status: 'Activo'
     });
 
-    state.auditLogs.unshift({
-      timestamp: new Date().toLocaleString(),
-      user: "Administrador",
-      action: "NUEVO_USUARIO_CREADO",
-      module: "Configuración / Equipo",
-      details: `Usuario ${name} (${email}) asignado a la organización '${currentOrgName}' con el rol [${role}].`
-    });
+    await window.logAuditEvent(
+      "NUEVO_USUARIO_CREADO",
+      "Configuración / Equipo",
+      `Usuario ${name} (${email}) asignado a la organización '${currentOrgName}' con el rol [${role}].`
+    );
 
     saveState();
     window.renderTeamMembers();
@@ -3918,13 +3835,11 @@ document.getElementById('form-settings')?.addEventListener('submit', async funct
     settingsSyncError = err;
   }
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Administrador",
-    action: "ACTUALIZACION_CONFIGURACION",
-    module: "Configuración",
-    details: `Nombre de Cartera actualizado a '${orgName}'. PAR30: ${par30Limit}%, Reserva: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
-  });
+  await window.logAuditEvent(
+    "ACTUALIZACION_CONFIGURACION",
+    "Configuración",
+    `Nombre de Cartera actualizado a '${orgName}'. PAR30: ${par30Limit}%, Reserva: ${reserveTargetPct}%, Cartera Meta: $${portfolioTarget}`
+  );
 
   saveState();
   renderAll();
@@ -4166,13 +4081,11 @@ document.getElementById('form-deposit-reserve')?.addEventListener('submit', asyn
   if (!state.capital) state.capital = {};
   state.capital.riskReserve = state.financialAccounts.riskReserveBalance;
 
-  state.auditLogs.unshift({
-    timestamp: new Date().toLocaleString(),
-    user: "Propietario / Administrador",
-    action: "APORTE_RESERVA_RIESGO",
-    module: "Caja & Pagos",
-    details: `Aporte de $${amount.toFixed(2)} USD ingresado al Fondo de Reserva de Riesgo desde '${source}'. Reserva Actual: $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`
-  });
+  await window.logAuditEvent(
+    "APORTE_RESERVA_RIESGO",
+    "Caja & Pagos",
+    `Aporte de $${amount.toFixed(2)} USD ingresado al Fondo de Reserva de Riesgo desde '${source}'. Reserva Actual: $${state.financialAccounts.riskReserveBalance.toFixed(2)} USD.`
+  );
 
   saveState();
   renderAll();

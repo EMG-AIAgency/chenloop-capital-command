@@ -1419,8 +1419,9 @@ function renderLoans() {
       <td class="p-3 font-bold text-[#4edea3]">$${ln.scheduledProfit.toFixed(2)}</td>
       <td class="p-3 text-xs text-[#bbcabf]">${ln.installmentCount} quincenas ($${(ln.installmentAmount || 0).toFixed(2)})</td>
       <td class="p-3"><span class="badge-risk ${badgeClass}">${escapeHtml(ln.status)}</span></td>
-      <td class="p-3">
+      <td class="p-3 space-x-1.5 whitespace-nowrap">
         <button class="bg-[#FF6B00] hover:bg-[#FF5500] text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer shadow-md shadow-[#FF6B00]/20" onclick="window.selectLoanForPayment('${ln.id}')">Cobrar</button>
+        <button class="bg-[#818CF8]/20 hover:bg-[#818CF8]/30 text-[#818CF8] border border-[#818CF8]/30 px-2.5 py-1 rounded text-xs font-bold cursor-pointer" onclick="window.showAmortizationModal('${ln.id}')">Estado de Cuenta</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1442,6 +1443,84 @@ window.selectLoanForPayment = function(loanId) {
   }
   if (typeof window.switchTab === 'function') {
     window.switchTab('payments');
+  }
+};
+
+window.showAmortizationModal = function(loanId) {
+  const loan = (state.loans || []).find(l => l.id === loanId);
+  const modal = document.getElementById('modal-amortization');
+  const content = document.getElementById('modal-amortization-content');
+  if (!loan || !modal || !content) return;
+
+  const result = window.generateAmortizationSchedule(loan);
+  const discount = result.originalInstallmentCount > result.actualInstallmentCount;
+
+  const rowsHtml = result.rows.map(r => `
+    <tr class="${r.isProjected ? '' : 'bg-[#10B981]/5'}">
+      <td class="p-2 text-xs text-white font-bold">${r.period}</td>
+      <td class="p-2 text-xs">${r.isProjected ? '<span class="text-[#94A3B8]">Proyectada</span>' : `<span class="text-[#10B981] font-bold">Pagada</span> <span class="text-[#8E929E] font-mono">${escapeHtml(formatDateClean(r.date))}</span>`}</td>
+      <td class="p-2 text-xs text-[#bbcabf]">$${r.balanceBefore}</td>
+      <td class="p-2 text-xs text-[#F59E0B]">$${r.interest}</td>
+      <td class="p-2 text-xs text-white font-bold">$${r.installment}</td>
+      <td class="p-2 text-xs text-[#4edea3]">$${r.principalPortion}</td>
+      <td class="p-2 text-xs text-[#bbcabf]">$${r.balanceAfter}</td>
+    </tr>
+  `).join('');
+
+  content.innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 flex-shrink-0">
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Prestatario</div>
+        <div class="text-sm font-bold text-white">${escapeHtml(loan.borrowerName)}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Capital Prestado</div>
+        <div class="text-sm font-bold text-white">$${result.principal}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Cuota Estándar</div>
+        <div class="text-sm font-bold text-white">$${result.standardInstallment}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Plazo</div>
+        <div class="text-sm font-bold text-white">${result.actualInstallmentCount} / ${result.originalInstallmentCount} cuotas</div>
+      </div>
+    </div>
+    ${discount ? `
+      <div class="p-3 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30 text-xs text-[#10B981] flex-shrink-0">
+        ✓ Este préstamo se está pagando antes de lo pactado. Con los pagos registrados, se recalculó el interés de las cuotas restantes sobre el saldo ya reducido — el plazo baja de ${result.originalInstallmentCount} a ${result.actualInstallmentCount} cuotas y la ganancia total baja proporcionalmente.
+      </div>
+    ` : ''}
+    <div class="overflow-x-auto flex-shrink-0">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[10px]">
+          <tr>
+            <th class="p-2">#</th>
+            <th class="p-2">Estado</th>
+            <th class="p-2">Saldo Antes</th>
+            <th class="p-2">Interés</th>
+            <th class="p-2">Cuota</th>
+            <th class="p-2">Abono a Capital</th>
+            <th class="p-2">Saldo Después</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="p-3 rounded-lg bg-white/5 text-xs text-[#bbcabf] flex-shrink-0">
+      Interés total ${discount ? 'proyectado con el ritmo de pago actual' : 'pactado'}: <strong class="text-white">$${result.totalInterestPaid}</strong> USD. Todos los montos están redondeados a dólares enteros.
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+};
+
+window.closeAmortizationModal = function() {
+  const modal = document.getElementById('modal-amortization');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
 };
 

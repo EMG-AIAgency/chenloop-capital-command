@@ -299,7 +299,7 @@ async function loadState() {
           const totalScheduled = parseFloat(l.total_scheduled || (principal <= 100 ? 175.0 : principal * 1.40));
           const scheduledProfit = parseFloat(l.profit_scheduled || l.scheduled_profit || (totalScheduled - principal));
           const installmentAmount = Math.round(totalScheduled / count);
-          
+
           return {
             id: l.id,
             borrowerId: l.borrower_id,
@@ -1287,6 +1287,107 @@ window.rejectApplication = async function(appId) {
   } else {
     alert(`Solicitud ${app.id} rechazada.`);
   }
+};
+
+// ----------------------------------------------------
+// MOTOR DE AMORTIZACIÓN & ESTADO DE CUENTA POR PRÉSTAMO
+// ----------------------------------------------------
+// Los préstamos de CHENLOOP no guardan una tasa de interés explícita: solo
+// principal, cuota fija y número de cuotas (total_scheduled siempre es
+// exactamente cuota x cuotas). Por eso la tasa efectiva quincenal se
+// DERIVA matemáticamente (fórmula estándar de anualidad, resuelta por
+// bisección) a partir de esos tres datos ya confiables -- así el motor de
+// amortización siempre reproduce EXACTO el total ya pactado con el
+// cliente cuando paga en fecha, sin depender de ninguna tasa "nominal"
+// que nunca se persistió y no coincide con la matemática real (ej. el
+// producto "15%" de $100 a 7 cuotas de $25 tiene una tasa efectiva real
+// de ~16.33%, no 15%).
+function solveEffectiveRatePct(principal, installment, count) {
+  if (!principal || !installment || !count) return 0;
+  if (installment * count <= principal) return 0; // no hay interés: la cuota ya cubre el principal sin cargo
+
+  const annuityPayment = (p, r, n) => (r === 0 ? p / n : p * r / (1 - Math.pow(1 + r, -n)));
+
+  let lo = 0, hi = 5; // techo de 500% por período, muy por encima de cualquier tasa real
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (annuityPayment(principal, mid, count) > installment) hi = mid; else lo = mid;
+  }
+  return ((lo + hi) / 2) * 100;
+}
+
+// Reconstruye la tabla de amortización cuota por cuota usando saldo
+// decreciente (interés = saldo x tasa efectiva), en vez del reparto
+// proporcional fijo que usa el registro de pagos. Se alimenta de los
+// pagos REALES ya cobrados para ese préstamo: si un pago fue mayor a
+// la cuota estándar, el excedente abona a capital y el interés de las
+// cuotas siguientes se recalcula automáticamente sobre el saldo ya
+// reducido -- el préstamo puede terminar antes de las cuotas
+// originalmente pactadas, pagando proporcionalmente menos ganancia.
+//
+// La recursión interna (balance período a período) se mantiene en
+// precisión completa -- solo así el total, si el cliente paga siempre
+// en fecha, cuadra EXACTO con lo ya pactado (ej. $175 en el producto de
+// $100 a 7 cuotas). Únicamente lo que se MUESTRA en cada fila (saldo,
+// interés, cuota, abono a capital) se redondea a dólares enteros, sin
+// fracciones de centavo.
+window.generateAmortizationSchedule = function(loan) {
+  const principal = Math.round(loan.principal || 0);
+  const originalCount = loan.installmentCount || 0;
+  const standardInstallment = Math.round(loan.installmentAmount || (loan.totalScheduled / originalCount) || 0);
+  const ratePct = solveEffectiveRatePct(principal, standardInstallment, originalCount);
+  const rate = ratePct / 100;
+
+  const loanPayments = (state.payments || [])
+    .filter(p => p.loanId === loan.id)
+    .slice()
+    .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+  const rows = [];
+  let trueBalance = principal; // precisión completa: impulsa la recursión real
+  let period = 0;
+  const maxPeriods = originalCount + loanPayments.length + 12; // margen de seguridad ante datos atípicos
+
+  while (Math.round(trueBalance) > 0 && period < maxPeriods) {
+    period++;
+    const trueInterest = trueBalance * rate;
+    const owedThisPeriod = trueBalance + trueInterest;
+    const paymentRecord = loanPayments[period - 1];
+    const isProjected = !paymentRecord;
+    const rawAmount = paymentRecord ? (paymentRecord.amountPaid || 0) : standardInstallment;
+    const installmentApplied = Math.min(rawAmount, owedThisPeriod);
+    const trueBalanceAfter = Math.max(0, owedThisPeriod - installmentApplied);
+
+    const displayInterest = Math.round(trueInterest);
+    const displayInstallment = Math.round(installmentApplied);
+
+    rows.push({
+      period,
+      isProjected,
+      date: paymentRecord ? paymentRecord.date : null,
+      balanceBefore: Math.round(trueBalance),
+      interest: displayInterest,
+      installment: displayInstallment,
+      principalPortion: displayInstallment - displayInterest,
+      balanceAfter: Math.round(trueBalanceAfter)
+    });
+
+    trueBalance = trueBalanceAfter;
+  }
+
+  const totalInterestPaid = rows.reduce((sum, r) => sum + r.interest, 0);
+
+  return {
+    loanId: loan.id,
+    borrowerName: loan.borrowerName,
+    principal,
+    ratePct,
+    standardInstallment,
+    originalInstallmentCount: originalCount,
+    actualInstallmentCount: rows.length,
+    totalInterestPaid,
+    rows
+  };
 };
 
 function renderLoans() {

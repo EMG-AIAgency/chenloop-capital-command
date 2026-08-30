@@ -1446,6 +1446,9 @@ window.selectLoanForPayment = function(loanId) {
   }
 };
 
+let lastAmortizationLoan = null;
+let lastAmortizationResult = null;
+
 window.showAmortizationModal = function(loanId) {
   const loan = (state.loans || []).find(l => l.id === loanId);
   const modal = document.getElementById('modal-amortization');
@@ -1453,6 +1456,8 @@ window.showAmortizationModal = function(loanId) {
   if (!loan || !modal || !content) return;
 
   const result = window.generateAmortizationSchedule(loan);
+  lastAmortizationLoan = loan;
+  lastAmortizationResult = result;
   const discount = result.originalInstallmentCount > result.actualInstallmentCount;
 
   const rowsHtml = result.rows.map(r => `
@@ -1522,6 +1527,86 @@ window.closeAmortizationModal = function() {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
   }
+};
+
+window.downloadAmortizationPdf = function() {
+  const loan = lastAmortizationLoan;
+  const result = lastAmortizationResult;
+  if (!loan || !result || !window.jspdf) {
+    alert('No se pudo generar el PDF. Cierra y vuelve a abrir el Estado de Cuenta, luego intenta de nuevo.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const discount = result.originalInstallmentCount > result.actualInstallmentCount;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('CHENLOOP CAPITAL', 14, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.text('Estado de Cuenta — Tabla de Amortización', 14, 25);
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`Generado el ${new Date().toLocaleDateString('es-PA')}`, 14, 31);
+  doc.setTextColor(0);
+
+  let y = 40;
+  doc.setFontSize(10);
+  [
+    ['Prestatario', loan.borrowerName],
+    ['Préstamo', loan.id],
+    ['Capital Prestado', `$${result.principal} USD`],
+    ['Cuota Estándar', `$${result.standardInstallment} USD`],
+    ['Plazo', `${result.actualInstallmentCount} de ${result.originalInstallmentCount} cuotas`],
+    ['Interés Total', `$${result.totalInterestPaid} USD`]
+  ].forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${label}:`, 14, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(value), 60, y);
+    y += 6;
+  });
+
+  if (discount) {
+    y += 2;
+    doc.setFontSize(9);
+    doc.setTextColor(5, 122, 85);
+    const lines = doc.splitTextToSize(
+      `Este préstamo se está pagando antes de lo pactado. El interés de las cuotas restantes se recalculó sobre el saldo ya reducido: el plazo bajó de ${result.originalInstallmentCount} a ${result.actualInstallmentCount} cuotas y la ganancia total bajó proporcionalmente.`,
+      180
+    );
+    doc.text(lines, 14, y);
+    y += lines.length * 5;
+    doc.setTextColor(0);
+  }
+
+  const tableRows = result.rows.map(r => [
+    r.period,
+    r.isProjected ? 'Proyectada' : `Pagada (${formatDateClean(r.date)})`,
+    `$${r.balanceBefore}`,
+    `$${r.interest}`,
+    `$${r.installment}`,
+    `$${r.principalPortion}`,
+    `$${r.balanceAfter}`
+  ]);
+
+  doc.autoTable({
+    startY: y + 4,
+    head: [['#', 'Estado', 'Saldo Antes', 'Interés', 'Cuota', 'Abono a Capital', 'Saldo Después']],
+    body: tableRows,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [22, 32, 50] }
+  });
+
+  const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : y;
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text('Todos los montos están redondeados a dólares enteros, sin fracciones de centavo.', 14, finalY + 8);
+
+  const safeBorrower = (loan.borrowerName || 'prestatario').replace(/[^a-zA-Z0-9]+/g, '_');
+  doc.save(`Estado_Cuenta_${safeBorrower}_${loan.id}.pdf`);
 };
 
 window.setCollectionsSort = function(sortKey) {

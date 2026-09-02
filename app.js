@@ -2636,18 +2636,34 @@ document.getElementById('pay-reserve-pct')?.addEventListener('input', updatePaym
 // Única fuente de verdad para este cálculo -- usada tanto en Cierre
 // Quincenal como en Gastos & Cuentas, para que nunca muestren números
 // distintos para el mismo concepto.
-//   = ganancia bruta acumulada de TODA la historia
-//     - reserva de riesgo real ya apartada
+//
+// OJO: la base NO es la ganancia bruta de todos los pagos -- es solo la
+// porción de ganancia de los pagos cuyo profitDestination fue 'keep'.
+// Si un pago se marcó como 'reinvest' o 'reserve' al cobrarlo, esa utilidad
+// ya se movió a capital o a la reserva en ese mismo momento (ver el
+// submit handler de form-record-payment) y nunca debe contarse aquí,
+// aunque nunca haya pasado por un Cierre Quincenal. Contar la ganancia
+// bruta completa aquí duplicaba dinero que ya estaba comprometido en otro
+// lado -- confirmado contra producción: con el 100% de los pagos en
+// 'reinvest' (capital_total ya reflejaba +$67.32 reinvertido), esta
+// función igual reportaba $42.32 "disponibles" después de un abono de
+// $25 a una deuda personal, cuando la utilidad libre real era $0.
+//   = utilidad de los pagos marcados como 'keep' (la única que nunca se
+//     comprometió a capital ni a reserva)
 //     - gastos operativos ya registrados
-//     - utilidad ya reinvertida en capital (registrada como movimiento en
-//       financial_movements, tipo REINVERSION_CIERRE_QUINCENAL -- persiste
-//       correctamente entre sesiones)
+//     - utilidad ya reinvertida en capital vía un Cierre Quincenal
+//       (registrada como movimiento en financial_movements, tipo
+//       REINVERSION_CIERRE_QUINCENAL -- persiste correctamente entre
+//       sesiones)
 //   - abonos ya hechos a Deudas del Propietario (registrados como
 //     movimientos en financial_movements, tipo ABONO_DEUDA_PROPIETARIO)
 function calculateDistributableBalance() {
   const allPayments = state.payments || [];
-  const grossProfitAllTime = allPayments.reduce((sum, p) => sum + (p.profitPaid || p.profit_paid || p.profitShare || 0), 0);
-  const realReserveBalance = state.financialAccounts?.riskReserveBalance || 0;
+  const totalKeptAsProfit = allPayments.reduce((sum, p) => {
+    const destination = p.profitDestination || p.profit_destination || 'keep';
+    if (destination !== 'keep') return sum;
+    return sum + parseFloat(p.utilidadPaid || p.utilidad_paid || 0);
+  }, 0);
   const totalOperationalExpenses = (state.operationalExpenses || []).reduce((sum, e) => sum + parseFloat(e.amount || e.monthlyAmount || e.monthly_amount || 0), 0);
   const totalDebtPayments = (state.financialMovements || []).reduce((sum, m) => {
     if (m.type === 'ABONO_DEUDA_PROPIETARIO') {
@@ -2661,7 +2677,7 @@ function calculateDistributableBalance() {
     }
     return sum;
   }, 0);
-  return Math.max(0, grossProfitAllTime - realReserveBalance - totalOperationalExpenses - totalReinvestedInCapital - totalDebtPayments);
+  return Math.max(0, totalKeptAsProfit - totalOperationalExpenses - totalReinvestedInCapital - totalDebtPayments);
 }
 
 function renderQuincenalCloseUI() {

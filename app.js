@@ -2796,7 +2796,19 @@ document.getElementById('form-quincenal-close')?.addEventListener('submit', asyn
   const netProfit = payments.reduce((sum, p) => sum + (p.profitPaid || p.profitShare || 0), 0);
   const paymentsReserve = payments.reduce((sum, p) => sum + (p.reservePaid || 0), 0);
   const totalRiskContribution = manualReserveContrib + paymentsReserve;
-  const utilidad = Math.max(0, netProfit - totalRiskContribution);
+  // La utilidad reinvertible/registrable aqui es SOLO la de los pagos de este
+  // periodo marcados como 'keep' -- los pagos 'reinvest' o 'reserve' ya
+  // movieron su utilidad a capital o a reserva en el momento del cobro (ver
+  // form-record-payment), y volver a contarla aqui duplicaria ese dinero al
+  // reinvertir. Mismo criterio que calculateDistributableBalance(). netProfit
+  // (bruto, sin filtrar) se sigue guardando aparte como métrica informativa
+  // de "Ganancia Neta Generada" del periodo -- no se usa para mover dinero.
+  const keptUtilidadThisPeriod = payments.reduce((sum, p) => {
+    const destination = p.profitDestination || p.profit_destination || 'keep';
+    if (destination !== 'keep') return sum;
+    return sum + parseFloat(p.utilidadPaid || p.utilidad_paid || 0);
+  }, 0);
+  const utilidad = Math.max(0, keptUtilidadThisPeriod - manualReserveContrib);
 
   if (!state.financialAccounts) state.financialAccounts = {};
   if (!state.capital) state.capital = {};

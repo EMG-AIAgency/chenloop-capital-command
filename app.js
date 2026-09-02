@@ -456,6 +456,7 @@ async function loadState() {
           amount: parseFloat(m.amount),
           sourceAccount: m.source_account,
           targetAccount: m.target_account,
+          debtId: m.debt_id,
           reason: m.reason
         }));
       }
@@ -3669,6 +3670,7 @@ function renderOwnerDebtsUI() {
       <td class="p-3 font-bold text-[#4edea3]">$${extraPay.toFixed(2)}</td>
       <td class="p-3 flex items-center gap-2">
         <button class="bg-[#10b981]/20 hover:bg-[#10b981]/30 text-[#4edea3] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-[#10b981]/30 transition-all" onclick="window.payDebt('${d.id}')">+ Abono</button>
+        <button class="bg-[#818CF8]/20 hover:bg-[#818CF8]/30 text-[#818CF8] px-2.5 py-1 rounded text-xs font-bold cursor-pointer border border-[#818CF8]/30" onclick="window.showDebtHistoryModal('${d.id}')">Historial</button>
         <button class="bg-red-500/20 hover:bg-red-500/30 text-[#F43F5E] px-2 py-0.5 rounded text-xs font-bold cursor-pointer border border-red-500/30" onclick="window.deleteDebt('${d.id}')">Eliminar</button>
       </td>
     `;
@@ -3694,6 +3696,75 @@ window.payDebt = function(debtId) {
   const sel = document.getElementById('pay-debt-select');
   if (sel) sel.value = debtId;
   document.getElementById('pay-debt-amount')?.focus();
+};
+
+window.showDebtHistoryModal = function(debtId) {
+  const debt = (state.ownerDebts || []).find(d => d.id === debtId);
+  const modal = document.getElementById('modal-debt-history');
+  const content = document.getElementById('modal-debt-history-content');
+  if (!debt || !modal || !content) return;
+
+  const movements = (state.financialMovements || [])
+    .filter(m => m.type === 'ABONO_DEUDA_PROPIETARIO' && (m.debtId === debtId || (!m.debtId && m.targetAccount === (debt.debtName || debt.debt_name))))
+    .slice()
+    .sort((a, b) => new Date(b.movementDate || 0) - new Date(a.movementDate || 0));
+
+  const totalAbonado = movements.reduce((sum, m) => sum + (m.amount || 0), 0);
+  const currentBalance = debt.balance || 0;
+  const originalBalance = currentBalance + totalAbonado;
+
+  const rowsHtml = movements.map(m => `
+    <tr>
+      <td class="p-2 text-xs text-[#bbcabf] font-mono">${escapeHtml(formatDateClean(m.movementDate))}</td>
+      <td class="p-2 text-xs font-bold text-[#4edea3]">$${(m.amount || 0).toFixed(2)}</td>
+      <td class="p-2 text-xs text-white">${escapeHtml(m.sourceAccount || '—')}</td>
+    </tr>
+  `).join('');
+
+  content.innerHTML = `
+    <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Saldo Original</div>
+        <div class="text-sm font-bold text-white">$${originalBalance.toFixed(2)}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Total Abonado</div>
+        <div class="text-sm font-bold text-[#4edea3]">$${totalAbonado.toFixed(2)}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-[#080C14] border border-white/5">
+        <div class="text-[10px] text-[#94A3B8] uppercase">Saldo Actual</div>
+        <div class="text-sm font-bold text-white">$${currentBalance.toFixed(2)}</div>
+      </div>
+    </div>
+    <div class="text-sm font-bold text-white flex-shrink-0">${escapeHtml(debt.debtName || debt.debt_name)}</div>
+    ${movements.length === 0 ? `
+      <div class="p-4 text-center text-xs text-[#94A3B8]">Todavía no se han registrado abonos a esta deuda.</div>
+    ` : `
+      <div class="overflow-x-auto flex-shrink-0">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-[#162032] text-[#bbcabf] uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Fecha</th>
+              <th class="p-2">Monto</th>
+              <th class="p-2">Origen</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">${rowsHtml}</tbody>
+        </table>
+      </div>
+    `}
+  `;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+};
+
+window.closeDebtHistoryModal = function() {
+  const modal = document.getElementById('modal-debt-history');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 };
 
 document.getElementById('form-pay-debt')?.addEventListener('submit', async function(e) {
@@ -3747,6 +3818,7 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
       amount: amount,
       source_account: 'Utilidad Distribuible',
       target_account: debt.debtName,
+      debt_id: debt.id,
       reason: `Abono a '${debt.debtName}' desde ${source}`
     };
     await syncEntity('financial_movements', movementRecord);
@@ -3758,6 +3830,7 @@ document.getElementById('form-pay-debt')?.addEventListener('submit', async funct
       amount: movementRecord.amount,
       sourceAccount: movementRecord.source_account,
       targetAccount: movementRecord.target_account,
+      debtId: movementRecord.debt_id,
       reason: movementRecord.reason
     });
   } catch (err) {
